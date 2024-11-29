@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Index Page</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .button-container button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #test-link {
+            margin-top: auto;
+            text-align: center;
+            padding: 10px;
+        }
+        #test-link a {
+            text-decoration: none;
+            color: #000;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="button-container">
+        <button onclick="location.href='https://www.test.com/todo'">待办清单</button>
+        <button onclick="location.href='https://www.test.com/eventrecord'">事件记录</button>
+    </div>
+    <div id="test-link">
+        <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
+    </div>
+</body>
+</html>

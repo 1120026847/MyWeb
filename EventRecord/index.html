@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Timer with Dynamic Filename</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            justify-content: space-between;
+        }
+        .date-display {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .output-box {
+            flex-grow: 1;
+            width: 100%;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .edit-box {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .button-container button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        .menu {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            cursor: pointer;
+            font-size: 24px;
+            padding: 10px;
+        }
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 40px;
+            right: 0;
+            background-color: white;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            flex-direction: column;
+            width: 160px; /* Adjust the width for better display */
+        }
+        .menu:hover .menu-dropdown {
+            display: flex;
+        }
+        .menu-dropdown button {
+            background: none;
+            border: none;
+            padding: 12px 16px;
+            text-align: center;
+            width: 100%; /* Ensure the buttons take the full width */
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+        .menu-dropdown button span {
+            display: inline-block;
+        }
+        .menu-dropdown button:hover {
+            background-color: #f1f1f1;
+        }
+        .dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .dialog {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .dialog button {
+            margin: 10px;
+            padding: 10px 20px;
+        }
+    </style>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="menu">
+        ⋮
+        <div class="menu-dropdown">
+            <button onclick="outputText()"><span>输出</span></button>
+            <button onclick="showClearDialog()"><span>清空</span></button>
+        </div>
+    </div>
+    <div class="date-display" id="dateDisplay"></div>
+    <div class="output-box" id="outputBox"></div>
+    <div class="button-container">
+        <button onclick="startTiming()">开始计时</button>
+        <button onclick="endTiming()">结束计时</button>
+        <button onclick="editContent()">自由编辑</button>
+    </div>
+    <div class="edit-box" contenteditable="true" id="editBox"></div>
+    <div class="dialog-overlay" id="dialogOverlay">
+        <div class="dialog">
+            <p>确认清空内容吗？</p>
+            <button onclick="clearLog()">确定清空</button>
+            <button onclick="hideClearDialog()">取消清空</button>
+        </div>
+    </div>
+
+    <script>
+        let startTime;
+        let log = [];
+
+        // Load saved log from local storage when the page loads
+        window.onload = function() {
+            const savedLog = localStorage.getItem('log');
+            if (savedLog) {
+                log = JSON.parse(savedLog);
+                displayLog();
+            }
+            displayCurrentDate(); // Display the current date on page load
+        }
+
+        function displayCurrentDate() {
+            const dateDisplay = document.getElementById('dateDisplay');
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth() + 1; // Months are zero-based
+            const day = now.getDate();
+            dateDisplay.innerText = `${year}年${month}月${day}日`;
+        }
+
+        function startTiming() {
+            startTime = new Date();
+            document.getElementById("outputBox").innerText = "开始计时: " + startTime.toLocaleTimeString();
+        }
+
+        function endTiming() {
+            const editBoxContent = document.getElementById("editBox").innerText.trim();
+            if (!editBoxContent) {
+                alert("请输入内容");
+                return;
+            }
+
+            const endTime = new Date();
+            const elapsedTime = ((endTime - startTime) / 1000).toFixed(3); // 秒
+            log.push(
+                "开始时间: " + startTime.toLocaleTimeString() + "\n" + 
+                "内容: " + editBoxContent + "\n" + 
+                "结束时间: " + endTime.toLocaleTimeString() + "\n" + 
+                "时间间隔: " + elapsedTime + " 秒" + "\n" + 
+                "-------------------------------------------------------------------------------"
+            );
+            displayLog();
+            saveLog();
+        }
+
+        function editContent() {
+            const editBoxContent = document.getElementById("editBox").innerText.trim();
+            if (!editBoxContent) {
+                alert("请输入内容");
+                return;
+            }
+
+            log.push(editBoxContent + "\n" + "-------------------------------------------------------------------------------");
+            displayLog();
+            saveLog();
+        }
+
+        function displayLog() {
+            const outputBox = document.getElementById("outputBox");
+            outputBox.innerText = log.join("\n\n");
+        }
+
+        function saveLog() {
+            localStorage.setItem('log', JSON.stringify(log));
+        }
+
+        function outputText() {
+            const text = document.getElementById('outputBox').innerText;
+            const blob = new Blob([text], { type: 'text/plain' });
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const filename = `${year}年${month}月${day}日${hours}时${minutes}分.txt`;
+
+            const anchor = document.createElement('a');
+            anchor.download = filename;
+            anchor.href = window.URL.createObjectURL(blob);
+            anchor.target = '_blank';
+            anchor.style.display = 'none';
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+        }
+
+        function showClearDialog() {
+            document.getElementById('dialogOverlay').style.display = 'flex';
+        }
+
+        function hideClearDialog() {
+            document.getElementById('dialogOverlay').style.display = 'none';
+        }
+
+        function clearLog() {
+            log = [];
+            displayLog();
+            saveLog();
+            hideClearDialog();
+        }
+    </script>
+<!-- 内容 --> <div id="test-link"> <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
+</body>
+</html>
