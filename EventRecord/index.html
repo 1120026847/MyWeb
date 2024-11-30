@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Timer with Dynamic Filename</title>
+    <title>EventRecord</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -166,16 +166,17 @@
             }
 
             const endTime = new Date();
-            const elapsedTime = ((endTime - startTime) / 1000).toFixed(3); // 秒
+            const elapsedTime = formatElapsedTime(endTime - startTime);
             log.push(
                 "开始时间: " + startTime.toLocaleTimeString() + "\n" + 
                 "内容: " + editBoxContent + "\n" + 
                 "结束时间: " + endTime.toLocaleTimeString() + "\n" + 
-                "时间间隔: " + elapsedTime + " 秒" + "\n" + 
+                "时间间隔: " + elapsedTime + "\n" + 
                 "-------------------------------------------------------------------------------"
             );
             displayLog();
             saveLog();
+            document.getElementById("editBox").innerText = ""; // Clear the input box
         }
 
         function editContent() {
@@ -188,11 +189,26 @@
             log.push(editBoxContent + "\n" + "-------------------------------------------------------------------------------");
             displayLog();
             saveLog();
+            document.getElementById("editBox").innerText = ""; // Clear the input box
+        }
+
+        function formatElapsedTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            if (hours > 0) {
+                return `${hours}时 ${minutes % 60}分 ${seconds % 60}秒`;
+            } else if (minutes > 0) {
+                return `${minutes}分 ${seconds % 60}秒`;
+            } else {
+                return `${seconds}秒`;
+            }
         }
 
         function displayLog() {
             const outputBox = document.getElementById("outputBox");
-            outputBox.innerText = log.join("\n\n");
+            outputBox.innerText = log.join("\n");
         }
 
         function saveLog() {
