@@ -138,9 +138,13 @@
 
         window.onload = function() {
             const savedLog = localStorage.getItem('log');
+            const savedEvents = localStorage.getItem('events');
             if (savedLog) {
                 log = JSON.parse(savedLog);
                 displayLog();
+            }
+            if (savedEvents) {
+                events = JSON.parse(savedEvents);
             }
             displayCurrentDate();
         }
@@ -223,6 +227,7 @@
 
         function saveLog() {
             localStorage.setItem('log', JSON.stringify(log));
+            localStorage.setItem('events', JSON.stringify(events));
         }
         function outputText() {
             const text = document.getElementById('outputBox').innerText;
@@ -254,7 +259,7 @@ function showStatistics() {
     let statisticsText = `总的累积时长: ${formattedTotalDuration}\n`;
     statisticsText += "-------------------------\n"; // 添加换行符
     sortedEvents.forEach((event, index) => {
-        statisticsText += `${index + 1}. ${event.content} -> ${formatElapsedTime(event.duration)}\n\n`;
+                statisticsText += `${index + 1}. ${event.content} -> ${formatElapsedTime(event.duration)}\n\n`;
     });
 
     const blob = new Blob([statisticsText], { type: 'text/plain' });
@@ -263,7 +268,7 @@ function showStatistics() {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
     const seconds = String(now.getSeconds()).padStart(2, '0');
     const filename = `${year}年${month}月${day}日${hours}时${minutes}分${seconds}秒统计时间.txt`;
