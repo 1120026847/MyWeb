@@ -61,7 +61,7 @@
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
             z-index: 1;
             flex-direction: column;
-            width: 160px; /* Adjust the width for better display */
+            width: 160px;
         }
         .menu:hover .menu-dropdown {
             display: flex;
@@ -71,7 +71,7 @@
             border: none;
             padding: 12px 16px;
             text-align: center;
-            width: 100%; /* Ensure the buttons take the full width */
+            width: 100%;
             box-sizing: border-box;
             cursor: pointer;
         }
@@ -112,6 +112,7 @@
         <div class="menu-dropdown">
             <button onclick="outputText()"><span>输出</span></button>
             <button onclick="showClearDialog()"><span>清空</span></button>
+            <button onclick="showStatistics()"><span>统计</span></button>
         </div>
     </div>
     <div class="date-display" id="dateDisplay"></div>
@@ -133,22 +134,22 @@
     <script>
         let startTime;
         let log = [];
+        let events = [];
 
-        // Load saved log from local storage when the page loads
         window.onload = function() {
             const savedLog = localStorage.getItem('log');
             if (savedLog) {
                 log = JSON.parse(savedLog);
                 displayLog();
             }
-            displayCurrentDate(); // Display the current date on page load
+            displayCurrentDate();
         }
 
         function displayCurrentDate() {
             const dateDisplay = document.getElementById('dateDisplay');
             const now = new Date();
             const year = now.getFullYear();
-            const month = now.getMonth() + 1; // Months are zero-based
+            const month = now.getMonth() + 1;
             const day = now.getDate();
             dateDisplay.innerText = `${year}年${month}月${day}日`;
         }
@@ -167,16 +168,23 @@
 
             const endTime = new Date();
             const elapsedTime = formatElapsedTime(endTime - startTime);
+            const event = {
+                content: editBoxContent,
+                duration: endTime - startTime,
+                startTime: startTime.toLocaleTimeString(),
+                endTime: endTime.toLocaleTimeString()
+            };
+            events.push(event);
             log.push(
-                "开始时间: " + startTime.toLocaleTimeString() + "\n" + 
-                "内容: " + editBoxContent + "\n" + 
-                "结束时间: " + endTime.toLocaleTimeString() + "\n" + 
+                "开始时间: " + event.startTime + "\n" + 
+                "内容: " + event.content + "\n" + 
+                "结束时间: " + event.endTime + "\n" + 
                 "时间间隔: " + elapsedTime + "\n" + 
                 "-------------------------------------------------------------------------------"
             );
             displayLog();
             saveLog();
-            document.getElementById("editBox").innerText = ""; // Clear the input box
+            document.getElementById("editBox").innerText = "";
         }
 
         function editContent() {
@@ -189,22 +197,24 @@
             log.push(editBoxContent + "\n" + "-------------------------------------------------------------------------------");
             displayLog();
             saveLog();
-            document.getElementById("editBox").innerText = ""; // Clear the input box
+            document.getElementById("editBox").innerText = "";
         }
 
-        function formatElapsedTime(ms) {
-            const seconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(seconds / 60);
-            const hours = Math.floor(minutes / 60);
+ function formatElapsedTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const seconds = totalSeconds % 60;
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const minutes = totalMinutes % 60;
+    const hours = Math.floor(totalMinutes / 60);
 
-            if (hours > 0) {
-                return `${hours}时 ${minutes % 60}分 ${seconds % 60}秒`;
-            } else if (minutes > 0) {
-                return `${minutes}分 ${seconds % 60}秒`;
-            } else {
-                return `${seconds}秒`;
-            }
-        }
+    if (hours > 0) {
+        return `${hours}时 ${minutes}分 ${seconds}秒`;
+    } else if (minutes > 0) {
+        return `${minutes}分 ${seconds}秒`;
+    } else {
+        return `${seconds}秒`;
+    }
+}
 
         function displayLog() {
             const outputBox = document.getElementById("outputBox");
@@ -214,14 +224,13 @@
         function saveLog() {
             localStorage.setItem('log', JSON.stringify(log));
         }
-
         function outputText() {
             const text = document.getElementById('outputBox').innerText;
             const blob = new Blob([text], { type: 'text/plain' });
 
             const now = new Date();
             const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+            const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -237,6 +246,39 @@
             document.body.removeChild(anchor);
         }
 
+
+function showStatistics() {
+    const totalDuration = events.reduce((acc, event) => acc + event.duration, 0);
+    const formattedTotalDuration = formatElapsedTime(totalDuration);
+    const sortedEvents = [...events].sort((a, b) => b.duration - a.duration);
+    let statisticsText = `总的累积时长: ${formattedTotalDuration}\n`;
+    statisticsText += "-------------------------\n"; // 添加换行符
+    sortedEvents.forEach((event, index) => {
+        statisticsText += `${index + 1}. ${event.content} -> ${formatElapsedTime(event.duration)}\n\n`;
+    });
+
+    const blob = new Blob([statisticsText], { type: 'text/plain' });
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const filename = `${year}年${month}月${day}日${hours}时${minutes}分${seconds}秒统计时间.txt`;
+
+    const anchor = document.createElement('a');
+    anchor.download = filename;
+    anchor.href = window.URL.createObjectURL(blob);
+    anchor.target = '_blank';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+}
+
+
         function showClearDialog() {
             document.getElementById('dialogOverlay').style.display = 'flex';
         }
@@ -247,11 +289,15 @@
 
         function clearLog() {
             log = [];
+            events = [];
             displayLog();
             saveLog();
             hideClearDialog();
         }
     </script>
-<!-- 内容 --> <div id="test-link"> <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
+<!-- 内容 --> 
+<div id="test-link"> 
+    <a href="https://beian.miit.gov.cn/" target="_blank">xxxxx</a>
+</div>
 </body>
 </html>
