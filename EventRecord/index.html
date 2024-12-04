@@ -18,7 +18,7 @@
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 20px;
-           margin-top: 10px; /* 增加顶端日期的上边距 */
+            margin-top: 10px; /* 增加顶端日期的上边距 */
         }
         .output-box {
             flex-grow: 1;
@@ -40,7 +40,7 @@
         .button-container {
             display: flex;
             justify-content: space-between;
-         margin-bottom: 10px; /* 增加底端三个按钮的底部边距 */
+            margin-bottom: 10px; /* 增加底端三个按钮的底部边距 */
         }
         .button-container button {
             padding: 10px 20px;
@@ -125,6 +125,16 @@
         /* 底部链接的样式 */
         #test-link {
             text-align: center;
+        }
+
+        /* 修改后的 .event-line 样式：减少事件属性之间的上下间隔 */
+        .event-line { 
+            margin: 0;  /* 缩小上下间隔为0 */
+        }
+
+        /* 修改后的 <hr> 标签样式：减少横线上下的间隔 */
+        hr {
+            margin: 2px 0;  /* 设置更小的上下边距 */
         }
     </style>
 </head>
@@ -231,10 +241,12 @@
             outputBox.innerHTML = '';
             events.forEach(event => {
                 outputBox.innerHTML += `
-                    <p>开始时间：${event.startTime}</p>
-                    <p>内容：${event.content}</p>
-                    <p>结束时间：${event.endTime}</p>
-                    <p>间隔时间：${formatElapsedTime(event.duration)}</p>
+                    <div class="event">
+                        <p class="event-line">开始时间：${event.startTime}</p>
+                        <p class="event-line">内容：${event.content}</p>
+                        <p class="event-line">结束时间：${event.endTime}</p>
+                        <p class="event-line">间隔时间：${formatElapsedTime(event.duration)}</p>
+                    </div>
                     <hr>
                 `;
             });
@@ -378,12 +390,16 @@
 
             const totalDuration = Object.values(mergedEvents).reduce((acc, duration) => acc + duration, 0);
             const formattedTotalDuration = formatElapsedTime(totalDuration);
+
+            // 初始化统计文本
             let statisticsText = `总的累积时长: ${formattedTotalDuration}\n-------------------------\n`;
+
+            // 排序并格式化每个事件
             const sortedEvents = Object.entries(mergedEvents).sort((a, b) => b[1] - a[1]);
             sortedEvents.forEach(([content, duration], index) => {
-                statisticsText += `${index + 1}. ${content} -> ${formatElapsedTime(duration)}\n\n`;
+                statisticsText += `${index + 1}. ${content} -> ${formatElapsedTime(duration)}\n`; // 每个事件属性后换行
             });
-            
+
             const blob = new Blob([statisticsText], { type: 'text/plain' });
 
             const now = new Date();
@@ -406,7 +422,7 @@
         }
     </script>
     <p id="test-link">
-        <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
+        <a href="https://beian.miit.gov.cn/" target="_blank">xxxxxxx</a>
     </p>
 </body>
 </html>
