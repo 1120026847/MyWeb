@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能单词记忆系统</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #2196F3;
+            --error-color: #f44336;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #knowBtn, #dontKnowBtn, #restartBtn {
+            padding: 24px 48px;
+            font-size: 20px;
+            margin: 20px 5px;
+        }
+
+        .card-container {
+            perspective: 1000px;
+            margin: 30px 0;
+            flex-shrink: 0;
+        }
+
+        .word-card {
+            width: 300px;
+            height: 200px;
+            margin: 0 auto;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+        }
+
+        .word-card.reset-transition {
+            transition: none !important;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            font-size: 2.5em;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .front { background: var(--primary-color); color: white; }
+        .back { background: var(--secondary-color); color: white; transform: rotateY(180deg); }
+        .flipped { transform: rotateY(180deg); }
+
+        #progressBar {
+            width: 80%;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            margin: 20px auto;
+        }
+
+        #progress {
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            min-width: 380px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+
+        #newDataInput {
+            width: 350px;
+            height: 150px;
+            margin: 20px 0;
+            padding: 15px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        #deleteModal input {
+            width: 100%;
+            padding: 10px;
+            margin: 12px 0;
+        }
+
+        .warning-text {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+
+        #emptyMsg {
+            text-align: center;
+            margin: 30px 0;
+            flex-shrink: 0;
+        }
+
+        #restartPanel {
+            text-align: center;
+            margin: 30px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="control-group">
+            <button class="btn" onclick="window.location.href='https://www.baidu.com'">首页</button>
+            <button class="btn" id="deleteWordBtn">删除单词</button>
+            <button class="btn" id="helpBtn">说明</button>
+        </div>
+
+        <div class="control-group">
+            <input type="file" id="fileInput" hidden>
+            <button class="btn" onclick="document.getElementById('fileInput').click()">导入数据</button>
+            <button class="btn" id="addDataBtn">添加数据</button>
+            <button class="btn" id="exportBtn">导出数据</button>
+        </div>
+
+        <div id="progressBar">
+            <div id="progress"></div>
+        </div>
+
+        <div id="emptyMsg" style="display:none;">
+            <h2>数据为空，请添加数据</h2>
+        </div>
+
+        <div class="card-container">
+            <div class="word-card" id="card">
+                <div class="card-face front" id="wordDisplay"></div>
+                <div class="card-face back" id="meaningDisplay"></div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <button class="btn" id="knowBtn" style="background: var(--primary-color);">认识</button>
+            <button class="btn" id="dontKnowBtn" style="background: var(--error-color);">不认识</button>
+        </div>
+
+        <div id="restartPanel" style="display:none;">
+            <button class="btn" id="restartBtn" style="background: var(--secondary-color);">重新开始</button>
+        </div>
+    </div>
+
+    <!-- 添加数据弹窗 -->
+    <div id="addDataModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 10px;">添加新单词</h3>
+            <textarea 
+                id="newDataInput" 
+                placeholder="每行格式：单词 释义（用空格分隔）&#10;示例：&#10;apple 苹果&#10;banana 香蕉"
+            ></textarea>
+            <div class="modal-actions">
+                <button class="btn" id="confirmAdd" style="padding: 12px 35px;">确定</button>
+                <button class="btn" id="cancelAdd" style="padding: 12px 35px;">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 删除单词弹窗 -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h4 style="margin-bottom: 8px;">删除记忆次数较多的单词</h4>
+            <p style="margin: 10px 0;">请输入要删除的记忆次数阈值（不低于5）</p>
+            <input type="number" id="deleteThreshold" placeholder="请输入数字" min="5">
+            <div class="modal-actions">
+                <button class="btn" id="confirmDelete">确定</button>
+                <button class="btn" id="cancelDelete">取消</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// [保持原有JavaScript代码不变，仅修改样式相关部分]
+// 数据存储结构
+let wordData = {
+    original: {},
+    backup: []
+};
+let currentWord = null;
+
+// 初始化系统
+function initSystem() {
+    const savedData = localStorage.getItem('wordData');
+    if (savedData) {
+        try {
+            const parsed = JSON.parse(savedData);
+            wordData.original = parsed.original || {};
+            resetLearning();
+        } catch(e) {
+            console.error("数据加载失败:", e);
+        }
+    }
+    checkEmptyData();
+}
+
+// 数据导入功能
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function() {
+        try {
+            const imported = JSON.parse(reader.result);
+            wordData.original = imported;
+            localStorage.setItem('wordData', JSON.stringify(wordData));
+            resetLearning();
+        } catch(error) {
+            alert('文件解析失败');
+        }
+    };
+    reader.readAsText(file);
+});
+
+// 数据添加功能
+document.getElementById('addDataBtn').addEventListener('click', () => {
+    document.getElementById('addDataModal').style.display = 'block';
+});
+
+document.getElementById('confirmAdd').addEventListener('click', () => {
+    const input = document.getElementById('newDataInput').value;
+    processNewData(input);
+    document.getElementById('addDataModal').style.display = 'none';
+    resetLearning();
+});
+
+document.getElementById('cancelAdd').addEventListener('click', () => {
+    document.getElementById('addDataModal').style.display = 'none';
+});
+
+function processNewData(text) {
+    const lines = text.split('\n').filter(line => line.trim());
+    const newData = lines.reduce((acc, line) => {
+        const [word, meaning] = line.split(/\s+/);
+        if(word && meaning) {
+            acc[word] = { 
+                meaning: meaning,
+                memoryLevel: wordData.original[word]?.memoryLevel || 0
+            };
+        }
+        return acc;
+    }, {});
+
+    wordData.original = { ...wordData.original, ...newData };
+    localStorage.setItem('wordData', JSON.stringify(wordData));
+}
+
+// 删除单词功能
+document.getElementById('deleteWordBtn').addEventListener('click', () => {
+    document.getElementById('deleteModal').style.display = 'block';
+});
+
+document.getElementById('confirmDelete').addEventListener('click', () => {
+    const threshold = parseInt(document.getElementById('deleteThreshold').value);
+    if (threshold >= 5) {
+        Object.keys(wordData.original).forEach(word => {
+            if (wordData.original[word].memoryLevel >= threshold) {
+                delete wordData.original[word];
+            }
+        });
+        localStorage.setItem('wordData', JSON.stringify(wordData));
+        resetLearning();
+        alert(`已删除记忆次数≥${threshold}的单词`);
+        document.getElementById('deleteModal').style.display = 'none';
+    } else {
+        alert('请输入不小于5的数字');
+    }
+});
+
+document.getElementById('cancelDelete').addEventListener('click', () => {
+    document.getElementById('deleteModal').style.display = 'none';
+});
+
+// 说明功能
+document.getElementById('helpBtn').addEventListener('click', () => {
+    const helpContent = `点击卡片会查看中文意思\n支持导入json格式的数据进行覆盖\n点击添加数据可以添加生词\n支持导出当前单词信息\n<span class="warning-text">数据保存在网页的缓存中，如果清理缓存，数据将丢失，请注意！</span>`;
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <h3>系统说明</h3>
+            <div style="white-space: pre-line; margin: 15px 0;">${helpContent}</div>
+            <div class="modal-actions">
+                <button class="btn" onclick="this.parentElement.parentElement.parentElement.remove()" 
+                        style="background: var(--primary-color); padding: 10px 30px;">
+                    关闭
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.style.display = 'block';
+});
+
+// 学习流程控制
+function resetLearning() {
+    wordData.backup = shuffle(Object.entries(wordData.original));
+    document.getElementById('progress').style.width = '0%';
+    document.getElementById('restartPanel').style.display = 'none';
+    checkEmptyData();
+    showNextWord();
+}
+
+function showNextWord() {
+    if(wordData.backup.length === 0) {
+        document.getElementById('restartPanel').style.display = 'block';
+        return;
+    }
+    
+    const card = document.getElementById('card');
+    card.classList.add('reset-transition');
+    card.classList.remove('flipped');
+    void card.offsetHeight;
+    card.classList.remove('reset-transition');
+
+    currentWord = wordData.backup.pop();
+    document.getElementById('wordDisplay').textContent = currentWord[0];
+    document.getElementById('meaningDisplay').textContent = currentWord[1].meaning;
+    updateProgress();
+}
+
+// 进度控制
+function updateProgress() {
+    const total = Object.keys(wordData.original).length;
+    const remaining = wordData.backup.length;
+    const progress = ((total - remaining) / total * 100).toFixed(1);
+    document.getElementById('progress').style.width = `${progress}%`;
+}
+
+// 卡片点击事件
+document.getElementById('card').addEventListener('click', () => {
+    const card = document.getElementById('card');
+    if (!card.classList.contains('flipped')) {
+        card.classList.add('flipped');
+    }
+});
+
+document.getElementById('knowBtn').addEventListener('click', () => {
+    currentWord[1].memoryLevel++;
+    saveProgress();
+    showNextWord();
+});
+
+document.getElementById('dontKnowBtn').addEventListener('click', () => {
+    currentWord[1].memoryLevel--;
+    wordData.backup.unshift(currentWord);
+    saveProgress();
+    showNextWord();
+});
+
+document.getElementById('restartBtn').addEventListener('click', resetLearning);
+
+// 数据导出
+document.getElementById('exportBtn').addEventListener('click', () => {
+    const dataStr = JSON.stringify(wordData.original, null, 2);
+    const blob = new Blob([dataStr], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `word-data_${new Date().toISOString()}.json`;
+    a.click();
+});
+
+// 工具函数
+function saveProgress() {
+    localStorage.setItem('wordData', JSON.stringify(wordData));
+}
+
+function shuffle(arr) {
+    for(let i = arr.length-1; i>0; i--) {
+        const j = Math.floor(Math.random()*(i+1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function checkEmptyData() {
+    document.getElementById('emptyMsg').style.display = 
+        Object.keys(wordData.original).length ? 'none' : 'block';
+}
+
+// 启动系统
+window.addEventListener('DOMContentLoaded', initSystem);
+</script>
+</body>
+</html>
