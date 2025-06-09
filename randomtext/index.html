@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON随机内容展示器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #3498db;
+            margin-bottom: 25px;
+        }
+        .content-box {
+            background: #f8f9fa;
+            border-left: 5px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            text-align: left;
+        }
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+        .refresh-btn:hover {
+            background: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        .loading {
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>随机内容展示器</h1>
+        <div id="contentDisplay" class="content-box">
+            <p class="loading">正在加载内容...</p>
+        </div>
+        <button id="refreshBtn" class="refresh-btn">随机刷新内容</button>
+    </div>
+
+    <script>
+        // JSON数据源URL
+        const JSON_URL = 'https://jsonhero.io/api/projects/8Qhi0Rs4voXi';
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            const contentDisplay = document.getElementById('contentDisplay');
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            // 获取并显示随机内容
+            async function fetchRandomContent() {
+                try {
+                    contentDisplay.innerHTML = '<p class="loading">正在加载内容...</p>';
+                    
+                    // 获取JSON数据
+                    const response = await fetch(JSON_URL);
+                    if (!response.ok) throw new Error('网络响应异常');
+                    
+                    const data = await response.json();
+                    
+                    // 从数组中随机选择一项（参考[6](@ref)）
+                    const randomIndex = Math.floor(Math.random() * data.length);
+                    const randomItem = data[randomIndex];
+                    
+                    // 显示内容
+                    contentDisplay.innerHTML = `
+                        <p><strong>编号：</strong> ${randomItem.编号}</p>
+                        <p><strong>内容：</strong> ${randomItem.内容}</p>
+                    `;
+                } catch (error) {
+                    console.error('获取数据失败:', error);
+                    contentDisplay.innerHTML = `<p class="error">错误：无法加载内容。请刷新页面重试。</p>`;
+                }
+            }
+            
+            // 初始加载
+            fetchRandomContent();
+            
+            // 按钮点击刷新
+            refreshBtn.addEventListener('click', fetchRandomContent);
+        });
+    </script>
+</body>
+</html>
