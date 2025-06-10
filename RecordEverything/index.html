@@ -13,11 +13,33 @@
             background-color: #c7edcc; /* 护眼色背景 */
             color: #333;
             min-height: 100vh;
+            position: relative; /* 为顶部按钮定位提供参考 */
         }
         h1 {
             text-align: center;
             color: #2c7744;
             margin-bottom: 25px;
+        }
+        /* 新增首页按钮样式 */
+        .home-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+        #homeBtn {
+            padding: 8px 16px;
+            background-color: #2c7744;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }
+        #homeBtn:hover {
+            background-color: #3a9363;
         }
         .random-word {
             display: flex;
@@ -131,6 +153,11 @@
     </style>
 </head>
 <body>
+    <!-- 新增首页按钮 -->
+    <div class="home-button">
+        <button id="homeBtn">首页</button>
+    </div>
+    
     <h1>随心记</h1>
     
     <div class="random-word">
@@ -157,6 +184,7 @@
         <p>4. <span class="feature-label">复制</span> 复制编辑框内容到剪贴板</p>
         <p>5. <span class="feature-label">清空</span> 清除编辑框内容（需确认）</p>
         <p>6. <span class="feature-label">注意事项</span> 从JSON数据源获取全部内容</p>
+        <p>7. <span class="feature-label">首页按钮</span> 点击可返回百度首页</p>
     </div>
 
     <script>
@@ -171,6 +199,7 @@
         const copyBtn = document.getElementById('copyBtn');
         const clearBtn = document.getElementById('clearBtn');
         const notesBtn = document.getElementById('notesBtn');
+        const homeBtn = document.getElementById('homeBtn'); // 新增首页按钮
         const statusIndicator = document.getElementById('status');
         
         // 更新状态信息
@@ -348,6 +377,11 @@
             copyBtn.addEventListener('click', copyToClipboard);
             clearBtn.addEventListener('click', clearEditBox);
             notesBtn.addEventListener('click', fetchJsonAndDisplay);
+            
+            // 新增首页按钮事件监听
+            homeBtn.addEventListener('click', function() {
+                window.location.href = 'https://www.baidu.com';
+            });
         });
     </script>
 </body>
