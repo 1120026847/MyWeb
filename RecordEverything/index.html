@@ -215,7 +215,6 @@
                 
                 if (data.code === 0 && data.data && Array.isArray(data.data)) {
                     jsonData = data.data;
-                    displayRandomWord();
                     updateStatus('数据加载完成');
                 } else {
                     throw new Error('JSON格式无效');
@@ -227,15 +226,7 @@
             }
         }
         
-        // 显示随机单词
-        function displayRandomWord() {
-            if (!jsonData || jsonData.length === 0) return;
-            
-            const randomIndex = Math.floor(Math.random() * jsonData.length);
-            const randomWord = jsonData[randomIndex].word;
-            wordDisplay.textContent = randomWord;
-            updateStatus(`已显示随机词: ${randomWord}`);
-        }
+   
         
         // 初始化本地存储
         function initLocalStorage() {
@@ -364,7 +355,6 @@
             
             // 事件监听
             regenBtn.addEventListener('click', () => {
-                displayRandomWord();
             });
             saveBtn.addEventListener('click', saveToFile);
             copyBtn.addEventListener('click', copyToClipboard);
