@@ -142,22 +142,22 @@
         /* 倒计时器样式 - 缩小尺寸 */
         .timer-container {
             width: 100%;
-            max-width: 400px;
-            margin: 10px auto 0;
+            max-width: 400px; /* 容器宽度缩小 */
+            margin: 10px auto 0; /* 减少上边距 */
         }
         
         .control-container {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 15px;
+            margin-bottom: 15px; /* 减少底部间距 */
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 10px; /* 缩小元素间距 */
         }
         
         .time-section {
             display: flex;
-            gap: 10px;
+            gap: 10px; /* 缩小元素间距 */
             flex: 1;
         }
         
@@ -165,24 +165,24 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 60px;
+            min-width: 60px; /* 缩小最小宽度 */
         }
         
         .time-input label {
             color: #666;
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 12px; /* 缩小标签字体 */
+            margin-bottom: 5px; /* 减少底部间距 */
             width: 100%;
             text-align: center;
         }
         
         .time-input input {
             width: 100%;
-            height: 40px;
+            height: 40px; /* 输入框高度缩小 */
             text-align: center;
-            font-size: 20px;
+            font-size: 20px; /* 输入框字体缩小 */
             border: 2px solid #e1e1e1;
-            border-radius: 6px;
+            border-radius: 6px; /* 圆角缩小 */
             outline: none;
             transition: all 0.3s;
             padding: 0;
@@ -193,14 +193,14 @@
         
         .time-input input:focus {
             border-color: #6d59ea;
-            box-shadow: 0 0 5px rgba(109, 89, 234, 0.2);
+            box-shadow: 0 0 5px rgba(109, 89, 234, 0.2); /* 阴影效果缩小 */
         }
         
         .btn-section {
             display: flex;
-            gap: 10px;
+            gap: 10px; /* 缩小按钮间距 */
             align-items: center;
-            margin-top: 23px;
+            margin-top: 15px; /* 减少上边距 */
         }
         
         .timer-btn {
@@ -208,26 +208,26 @@
             background-color: #f8f8f8;
             color: #333;
             border: 2px solid #e1e1e1;
-            padding: 0 10px;
-            font-size: 14px;
-            height: 40px;
-            border-radius: 6px;
+            padding: 0 10px; /* 减少内边距 */
+            font-size: 14px; /* 按钮字体缩小 */
+            height: 40px; /* 按钮高度缩小 */
+            border-radius: 6px; /* 圆角缩小 */
             cursor: pointer;
             transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 阴影效果缩小 */
             font-weight: bold;
-            min-width: 70px;
+            min-width: 70px; /* 最小宽度缩小 */
         }
         
         .timer-btn:hover {
             background-color: #f0f0f0;
             transform: translateY(-2px);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15); /* 缩小悬停阴影 */
         }
         
         .timer-btn:active {
             transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 缩小激活状态阴影 */
         }
         
         .timer-btn:disabled {
@@ -254,27 +254,27 @@
         .timer-display {
             background-color: #9e69f3;
             width: 100%;
-            height: 120px;
-            border-radius: 10px;
+            height: 120px; /* 时间显示高度缩小 */
+            border-radius: 10px; /* 圆角缩小 */
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            font-size: 56px;
+            font-size: 56px; /* 时间显示字体缩小 */
             font-weight: bold;
-            letter-spacing: 3px;
-            margin-bottom: 10px;
+            letter-spacing: 3px; /* 缩小字母间距 */
+            margin-bottom: 10px; /* 减少底部间距 */
             transition: background-color 0.5s;
         }
         
         .timer-message {
             text-align: center;
-            min-height: 20px;
-            font-size: 16px;
+            min-height: 20px; /* 减少最小高度 */
+            font-size: 16px; /* 消息字体缩小 */
             color: #e94242;
             opacity: 0;
             transition: opacity 0.3s;
-            margin-bottom: 10px;
+            margin-bottom: 10px; /* 减少底部间距 */
         }
         
         .timer-message.show {
@@ -282,13 +282,13 @@
         }
         
         .colon {
-            margin: 0 3px;
+            margin: 0 3px; /* 缩小冒号间距 */
         }
         
         @media (max-width: 520px) {
             .control-container {
                 flex-direction: column;
-                gap: 10px;
+                gap: 10px; /* 缩小间隙 */
             }
             
             .time-section {
@@ -302,19 +302,19 @@
             }
             
             .time-input input {
-                height: 35px;
-                font-size: 18px;
+                height: 35px; /* 输入框高度缩小 */
+                font-size: 18px; /* 输入框字体缩小 */
             }
             
             .timer-btn {
-                height: 35px;
-                font-size: 13px;
-                min-width: 60px;
+                height: 35px; /* 按钮高度缩小 */
+                font-size: 13px; /* 按钮字体缩小 */
+                min-width: 60px; /* 最小宽度缩小 */
             }
             
             .timer-display {
-                height: 100px;
-                font-size: 48px;
+                height: 100px; /* 时间显示高度缩小 */
+                font-size: 48px; /* 时间显示字体缩小 */
             }
         }
     </style>
@@ -410,7 +410,7 @@
                     throw new Error('JSON格式无效');
                 }
             } catch (error) {
-                wordDisplay.textContent = `加载失败，请刷新网页或者重新生成后重试`;
+                wordDisplay.textContent = `错误: ${error.message}`;
                 console.error('获取JSON数据失败:', error);
             }
         }
@@ -617,7 +617,7 @@
                 // 验证输入
                 let valid = true;
                 if (!validateInput(hoursInput.value, 0, 99)) {
-                    hoursInput.style.b borderColor = "#ff5555";
+                    hoursInput.style.borderColor = "#ff5555";
                     setTimeout(() => hoursInput.style.borderColor = "#e1e1e1", 1500);
                     valid = false;
                 }
