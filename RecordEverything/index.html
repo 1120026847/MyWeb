@@ -410,7 +410,7 @@
                     throw new Error('JSON格式无效');
                 }
             } catch (error) {
-                wordDisplay.textContent = `错误: ${error.message}`;
+                wordDisplay.textContent = `加载失败，请刷新网页或者重新生成后重试`;
                 console.error('获取JSON数据失败:', error);
             }
         }
