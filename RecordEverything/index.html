@@ -59,7 +59,7 @@
             color: white;
             border: none;
             border-radius: 5px;
-            cursor: button;
+            cursor: pointer;
             font-size: 16px;
             transition: background-color 0.3s;
         }
@@ -123,264 +123,30 @@
         #notesBtn:hover {
             background-color: #e67e22;
         }
-        .feature-label {
-            display: inline-block;
-            padding: 2px 8px;
-            background-color: #e6f7eb;
-            border: 1px solid #88b090;
-            border-radius: 4px;
-            margin: 0 2px;
-            font-size: 12px;
-        }
-        .refresh-hint {
-            display: block;
-            margin-top: 5px;
-            font-size: 12px;
-            font-style: italic;
-        }
-        
-        /* 倒计时器样式 - 缩小尺寸 */
-        .timer-container {
-            width: 100%;
-            max-width: 400px; /* 容器宽度缩小 */
-            margin: 10px auto 0; /* 减少上边距 */
-        }
-        
-        .control-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px; /* 减少底部间距 */
-            flex-wrap: wrap;
-            gap: 10px; /* 缩小元素间距 */
-        }
-        
-        .time-section {
-            display: flex;
-            gap: 10px; /* 缩小元素间距 */
-            flex: 1;
-        }
-        
-        .time-input {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 60px; /* 缩小最小宽度 */
-        }
-        
-        .time-input label {
-            color: #666;
-            font-size: 12px; /* 缩小标签字体 */
-            margin-bottom: 5px; /* 减少底部间距 */
-            width: 100%;
-            text-align: center;
-        }
-        
-        .time-input input {
-            width: 100%;
-            height: 40px; /* 输入框高度缩小 */
-            text-align: center;
-            font-size: 20px; /* 输入框字体缩小 */
-            border: 2px solid #e1e1e1;
-            border-radius: 6px; /* 圆角缩小 */
-            outline: none;
-            transition: all 0.3s;
-            padding: 0;
-            font-weight: bold;
-            color: #333;
-            background-color: #fff;
-        }
-        
-        .time-input input:focus {
-            border-color: #6d59ea;
-            box-shadow: 0 0 5px rgba(109, 89, 234, 0.2); /* 阴影效果缩小 */
-        }
-        
-        .btn-section {
-            display: flex;
-            gap: 10px; /* 缩小按钮间距 */
-            align-items: center;
-            margin-top: 15px; /* 减少上边距 */
-        }
-        
-        .timer-btn {
-            flex: 1;
-            background-color: #f8f8f8;
-            color: #333;
-            border: 2px solid #e1e1e1;
-            padding: 0 10px; /* 减少内边距 */
-            font-size: 14px; /* 按钮字体缩小 */
-            height: 40px; /* 按钮高度缩小 */
-            border-radius: 6px; /* 圆角缩小 */
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 阴影效果缩小 */
-            font-weight: bold;
-            min-width: 70px; /* 最小宽度缩小 */
-        }
-        
-        .timer-btn:hover {
-            background-color: #f0f0f0;
-            transform: translateY(-2px);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15); /* 缩小悬停阴影 */
-        }
-        
-        .timer-btn:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 缩小激活状态阴影 */
-        }
-        
-        .timer-btn:disabled {
-            background-color: #f8f8f8;
-            color: #999;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        #startBtn {
-            background-color: #e1e1e1;
-        }
-        
-        #pauseBtn {
-            background-color: #a0d8ff;
-            display: none;
-        }
-        
-        #endBtn {
-            background-color: #ffb6c1;
-        }
-        
-        .timer-display {
-            background-color: #9e69f3;
-            width: 100%;
-            height: 120px; /* 时间显示高度缩小 */
-            border-radius: 10px; /* 圆角缩小 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 56px; /* 时间显示字体缩小 */
-            font-weight: bold;
-            letter-spacing: 3px; /* 缩小字母间距 */
-            margin-bottom: 10px; /* 减少底部间距 */
-            transition: background-color 0.5s;
-        }
-        
-        .timer-message {
-            text-align: center;
-            min-height: 20px; /* 减少最小高度 */
-            font-size: 16px; /* 消息字体缩小 */
-            color: #e94242;
-            opacity: 0;
-            transition: opacity 0.3s;
-            margin-bottom: 10px; /* 减少底部间距 */
-        }
-        
-        .timer-message.show {
-            opacity: 1;
-        }
-        
-        .colon {
-            margin: 0 3px; /* 缩小冒号间距 */
-        }
-        
-        @media (max-width: 520px) {
-            .control-container {
-                flex-direction: column;
-                gap: 10px; /* 缩小间隙 */
-            }
-            
-            .time-section {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .btn-section {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .time-input input {
-                height: 35px; /* 输入框高度缩小 */
-                font-size: 18px; /* 输入框字体缩小 */
-            }
-            
-            .timer-btn {
-                height: 35px; /* 按钮高度缩小 */
-                font-size: 13px; /* 按钮字体缩小 */
-                min-width: 60px; /* 最小宽度缩小 */
-            }
-            
-            .timer-display {
-                height: 100px; /* 时间显示高度缩小 */
-                font-size: 48px; /* 时间显示字体缩小 */
-            }
-        }
     </style>
 </head>
 <body>
     <div class="title-button">
         <button id="homeTitleBtn">首页</button>
     </div>
-    
+
     <div class="random-word">
         <div id="wordDisplay">加载中...</div>
         <button id="regenBtn">重新生成</button>
     </div>
-    
+
     <textarea id="editBox" placeholder="在此输入您的笔记内容..."></textarea>
-    
+
     <div class="buttons">
         <button id="saveBtn">保存</button>
         <button id="copyBtn">复制</button>
         <button id="clearBtn">清空</button>
         <button id="notesBtn">注意事项</button>
     </div>
-    
-    <!-- 倒计时器部分 - 缩小尺寸 -->
-    <div class="timer-container">
-        <div class="control-container">
-            <div class="time-section">
-                <div class="time-input">
-                    <label for="hours">小时</label>
-                    <input type="text" id="hours" maxlength="2" value="00" placeholder="00">
-                </div>
-                
-                <div class="time-input">
-                    <label for="minutes">分钟</label>
-                    <input type="text" id="minutes" maxlength="2" value="00" placeholder="00">
-                </div>
-                
-                <div class="time-input">
-                    <label for="seconds">秒</label>
-                    <input type="text" id="seconds" maxlength="2" value="00" placeholder="00">
-                </div>
-            </div>
-            
-            <div class="btn-section">
-                <button id="startBtn" class="timer-btn">开始</button>
-                <button id="pauseBtn" class="timer-btn">暂停</button>
-                <button id="endBtn" class="timer-btn">结束</button>
-            </div>
-        </div>
-        
-        <div class="timer-display">
-            <span>00</span>
-            <span class="colon">:</span>
-            <span>00</span>
-            <span class="colon">:</span>
-            <span>00</span>
-        </div>
-        
-        <div class="timer-message" id="message">倒计时结束！</div>
-    </div>
 
     <script>
-        // 全局变量存储JSON数据
         let jsonData = null;
-        
-        // DOM元素
+
         const wordDisplay = document.getElementById('wordDisplay');
         const editBox = document.getElementById('editBox');
         const regenBtn = document.getElementById('regenBtn');
@@ -389,21 +155,13 @@
         const clearBtn = document.getElementById('clearBtn');
         const notesBtn = document.getElementById('notesBtn');
         const homeTitleBtn = document.getElementById('homeTitleBtn');
-        
-        // 从GitHub获取JSON数据
+
         async function fetchJsonData() {
             try {
-                const response = await fetch('https://raw.githubusercontent.com/1120026847/DataSet/refs/heads/main/20250610data.json', {
-                    cache: 'no-cache'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`网络响应错误: ${response.status}`);
-                }
-                
+                const response = await fetch('https://raw.githubusercontent.com/1120026847/DataSet/refs/heads/main/20250610data.json', { cache: 'no-cache' });
+                if (!response.ok) throw new Error(`网络响应错误: ${response.status}`);
                 const data = await response.json();
-                
-                if (data.code === 0 && data.data && Array.isArray(data.data)) {
+                if (data.code === 0 && Array.isArray(data.data)) {
                     jsonData = data.data;
                     displayRandomWord();
                 } else {
@@ -414,47 +172,26 @@
                 console.error('获取JSON数据失败:', error);
             }
         }
-        
-        // 显示随机单词
+
         function displayRandomWord() {
             if (!jsonData || jsonData.length === 0) return;
-            
             const randomIndex = Math.floor(Math.random() * jsonData.length);
-            const randomWord = jsonData[randomIndex].word;
-            wordDisplay.textContent = randomWord;
+            wordDisplay.textContent = jsonData[randomIndex].word;
         }
-        
-        // 初始化本地存储
+
         function initLocalStorage() {
-            const savedContent = localStorage.getItem('editorContent');
-            if (savedContent) {
-                editBox.value = savedContent;
-            }
-            
-            // 监听输入变化并保存到本地存储
+            const saved = localStorage.getItem('editorContent');
+            if (saved) editBox.value = saved;
             editBox.addEventListener('input', () => {
                 localStorage.setItem('editorContent', editBox.value);
             });
         }
-        
-        // 保存内容到文件
+
         function saveToFile() {
             const content = editBox.value;
-            if (!content.trim()) {
-                alert('内容为空，无需保存');
-                return;
-            }
-            
+            if (!content.trim()) return alert('内容为空，无需保存');
             const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            
-            const filename = `${year}年${month}月${day}日${hours}:${minutes}记录.txt`;
-            
-            // 创建下载链接
+            const filename = `${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}记录.txt`;
             const blob = new Blob([content], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -462,293 +199,52 @@
             a.download = filename;
             document.body.appendChild(a);
             a.click();
-            
-            // 清理
             setTimeout(() => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }, 0);
         }
-        
-        // 复制内容到剪贴板
+
         function copyToClipboard() {
             const content = editBox.value;
-            if (!content.trim()) {
-                alert('内容为空，无需复制');
-                return;
-            }
-            
+            if (!content.trim()) return alert('内容为空，无需复制');
             editBox.select();
             try {
                 navigator.clipboard.writeText(editBox.value)
-                    .then(() => {
-                        alert('内容已复制到剪贴板');
-                    });
+                    .then(() => alert('内容已复制到剪贴板'));
             } catch (err) {
                 try {
                     document.execCommand('copy');
                     alert('内容已复制到剪贴板');
-                } catch (e) {
+                } catch {
                     alert('复制失败，请手动复制');
                 }
             }
         }
-        
-        // 清空编辑框
+
         function clearEditBox() {
-            if (!editBox.value.trim()) {
-                return;
-            }
-            
+            if (!editBox.value.trim()) return;
             if (confirm('确定要清空所有内容吗？')) {
                 editBox.value = '';
                 localStorage.setItem('editorContent', '');
             }
         }
-        
-        // 获取JSON原始数据并显示在编辑框中
+
         async function fetchJsonAndDisplay() {
             try {
                 const response = await fetch('https://raw.githubusercontent.com/1120026847/DataSet/refs/heads/main/NoteText.json');
-                if (!response.ok) {
-                    throw new Error(`网络响应错误: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`网络响应错误: ${response.status}`);
                 const jsonContent = await response.text();
-                
-                // 显示原始JSON内容
                 editBox.value = jsonContent;
                 localStorage.setItem('editorContent', jsonContent);
             } catch (error) {
                 console.error('获取原始JSON失败:', error);
             }
         }
-        
-        // 倒计时器功能
-        function initTimer() {
-            // 获取DOM元素
-            const hoursInput = document.getElementById('hours');
-            const minutesInput = document.getElementById('minutes');
-            const secondsInput = document.getElementById('seconds');
-            const startBtn = document.getElementById('startBtn');
-            const pauseBtn = document.getElementById('pauseBtn');
-            const endBtn = document.getElementById('endBtn');
-            const timerDisplay = document.querySelector('.timer-display');
-            const timerParts = timerDisplay.querySelectorAll('span:not(.colon)');
-            const message = document.getElementById('message');
-            
-            let totalSeconds = 0;
-            let countdownInterval = null;
-            let isPaused = false;
-            
-            // 确保输入框格式为两位数字
-            function formatInput(value) {
-                // 如果值为空，返回00
-                if (!value || value.length === 0) return "00";
-                
-                // 如果只有一位数字，前面补0
-                if (value.length === 1) {
-                    return "0" + value;
-                }
-                
-                // 处理两位输入
-                return value.padStart(2, '0');
-            }
-            
-            // 验证输入值是否合法
-            function validateInput(value, min, max) {
-                // 验证是否为数字
-                if (!/^\d+$/.test(value)) return false;
-                
-                const num = parseInt(value, 10);
-                
-                // 验证是否在范围内
-                if (num < min || num > max) return false;
-                
-                return true;
-            }
-            
-            // 设置输入框事件监听 - 纯输入方式
-            [hoursInput, minutesInput, secondsInput].forEach((input, index) => {
-                // 只允许输入数字
-                input.addEventListener('input', function() {
-                    // 只保留数字
-                    this.value = this.value.replace(/[^\d]/g, '');
-                    
-                    // 自动跳到下一个输入框
-                    if (this.value.length === 2 && index < 2) {
-                        const next = this.nextElementSibling?.querySelector('input');
-                        if (next) next.focus();
-                    }
-                });
-                
-                // 在失去焦点时格式化
-                input.addEventListener('blur', function() {
-                    this.value = formatInput(this.value);
-                });
-                
-                // 按下回车开始倒计时
-                input.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        startCountdown();
-                    }
-                });
-            });
-            
-            // 开始倒计时
-            function startCountdown() {
-                // 如果倒计时已在进行中，重置
-                if (countdownInterval && !isPaused) {
-                    return;
-                }
-                
-                // 如果是暂停状态，则继续
-                if (isPaused) {
-                    isPaused = false;
-                    pauseBtn.textContent = "暂停";
-                    timerDisplay.style.backgroundColor = "#9e69f3";
-                    return;
-                }
-                
-                // 获取输入值
-                const hours = hoursInput.value ? parseInt(hoursInput.value) : 0;
-                const minutes = minutesInput.value ? parseInt(minutesInput.value) : 0;
-                const seconds = secondsInput.value ? parseInt(secondsInput.value) : 0;
-                
-                // 验证输入
-                let valid = true;
-                if (!validateInput(hoursInput.value, 0, 99)) {
-                    hoursInput.style.borderColor = "#ff5555";
-                    setTimeout(() => hoursInput.style.borderColor = "#e1e1e1", 1500);
-                    valid = false;
-                }
-                
-                if (!validateInput(minutesInput.value, 0, 59)) {
-                    minutesInput.style.borderColor = "#ff5555";
-                    setTimeout(() => minutesInput.style.borderColor = "#e1e1e1", 1500);
-                    valid = false;
-                }
-                
-                if (!validateInput(secondsInput.value, 0, 59)) {
-                    secondsInput.style.borderColor = "#ff5555";
-                    setTimeout(() => secondsInput.style.borderColor = "#e1e1e1", 1500);
-                    valid = false;
-                }
-                
-                if (!valid) {
-                    message.textContent = "请输入有效的时间数值";
-                    message.classList.add('show');
-                    return;
-                }
-                
-                // 检查是否有有效时间
-                if (hours === 0 && minutes === 0 && seconds === 0) {
-                    message.textContent = "请设置倒计时时间";
-                    message.classList.add('show');
-                    return;
-                }
-                
-                // 计算总秒数
-                totalSeconds = hours * 3600 + minutes * 60 + seconds;
-                
-                // 清空输入框为00（根据图片要求）
-                hoursInput.value = "00";
-                minutesInput.value = "00";
-                secondsInput.value = "00";
-                
-                // 切换按钮状态
-                startBtn.style.display = 'none';
-                pauseBtn.style.display = 'block';
-                
-                // 初始化倒计时显示
-                updateTimerDisplay();
-                
-                // 开始倒计时
-                countdownInterval = setInterval(() => {
-                    if (isPaused) return;
-                    
-                    totalSeconds--;
-                    
-                    if (totalSeconds <= 0) {
-                        totalSeconds = 0;
-                        clearInterval(countdownInterval);
-                        countdownInterval = null;
-                        
-                        // 计时结束效果
-                        timerDisplay.style.backgroundColor = "#ff6b6b";
-                        message.classList.add('show');
-                        
-                        // 切换按钮状态
-                        pauseBtn.style.display = 'none';
-                        startBtn.style.display = 'block';
-                        startBtn.textContent = "开始";
-                    }
-                    
-                    // 更新显示
-                    updateTimerDisplay();
-                }, 1000);
-            }
-            
-            // 暂停/继续倒计时
-            function pauseCountdown() {
-                if (countdownInterval) {
-                    isPaused = !isPaused;
-                    if (isPaused) {
-                        pauseBtn.textContent = "继续";
-                        timerDisplay.style.backgroundColor = "#8e7cc3";
-                    } else {
-                        pauseBtn.textContent = "暂停";
-                        timerDisplay.style.backgroundColor = "#9e69f3";
-                    }
-                }
-            }
-            
-            // 结束倒计时
-            function endCountdown() {
-                if (countdownInterval) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                    isPaused = false;
-                    
-                    // 重置计时显示
-                    timerParts[0].textContent = "00";
-                    timerParts[1].textContent = "00";
-                    timerParts[2].textContent = "00";
-                    timerDisplay.style.backgroundColor = "#9e69f3";
-                    
-                    // 隐藏消息
-                    message.classList.remove('show');
-                    
-                    // 切换按钮状态
-                    pauseBtn.style.display = 'none';
-                    startBtn.style.display = 'block';
-                    startBtn.textContent = "开始";
-                }
-            }
-            
-            // 更新计时器显示
-            function updateTimerDisplay() {
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
-                
-                timerParts[0].textContent = hours.toString().padStart(2, '0');
-                timerParts[1].textContent = minutes.toString().padStart(2, '0');
-                timerParts[2].textContent = seconds.toString().padStart(2, '0');
-            }
-            
-            // 事件监听
-            startBtn.addEventListener('click', startCountdown);
-            pauseBtn.addEventListener('click', pauseCountdown);
-            endBtn.addEventListener('click', endCountdown);
-        }
-        
-        // 初始化页面
+
         document.addEventListener('DOMContentLoaded', () => {
             fetchJsonData();
             initLocalStorage();
-            initTimer();
-            
-            // 事件监听
             regenBtn.addEventListener('click', () => {
                 if (!jsonData || jsonData.length === 0) {
                     fetchJsonData();
@@ -756,14 +252,11 @@
                     displayRandomWord();
                 }
             });
-            
             saveBtn.addEventListener('click', saveToFile);
             copyBtn.addEventListener('click', copyToClipboard);
             clearBtn.addEventListener('click', clearEditBox);
             notesBtn.addEventListener('click', fetchJsonAndDisplay);
-            
-            // 首页按钮事件监听
-            homeTitleBtn.addEventListener('click', function() {
+            homeTitleBtn.addEventListener('click', () => {
                 window.location.href = 'https://www.baidu.com';
             });
         });
