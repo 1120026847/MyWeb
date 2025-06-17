@@ -1,234 +1,580 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>To Do List With Local Storage</title>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待办事项清单</title>
     <style>
-      * {
-        padding: 0;
-        margin: 0;
-        box-sizing: border-box;
-      }
-      body {
-        background-color: #0b87ff;
-      }
-      .container {
-        width: 90%;
-        max-width: 34em;
-        position: absolute;
-        transform: translate(-50%, -50%);
-        top: 50%;
-        left: 50%;
-      }
-      #new-task {
-        position: relative;
-        background-color: #ffffff;
-        padding: 1.8em 1.25em;
-        border-radius: 0.3em;
-        box-shadow: 0 1.25em 1.8em rgba(1, 24, 48, 0.15);
-        display: grid;
-        grid-template-columns: 9fr 3fr;
-        gap: 1em;
-      }
-      #new-task input {
-        font-family: "Poppins", sans-serif;
-        font-size: 1em;
-        border: none;
-        border-bottom: 2px solid #d1d3d4;
-        padding: 0.8em 0.5em;
-        color: #111111;
-        font-weight: 500;
-      }
-      #new-task input:focus {
-        outline: none;
-        border-color: #0b87ff;
-      }
-      #new-task button {
-        font-family: "Poppins", sans-serif;
-        font-weight: 500;
-        font-size: 1em;
-        background-color: #0b87ff;
-        color: #ffffff;
-        outline: none;
-        border: none;
-        border-radius: 0.3em;
-        cursor: pointer;
-      }
-      #tasks {
-        background-color: #ffffff;
-        position: relative;
-        padding: 1.8em 1.25em;
-        margin-top: 3.8em;
-        width: 100%;
-        box-shadow: 0 1.25em 1.8em rgba(1, 24, 48, 0.15);
-        border-radius: 0.6em;
-      }
-      .task {
-        background-color: #ffffff;
-        padding: 0.3em 0.6em;
-        margin-top: 0.6em;
-        display: flex;
-        align-items: center;
-        border-bottom: 2px solid #d1d3d4;
-        cursor: pointer;
-      }
-      .task span {
-        font-family: "Poppins", sans-serif;
-        font-size: 0.9em;
-        font-weight: 400;
-      }
-      .task button {
-        color: #ffffff;
-        padding: 0.8em 0;
-        width: 4em;
-        border-radius: 0.3em;
-        border: none;
-        outline: none;
-        cursor: pointer;
-      }
-      .delete {
-        background-color: #fb3b3b;
-      }
-      .edit {
-        background-color: #0b87ff;
-        margin-left: auto;
-        margin-right: 1em;
-      }
-      .completed {
-        text-decoration: line-through;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div id="new-task">
-        <input type="text" placeholder="Enter The Task Here..." />
-        <button id="push">Add</button>
-      </div>
-      <div id="tasks"></div>
-    </div>
-    <script>
-      const newTaskInput = document.querySelector("#new-task input");
-      const tasksDiv = document.querySelector("#tasks");
-      let deleteTasks, editTasks, tasks;
-      let updateNote = "";
-      let count;
-
-      window.onload = () => {
-        updateNote = "";
-        count = Object.keys(localStorage).length;
-        displayTasks();
-      };
-
-      const displayTasks = () => {
-        if (Object.keys(localStorage).length > 0) {
-          tasksDiv.style.display = "inline-block";
-        } else {
-          tasksDiv.style.display = "none";
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
-        tasksDiv.innerHTML = "";
-
-        let tasks = Object.keys(localStorage);
-        tasks = tasks.sort();
-
-        for (let key of tasks) {
-          let value = localStorage.getItem(key);
-          let taskInnerDiv = document.createElement("div");
-          taskInnerDiv.classList.add("task");
-          taskInnerDiv.setAttribute("id", key);
-          taskInnerDiv.innerHTML = `<span id="taskname">${key.split("_")[1]}</span>`;
-
-          let editButton = document.createElement("button");
-          editButton.classList.add("edit");
-          editButton.textContent = "Edit";
-
-          if (!JSON.parse(value)) {
-            editButton.style.visibility = "visible";
-          } else {
-            editButton.style.visibility = "hidden";
-            taskInnerDiv.classList.add("completed");
-          }
-
-          taskInnerDiv.appendChild(editButton);
-
-          let deleteButton = document.createElement("button");
-          deleteButton.classList.add("delete");
-          deleteButton.textContent = "Delete";
-
-          taskInnerDiv.appendChild(deleteButton);
-          tasksDiv.appendChild(taskInnerDiv);
+        
+        body {
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #333;
         }
-
-        tasks = document.querySelectorAll(".task");
-        tasks.forEach((element) => {
-          element.onclick = () => {
-            if (element.classList.contains("completed")) {
-              updateStorage(element.id.split("_")[0], element.innerText, false);
-            } else {
-              updateStorage(element.id.split("_")[0], element.innerText, true);
+        
+        .container {
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            transition: all 0.3s ease;
+        }
+        
+        .container:hover {
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 25px;
+            color: #4CAF50;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background: linear-gradient(to right, #74ebd5, #acb6e5);
+            border-radius: 2px;
+        }
+        
+        .input-group {
+            display: flex;
+            margin-bottom: 25px;
+            gap: 10px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #4CAF50;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+        
+        .add-btn {
+            padding: 0 25px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .add-btn:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .todo-count, .done-count {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .todo-count span, .done-count span {
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+        
+        .done-count span {
+            background-color: #9e9e9e;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid #4CAF50;
+            color: #4CAF50;
+        }
+        
+        .todo-list, .done-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        li:hover {
+            background-color: #f1f1f1;
+            transform: translateX(5px);
+        }
+        
+        li .task-content {
+            flex: 1;
+            margin: 0 15px;
+            font-size: 1.1rem;
+            word-break: break-word;
+            padding-right: 10px;
+        }
+        
+        li .task-content.completed {
+            text-decoration: line-through;
+            color: #9e9e9e;
+        }
+        
+        li .actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .edit-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #4CAF50;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            margin: 0 15px;
+        }
+        
+        .check-btn {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .check-btn.checked {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .check-btn.checked::after {
+            content: '✓';
+            font-size: 0.9rem;
+        }
+        
+        .delete-btn {
+            padding: 8px 15px;
+            background-color: #dc3545;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .delete-btn:hover {
+            background-color: #a71d2a;
+        }
+        
+        .edit-btn {
+            padding: 8px 15px;
+            background-color: #ffc107;
+            color: #212529;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .edit-btn:hover {
+            background-color: #e0a800;
+        }
+        
+        .save-btn {
+            padding: 8px 15px;
+            background-color: #17a2b8;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .save-btn:hover {
+            background-color: #138496;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 0;
+            color: #9e9e9e;
+            font-style: italic;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
             }
-          };
-        });
-
-        editTasks = document.getElementsByClassName("edit");
-        Array.from(editTasks).forEach((element) => {
-          element.addEventListener("click", (e) => {
-            e.stopPropagation();
-            disableButtons(true);
-            let parent = element.parentElement;
-            newTaskInput.value = parent.querySelector("#taskname").innerText;
-            updateNote = parent.id;
-            parent.remove();
-          });
-        });
-
-        deleteTasks = document.getElementsByClassName("delete");
-        Array.from(deleteTasks).forEach((element) => {
-          element.addEventListener("click", (e) => {
-            e.stopPropagation();
-            let parent = element.parentElement;
-            removeTask(parent.id);
-            parent.remove();
-            count -= 1;
-          });
-        });
-      };
-
-      const disableButtons = (bool) => {
-        let editButtons = document.getElementsByClassName("edit");
-        Array.from(editButtons).forEach((element) => {
-          element.disabled = bool;
-        });
-      };
-
-      const removeTask = (taskValue) => {
-        localStorage.removeItem(taskValue);
-        displayTasks();
-      };
-
-      const updateStorage = (index, taskValue, completed) => {
-        localStorage.setItem(`${index}_${taskValue}`, completed);
-        displayTasks();
-      };
-
-      document.querySelector("#push").addEventListener("click", () => {
-        disableButtons(false);
-        if (newTaskInput.value.length == 0) {
-          alert("Please Enter A Task");
-        } else {
-          if (updateNote == "") {
-            updateStorage(count, newTaskInput.value, false);
-          } else {
-            let existingCount = updateNote.split("_")[0];
-            removeTask(updateNote);
-            updateStorage(existingCount, newTaskInput.value, false);
-            updateNote = "";
-          }
-          count += 1;
-          newTaskInput.value = "";
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .add-btn {
+                padding: 15px;
+                width: 100%;
+            }
+            
+            li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .task-content {
+                margin: 10px 0;
+            }
+            
+            .actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
         }
-      });
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>待办事项清单</h1>
+        
+        <div class="input-group">
+            <input type="text" id="title" placeholder="添加新任务...">
+            <button class="add-btn" id="add-btn">添加</button>
+        </div>
+        
+        <div class="stats">
+            <div class="todo-count">待完成: <span id="todo-count">0</span></div>
+            <div class="done-count">已完成: <span id="done-count">0</span></div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="all">全部任务</div>
+            <div class="tab" data-tab="todo">待完成</div>
+            <div class="tab" data-tab="done">已完成</div>
+        </div>
+        
+        <div class="list-container">
+            <ul class="todo-list" id="todo-list">
+                <!-- 待办事项将在这里动态生成 -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 待办事项数据结构
+        // 每个任务格式: { id: 时间戳, title: '任务内容', done: false }
+        
+        // 获取DOM元素
+        const titleInput = document.getElementById('title');
+        const addBtn = document.getElementById('add-btn');
+        const todoList = document.getElementById('todo-list');
+        const todoCount = document.getElementById('todo-count');
+        const doneCount = document.getElementById('done-count');
+        const tabs = document.querySelectorAll('.tab');
+        
+        // 当前活动标签
+        let activeTab = 'all';
+        
+        // 初始化应用
+        function init() {
+            loadTasks();
+            renderTaskList();
+            setupEventListeners();
+        }
+        
+        // 设置事件监听
+        function setupEventListeners() {
+            // 添加任务事件（回车键）
+            titleInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    addNewTask();
+                }
+            });
+            
+            // 添加任务事件（按钮点击）
+            addBtn.addEventListener('click', addNewTask);
+            
+            // 标签切换事件
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // 更新活动标签
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    activeTab = this.dataset.tab;
+                    
+                    // 重新渲染列表
+                    renderTaskList();
+                });
+            });
+        }
+        
+        // 添加新任务
+        function addNewTask() {
+            const title = titleInput.value.trim();
+            
+            if (!title) {
+                alert('请输入任务内容');
+                return;
+            }
+            
+            // 创建新任务对象
+            const newTask = {
+                id: Date.now(),
+                title: title,
+                done: false
+            };
+            
+            // 获取当前任务列表
+            let tasks = getTasks();
+            
+            // 添加新任务
+            tasks.push(newTask);
+            
+            // 保存到本地存储
+            saveTasks(tasks);
+            
+            // 清空输入框
+            titleInput.value = '';
+            
+            // 重新渲染列表
+            renderTaskList();
+        }
+        
+        // 删除任务
+        function deleteTask(id) {
+            let tasks = getTasks();
+            
+            // 过滤掉要删除的任务
+            tasks = tasks.filter(task => task.id !== id);
+            
+            // 保存到本地存储
+            saveTasks(tasks);
+            
+            // 重新渲染列表
+            renderTaskList();
+        }
+        
+        // 编辑任务
+        function editTask(id) {
+            const tasks = getTasks();
+            const task = tasks.find(t => t.id === id);
+            
+            if (!task) return;
+            
+            // 创建编辑UI
+            const li = document.querySelector(`li[data-id="${id}"]`);
+            li.innerHTML = `
+                <div class="check-btn ${task.done ? 'checked' : ''}" onclick="toggleTask(${id})"></div>
+                <input type="text" class="edit-input" value="${task.title}">
+                <div class="actions">
+                    <button class="save-btn" onclick="saveTask(${id})">保存</button>
+                    <button class="delete-btn" onclick="deleteTask(${id})">删除</button>
+                </div>
+            `;
+            
+            // 聚焦到输入框
+            li.querySelector('.edit-input').focus();
+        }
+        
+        // 保存编辑后的任务
+        function saveTask(id) {
+            const tasks = getTasks();
+            const taskIndex = tasks.findIndex(t => t.id === id);
+            
+            if (taskIndex === -1) return;
+            
+            const editInput = document.querySelector(`li[data-id="${id}"] .edit-input`);
+            const newTitle = editInput.value.trim();
+            
+            if (!newTitle) {
+                alert('任务内容不能为空');
+                return;
+            }
+            
+            // 更新任务标题
+            tasks[taskIndex].title = newTitle;
+            
+            // 保存到本地存储
+            saveTasks(tasks);
+            
+            // 重新渲染列表
+            renderTaskList();
+        }
+        
+        // 切换任务状态（完成/未完成）
+        function toggleTask(id) {
+            let tasks = getTasks();
+            const taskIndex = tasks.findIndex(t => t.id === id);
+            
+            if (taskIndex === -1) return;
+            
+            // 切换状态
+            tasks[taskIndex].done = !tasks[taskIndex].done;
+            
+            // 保存到本地存储
+            saveTasks(tasks);
+            
+            // 重新渲染列表
+            renderTaskList();
+        }
+        
+        // 渲染任务列表
+        function renderTaskList() {
+            const tasks = getTasks();
+            
+            // 过滤任务（根据当前活动标签）
+            let filteredTasks = tasks;
+            if (activeTab === 'todo') {
+                filteredTasks = tasks.filter(task => !task.done);
+            } else if (activeTab === 'done') {
+                filteredTasks = tasks.filter(task => task.done);
+            }
+            
+            // 更新计数
+            const todoTasks = tasks.filter(task => !task.done);
+            const doneTasks = tasks.filter(task => task.done);
+            
+            todoCount.textContent = todoTasks.length;
+            doneCount.textContent = doneTasks.length;
+            
+            // 清空列表
+            todoList.innerHTML = '';
+            
+            // 如果没有任务，显示空状态
+            if (filteredTasks.length === 0) {
+                todoList.innerHTML = `
+                    <div class="empty-state">
+                        <div>📭</div>
+                        <p>没有找到任务</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 渲染任务列表
+            filteredTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.dataset.id = task.id;
+                
+                li.innerHTML = `
+                    <div class="check-btn ${task.done ? 'checked' : ''}" onclick="toggleTask(${task.id})"></div>
+                    <div class="task-content ${task.done ? 'completed' : ''}">${task.title}</div>
+                    <div class="actions">
+                        <button class="edit-btn" onclick="editTask(${task.id})">编辑</button>
+                        <button class="delete-btn" onclick="deleteTask(${task.id})">删除</button>
+                    </div>
+                `;
+                
+                todoList.appendChild(li);
+            });
+        }
+        
+        // 获取所有任务
+        function getTasks() {
+            const tasksJSON = localStorage.getItem('todoList');
+            return tasksJSON ? JSON.parse(tasksJSON) : [];
+        }
+        
+        // 保存任务到本地存储
+        function saveTasks(tasks) {
+            localStorage.setItem('todoList', JSON.stringify(tasks));
+        }
+        
+        // 从本地存储加载任务
+        function loadTasks() {
+            const tasks = getTasks();
+            
+            // 更新计数
+            const todoTasks = tasks.filter(task => !task.done);
+            const doneTasks = tasks.filter(task => task.done);
+            
+            todoCount.textContent = todoTasks.length;
+            doneCount.textContent = doneTasks.length;
+        }
+        
+        // 初始化应用
+        init();
+        
+        // 全局暴露需要使用的函数
+        window.toggleTask = toggleTask;
+        window.deleteTask = deleteTask;
+        window.editTask = editTask;
+        window.saveTask = saveTask;
     </script>
-  </body>
+</body>
 </html>
