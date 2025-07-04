@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>陌离君首页</title>
   <style>
     body {
@@ -49,13 +49,27 @@
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
     }
 
+    .footer {
+      margin-top: auto;
+      padding: 20px 10px;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+    }
+
     @media (max-width: 600px) {
       h1 {
         font-size: 28px;
       }
+
       .button-container {
         flex-direction: column;
         gap: 15px;
+      }
+
+      .button-container button {
+        width: 100%;
+        max-width: 300px;
       }
     }
   </style>
@@ -69,8 +83,9 @@
     <button onclick="location.href='https://www.molijun.com/RecordEverything'">💡 随心记</button>
     <button onclick="location.href='https://www.molijun.com/LocalMusicPlayer'">🎵 音乐播放器</button>
   </div>
-     <div id="test-link">
-        <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
-    </div>
+
+  <div class="footer">
+    ©2025 陌离君 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color:#666;text-decoration:none;">ICP备案号：闽ICP备2023004461号-1</a>
+  </div>
 </body>
 </html>
