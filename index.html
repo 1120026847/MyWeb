@@ -1,52 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>陌离君首页</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
-        .button-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .button-container button {
-            padding: 10px 20px;
-            margin: 10px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        #test-link {
-            margin-top: auto;
-            text-align: center;
-            padding: 10px;
-        }
-        #test-link a {
-            text-decoration: none;
-            color: #000;
-            font-size: 16px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>陌离君首页</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #e0f7fa, #fce4ec);
+    }
+
+    h1 {
+      margin-bottom: 40px;
+      font-size: 36px;
+      color: #333;
+      text-shadow: 1px 1px 2px #ccc;
+    }
+
+    .button-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      max-width: 600px;
+    }
+
+    .button-container button {
+      background: white;
+      border: none;
+      border-radius: 12px;
+      padding: 15px 25px;
+      font-size: 18px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      min-width: 180px;
+    }
+
+    .button-container button:hover {
+      background: #f1f1f1;
+      transform: translateY(-3px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 28px;
+      }
+      .button-container {
+        flex-direction: column;
+        gap: 15px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="button-container">
-        <button onclick="location.href='https://www.molijun.com/todolist'">待办清单</button>
-        <button onclick="location.href='https://www.molijun.com/EventRecord'">事件记录</button>
-        <button onclick="location.href='https://www.molijun.com/MemorizeWords'">单词背诵</button>
-        <button onclick="location.href='https://www.molijun.com/RecordEverything'">随心记</button>
-        <button onclick="location.href='https://www.molijun.com/LocalMusicPlayer'">本地音乐播放器</button>
-    </div>
-    <div id="test-link">
+  <h1>👋 欢迎来到陌离君的主页</h1>
+  <div class="button-container">
+    <button onclick="location.href='https://www.molijun.com/todolist'">📋 待办清单</button>
+    <button onclick="location.href='https://www.molijun.com/EventRecord'">📝 事件记录</button>
+    <button onclick="location.href='https://www.molijun.com/MemorizeWords'">📚 单词背诵</button>
+    <button onclick="location.href='https://www.molijun.com/RecordEverything'">💡 随心记</button>
+    <button onclick="location.href='https://www.molijun.com/LocalMusicPlayer'">🎵 音乐播放器</button>
+  </div>
+     <div id="test-link">
         <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
     </div>
 </body>
