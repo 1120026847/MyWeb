@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>本地音乐播放器</title>
+  <style>
+    :root {
+      --bg: #fafafa;
+      --primary: #0064fa;
+      --primary-dark: #004ddb;
+      --text: #333;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    h1 {
+      margin: 0.2em 0 0.4em;
+      font-size: 2rem;
+    }
+
+    #filePicker {
+      padding: 0.5em 1em;
+      border: 1px solid #ccc;
+      border-radius: 0.5em;
+      cursor: pointer;
+    }
+
+    #controls {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #controls button {
+      background: var(--primary);
+      border: none;
+      color: #fff;
+      padding: 0.6em 1.2em;
+      border-radius: 0.5em;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #controls button:hover:not(:disabled) {
+      background: var(--primary-dark);
+    }
+
+    #controls button:disabled {
+      background: #9db9ff;
+      cursor: not-allowed;
+    }
+
+    #nowPlaying {
+      margin-top: 0.5em;
+      font-weight: 600;
+      min-height: 1.5em;
+      text-align: center;
+    }
+
+    #playlist {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-width: 420px;
+      width: 100%;
+      max-height: 50vh;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 0.75em;
+      background: #fff;
+    }
+
+    #playlist li {
+      padding: 0.6em 1em;
+      border-bottom: 1px solid #f2f2f2;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #playlist li:last-child {
+      border-bottom: none;
+    }
+
+    #playlist li:hover {
+      background: #f2f6ff;
+    }
+
+    #playlist li.active {
+      font-weight: 700;
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <h1>本地音乐播放器</h1>
+  <input
+    type="file"
+    id="filePicker"
+    webkitdirectory
+    directory
+    mozdirectory
+    multiple
+    accept="audio/*"
+  />
+
+  <div id="controls">
+    <button id="prevBtn" disabled>上一首</button>
+    <button id="playPauseBtn" disabled>播放</button>
+    <button id="nextBtn" disabled>下一首</button>
+    <button id="shuffleBtn" disabled>顺序播放</button>
+  </div>
+
+  <div id="nowPlaying">未选择音乐文件夹</div>
+  <ul id="playlist"></ul>
+
+  <audio id="audio" hidden></audio>
+
+  <script>
+    const filePicker = document.getElementById("filePicker");
+    const audio = document.getElementById("audio");
+    const prevBtn = document.getElementById("prevBtn");
+    const playPauseBtn = document.getElementById("playPauseBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const playlistEl = document.getElementById("playlist");
+    const nowPlayingEl = document.getElementById("nowPlaying");
+
+    let tracks = [];
+    let currentIndex = 0;
+    let isShuffle = false;
+
+    /**
+     * 解析并加载选中的音频文件
+     */
+    filePicker.addEventListener("change", () => {
+      tracks = Array.from(filePicker.files).filter((f) =>
+        f.type.startsWith("audio")
+      );
+
+      if (tracks.length === 0) {
+        alert("所选文件夹没有找到音频文件！");
+        return;
+      }
+
+      currentIndex = 0;
+      renderPlaylist();
+      loadTrack(currentIndex);
+      enableControls();
+    });
+
+    /**
+     * 激活控制按钮
+     */
+    function enableControls() {
+      [prevBtn, playPauseBtn, nextBtn, shuffleBtn].forEach(
+        (btn) => (btn.disabled = false)
+      );
+    }
+
+    /**
+     * 根据索引加载歌曲
+     */
+    function loadTrack(index) {
+      const track = tracks[index];
+      if (!track) return;
+      audio.src = URL.createObjectURL(track);
+      nowPlayingEl.textContent = `正在播放：${track.name}`;
+      highlightCurrent();
+    }
+
+    /** 播放与暂停逻辑 */
+    function playTrack() {
+      audio.play();
+      playPauseBtn.textContent = "暂停";
+    }
+
+    function pauseTrack() {
+      audio.pause();
+      playPauseBtn.textContent = "继续";
+    }
+
+    playPauseBtn.addEventListener("click", () => {
+      if (!audio.src) return;
+      audio.paused ? playTrack() : pauseTrack();
+    });
+
+    /** 上一首 / 下一首 */
+    function nextTrack() {
+      isShuffle
+        ? (currentIndex = Math.floor(Math.random() * tracks.length))
+        : (currentIndex = (currentIndex + 1) % tracks.length);
+      loadTrack(currentIndex);
+      playTrack();
+    }
+
+    function prevTrack() {
+      isShuffle
+        ? (currentIndex = Math.floor(Math.random() * tracks.length))
+        : (currentIndex =
+            (currentIndex - 1 + tracks.length) % tracks.length);
+      loadTrack(currentIndex);
+      playTrack();
+    }
+
+    nextBtn.addEventListener("click", nextTrack);
+    prevBtn.addEventListener("click", prevTrack);
+
+    /** 顺序 / 乱序切换 */
+    shuffleBtn.addEventListener("click", () => {
+      isShuffle = !isShuffle;
+      shuffleBtn.textContent = isShuffle ? "乱序播放" : "顺序播放";
+    });
+
+    /** 播放结束自动下一首 */
+    audio.addEventListener("ended", nextTrack);
+
+    /** 播放列表渲染与高亮 */
+    function renderPlaylist() {
+      playlistEl.innerHTML = "";
+      tracks.forEach((track, idx) => {
+        const li = document.createElement("li");
+        li.textContent = track.name;
+        li.addEventListener("click", () => {
+          currentIndex = idx;
+          loadTrack(currentIndex);
+          playTrack();
+        });
+        playlistEl.appendChild(li);
+      });
+    }
+
+    function highlightCurrent() {
+      Array.from(playlistEl.children).forEach((li, idx) => {
+        li.classList.toggle("active", idx === currentIndex);
+      });
+    }
+  </script>
+</body>
+</html>
