@@ -7,9 +7,10 @@
   <style>
     :root {
       --bg: #fafafa;
-      --primary: #0064fa;
-      --primary-dark: #004ddb;
+      --primary: #4A90E2;
+      --primary-dark: #357ABD;
       --text: #333;
+      --radius: 0.6em;
     }
 
     * {
@@ -32,28 +33,61 @@
     h1 {
       margin: 0.2em 0 0.4em;
       font-size: 2rem;
+      text-align: center;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      max-width: 600px;
+      width: 100%;
     }
 
     #filePicker {
-      padding: 0.5em 1em;
+      padding: 0.6em 1em;
       border: 1px solid #ccc;
-      border-radius: 0.5em;
+      border-radius: var(--radius);
       cursor: pointer;
+      background: #fff;
+      font-size: 1rem;
+      max-width: 240px;
     }
 
-    #controls, #whiteNoiseControl {
-      display: flex;
-      gap: 0.7rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    button, select {
+    #whiteNoiseBtn {
       background: var(--primary);
       border: none;
       color: #fff;
       padding: 0.6em 1.2em;
-      border-radius: 0.5em;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #whiteNoiseBtn:hover {
+      background: var(--primary-dark);
+    }
+
+    #controls,
+    #timerControl {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    button,
+    select {
+      background: var(--primary);
+      border: none;
+      color: #fff;
+      padding: 0.6em 1.2em;
+      border-radius: var(--radius);
       font-size: 1rem;
       cursor: pointer;
       transition: background 0.2s;
@@ -67,6 +101,17 @@
     button:disabled {
       background: #9db9ff;
       cursor: not-allowed;
+    }
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    input[type="range"] {
+      width: 120px;
     }
 
     #nowPlaying {
@@ -85,7 +130,7 @@
       max-height: 50vh;
       overflow-y: auto;
       border: 1px solid #e0e0e0;
-      border-radius: 0.75em;
+      border-radius: var(--radius);
       background: #fff;
     }
 
@@ -111,16 +156,61 @@
       color: var(--primary);
     }
 
-    .section {
+    .section-title {
+      font-size: 1.2rem;
       margin-top: 1.5rem;
       text-align: center;
+      font-weight: bold;
+    }
+
+    #countdown {
+      font-weight: bold;
+      color: #444;
+      min-width: 5em;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .top-bar,
+      #controls,
+      #timerControl {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+      }
+
+      #filePicker,
+      #whiteNoiseBtn,
+      button,
+      select {
+        width: 100%;
+      }
+
+      .volume-control {
+        justify-content: center;
+      }
+
+      #playlist {
+        max-height: 200px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .section-title {
+        font-size: 1.1rem;
+      }
     }
   </style>
 </head>
 <body>
   <h1>本地音乐播放器</h1>
 
-  <input type="file" id="filePicker" webkitdirectory directory mozdirectory multiple accept="audio/*" />
+  <div class="top-bar">
+    <input type="file" id="filePicker" webkitdirectory directory mozdirectory multiple accept="audio/*" />
+    <button id="whiteNoiseBtn">播放白噪音</button>
+  </div>
 
   <div id="controls">
     <button id="prevBtn" disabled>上一首</button>
@@ -129,23 +219,26 @@
     <button id="shuffleBtn" disabled>顺序播放</button>
   </div>
 
+  <div id="timerControl">
+    <label>定时关闭：</label>
+    <select id="timerSelect">
+      <option value="0">不设定</option>
+      <option value="5">5 分钟</option>
+      <option value="10">10 分钟</option>
+      <option value="30">30 分钟</option>
+      <option value="60">60 分钟</option>
+    </select>
+    <div id="countdown">--:--</div>
+  </div>
+
+  <div class="volume-control">
+    🔊 音量：
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.01">
+  </div>
+
+  <div class="section-title">正在播放</div>
   <div id="nowPlaying">未选择音乐文件夹</div>
   <ul id="playlist"></ul>
-
-  <!-- 白噪音功能 -->
-  <div class="section">
-    <h2>白噪音播放</h2>
-    <div id="whiteNoiseControl">
-      <button id="whiteNoiseBtn">播放白噪音</button>
-      <select id="timerSelect">
-        <option value="0">⏱ 不设定定时</option>
-        <option value="5">⏱ 5 分钟</option>
-        <option value="10">⏱ 10 分钟</option>
-        <option value="30">⏱ 30 分钟</option>
-        <option value="60">⏱ 60 分钟</option>
-      </select>
-    </div>
-  </div>
 
   <audio id="audio" hidden></audio>
   <audio id="whiteNoiseAudio" loop hidden></audio>
@@ -162,19 +255,34 @@
     const nowPlayingEl = document.getElementById("nowPlaying");
     const whiteNoiseBtn = document.getElementById("whiteNoiseBtn");
     const timerSelect = document.getElementById("timerSelect");
-
-    let tracks = [];
-    let currentIndex = 0;
-    let isShuffle = false;
-    let timerId = null;
-    let isWhiteNoisePlaying = false;
+    const countdownEl = document.getElementById("countdown");
+    const volumeSlider = document.getElementById("volumeSlider");
 
     const whiteNoiseUrl = "https://raw.githubusercontent.com/1120026847/DataSet/main/%E6%9A%B4%E9%A3%8E%E9%9B%AA%E4%B8%AD%2C%E8%A1%8C%E9%A9%B6%E7%9A%84%E5%88%97%E8%BD%A6(%E7%99%BD%E5%99%AA%E9%9F%B3).mp3";
     whiteNoiseAudio.src = whiteNoiseUrl;
 
+    let tracks = [];
+    let currentIndex = 0;
+    let isShuffle = false;
+    let countdownInterval = null;
+    let countdownRemaining = 0;
+    let isWhiteNoisePlaying = false;
+
+    // 音量加载 & 绑定
+    const savedVolume = localStorage.getItem("playerVolume") || "1";
+    volumeSlider.value = savedVolume;
+    audio.volume = savedVolume;
+    whiteNoiseAudio.volume = savedVolume;
+
+    volumeSlider.addEventListener("input", () => {
+      const v = volumeSlider.value;
+      audio.volume = v;
+      whiteNoiseAudio.volume = v;
+      localStorage.setItem("playerVolume", v);
+    });
+
     filePicker.addEventListener("change", () => {
-      clearTimeout(timerId);
-      whiteNoiseAudio.pause();
+      stopAllAudio();
       isWhiteNoisePlaying = false;
       whiteNoiseBtn.textContent = "播放白噪音";
 
@@ -183,6 +291,7 @@
         alert("未找到音频文件");
         return;
       }
+
       currentIndex = 0;
       renderPlaylist();
       loadTrack(currentIndex);
@@ -194,11 +303,21 @@
     }
 
     function loadTrack(index) {
+      stopAllAudio();
+      currentIndex = index;
       const track = tracks[index];
       if (!track) return;
       audio.src = URL.createObjectURL(track);
+      audio.play();
       nowPlayingEl.textContent = `正在播放：${track.name}`;
+      playPauseBtn.textContent = "暂停";
       highlightCurrent();
+      startTimer();
+    }
+
+    function stopAllAudio() {
+      audio.pause();
+      whiteNoiseAudio.pause();
     }
 
     function playTrack() {
@@ -213,11 +332,7 @@
 
     playPauseBtn.addEventListener("click", () => {
       if (!audio.src) return;
-      if (audio.paused) {
-        playTrack();
-      } else {
-        pauseTrack();
-      }
+      audio.paused ? playTrack() : pauseTrack();
     });
 
     function nextTrack() {
@@ -225,7 +340,6 @@
         ? currentIndex = Math.floor(Math.random() * tracks.length)
         : currentIndex = (currentIndex + 1) % tracks.length;
       loadTrack(currentIndex);
-      playTrack();
     }
 
     function prevTrack() {
@@ -233,7 +347,6 @@
         ? currentIndex = Math.floor(Math.random() * tracks.length)
         : currentIndex = (currentIndex - 1 + tracks.length) % tracks.length;
       loadTrack(currentIndex);
-      playTrack();
     }
 
     nextBtn.addEventListener("click", nextTrack);
@@ -251,13 +364,10 @@
       tracks.forEach((track, idx) => {
         const li = document.createElement("li");
         li.textContent = track.name;
-        li.addEventListener("click", () => {
-          currentIndex = idx;
-          loadTrack(currentIndex);
-          playTrack();
-        });
+        li.addEventListener("click", () => loadTrack(idx));
         playlistEl.appendChild(li);
       });
+      highlightCurrent();
     }
 
     function highlightCurrent() {
@@ -267,35 +377,51 @@
     }
 
     whiteNoiseBtn.addEventListener("click", () => {
-      // 先停止本地播放
-      audio.pause();
-      playPauseBtn.textContent = "播放";
+      stopAllAudio();
 
       if (!isWhiteNoisePlaying) {
         whiteNoiseAudio.play();
         isWhiteNoisePlaying = true;
         whiteNoiseBtn.textContent = "暂停白噪音";
+        nowPlayingEl.textContent = "正在播放：白噪音（暴风雪列车）";
+        playPauseBtn.textContent = "播放";
+        startTimer();
       } else {
         whiteNoiseAudio.pause();
         isWhiteNoisePlaying = false;
         whiteNoiseBtn.textContent = "播放白噪音";
+        nowPlayingEl.textContent = "已暂停白噪音";
       }
-
-      startTimer();
     });
 
+    timerSelect.addEventListener("change", startTimer);
+
     function startTimer() {
-      clearTimeout(timerId);
+      clearInterval(countdownInterval);
+      countdownEl.textContent = "--:--";
+
       const minutes = parseInt(timerSelect.value);
       if (minutes > 0) {
-        timerId = setTimeout(() => {
-          audio.pause();
-          whiteNoiseAudio.pause();
-          whiteNoiseBtn.textContent = "播放白噪音";
-          playPauseBtn.textContent = "播放";
-          isWhiteNoisePlaying = false;
-        }, minutes * 60 * 1000);
+        countdownRemaining = minutes * 60;
+        updateCountdownDisplay();
+        countdownInterval = setInterval(() => {
+          countdownRemaining--;
+          updateCountdownDisplay();
+          if (countdownRemaining <= 0) {
+            stopAllAudio();
+            whiteNoiseBtn.textContent = "播放白噪音";
+            playPauseBtn.textContent = "播放";
+            nowPlayingEl.textContent = "播放已定时停止";
+            clearInterval(countdownInterval);
+          }
+        }, 1000);
       }
+    }
+
+    function updateCountdownDisplay() {
+      const min = Math.floor(countdownRemaining / 60);
+      const sec = countdownRemaining % 60;
+      countdownEl.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     }
   </script>
 </body>
