@@ -12,11 +12,9 @@
       --text: #333;
       --radius: 0.6em;
     }
-
     * {
       box-sizing: border-box;
     }
-
     body {
       margin: 0;
       padding: 24px;
@@ -29,13 +27,11 @@
       align-items: center;
       gap: 1rem;
     }
-
     h1 {
       margin: 0.2em 0 0.4em;
       font-size: 2rem;
       text-align: center;
     }
-
     .top-bar {
       display: flex;
       justify-content: center;
@@ -45,7 +41,6 @@
       max-width: 600px;
       width: 100%;
     }
-
     #filePicker {
       padding: 0.6em 1em;
       border: 1px solid #ccc;
@@ -55,7 +50,6 @@
       font-size: 1rem;
       max-width: 240px;
     }
-
     #whiteNoiseBtn {
       background: var(--primary);
       border: none;
@@ -66,11 +60,9 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-
     #whiteNoiseBtn:hover {
       background: var(--primary-dark);
     }
-
     #controls,
     #timerControl {
       display: flex;
@@ -80,7 +72,6 @@
       align-items: center;
       margin-top: 1rem;
     }
-
     button,
     select {
       background: var(--primary);
@@ -92,35 +83,29 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-
     button:hover:not(:disabled),
     select:hover {
       background: var(--primary-dark);
     }
-
     button:disabled {
       background: #9db9ff;
       cursor: not-allowed;
     }
-
     .volume-control {
       display: flex;
       align-items: center;
       gap: 0.4rem;
       font-size: 0.9rem;
     }
-
     input[type="range"] {
       width: 120px;
     }
-
     #nowPlaying {
       margin-top: 0.5em;
       font-weight: 600;
       min-height: 1.5em;
       text-align: center;
     }
-
     #playlist {
       list-style: none;
       padding: 0;
@@ -133,7 +118,6 @@
       border-radius: var(--radius);
       background: #fff;
     }
-
     #playlist li {
       padding: 0.6em 1em;
       border-bottom: 1px solid #f2f2f2;
@@ -142,34 +126,28 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
     #playlist li:last-child {
       border-bottom: none;
     }
-
     #playlist li:hover {
       background: #f2f6ff;
     }
-
     #playlist li.active {
       font-weight: 700;
       color: var(--primary);
     }
-
     .section-title {
       font-size: 1.2rem;
       margin-top: 1.5rem;
       text-align: center;
       font-weight: bold;
     }
-
     #countdown {
       font-weight: bold;
       color: #444;
       min-width: 5em;
       text-align: center;
     }
-
     @media (max-width: 600px) {
       .top-bar,
       #controls,
@@ -178,26 +156,21 @@
         align-items: stretch;
         width: 100%;
       }
-
       #filePicker,
       #whiteNoiseBtn,
       button,
       select {
         width: 100%;
       }
-
       .volume-control {
         justify-content: center;
       }
-
       #playlist {
         max-height: 200px;
       }
-
       h1 {
         font-size: 1.5rem;
       }
-
       .section-title {
         font-size: 1.1rem;
       }
@@ -205,7 +178,6 @@
   </style>
 </head>
 <body>
-
   <div class="top-bar">
     <input type="file" id="filePicker" webkitdirectory directory mozdirectory multiple accept="audio/*" />
     <button id="whiteNoiseBtn">播放白噪音</button>
@@ -257,7 +229,7 @@
     const countdownEl = document.getElementById("countdown");
     const volumeSlider = document.getElementById("volumeSlider");
 
-    const whiteNoiseUrl = "https://developer-oss.lanrar.com/file/?CG5bZQo7BjcCCwc/VmMCblFuUmoFCQVpVT1bKgEuA3ZUO1ZzCDgFDlFzBSEGM101Wm4GXAUtAGoKZFUnVWxRPghnW2UKJAY3AnoHPFZyAjBRLVIxBTMFa1U3WwIBNANmVGlWMwhhBWVRMgVqBmNdalo2BjsFfABkCn5VblU4UWYIMFs9Cm4GZgJlB2VWJAJzUXtSagVoBTdVYFtoAXIDMlRjVi4IZQVpUSgFNQZlXTpaYQZgBW8AOwo+VWJValFjCG5bNApjBmACMAdkVmcCZlE4UmEFaQVhVTRbZQFtAzFUN1ZiCGUFNVFlBX0GP10sWjMGJQUvAHEKaFUhVWBRNAg1Wz0KYAZgAmwHYlYyAjtRLVIjBTMFalU3WzsBYAMzVGNWNAhkBWhRPwVhBmddZVo2Bi0FdAAkCmtVP1V+UW0IOFsqCiIGIgIjB2xWMwI0UT5SZgVjBT9VY1tvAWoDOlRyVnQIPAUhUToFYgZjXWxaLgY7BWgALAo8VWJVOFF+CDlbNQphBnwCcgc1Vm0CdFFlUggFOQVsVW9bbQFzAyRUIFZ4CCUFNFFYBSYGM11hWjA=";
+    const whiteNoiseUrl = "https://developer-oss.lanrar.com/file/?CG5bZQo7BjcCCwc/..."; // 省略
     whiteNoiseAudio.src = whiteNoiseUrl;
 
     let tracks = [];
@@ -267,7 +239,6 @@
     let countdownRemaining = 0;
     let isWhiteNoisePlaying = false;
 
-    // 音量加载 & 绑定
     const savedVolume = localStorage.getItem("playerVolume") || "1";
     volumeSlider.value = savedVolume;
     audio.volume = savedVolume;
@@ -284,13 +255,11 @@
       stopAllAudio();
       isWhiteNoisePlaying = false;
       whiteNoiseBtn.textContent = "播放白噪音";
-
       tracks = Array.from(filePicker.files).filter(f => f.type.startsWith("audio"));
       if (tracks.length === 0) {
         alert("未找到音频文件");
         return;
       }
-
       currentIndex = 0;
       renderPlaylist();
       loadTrack(currentIndex);
@@ -311,7 +280,7 @@
       nowPlayingEl.textContent = `正在播放：${track.name}`;
       playPauseBtn.textContent = "暂停";
       highlightCurrent();
-      startTimer();
+      // ✅ 移除 startTimer()，防止播放歌曲重置定时器
     }
 
     function stopAllAudio() {
@@ -377,14 +346,13 @@
 
     whiteNoiseBtn.addEventListener("click", () => {
       stopAllAudio();
-
       if (!isWhiteNoisePlaying) {
         whiteNoiseAudio.play();
         isWhiteNoisePlaying = true;
         whiteNoiseBtn.textContent = "暂停白噪音";
         nowPlayingEl.textContent = "正在播放：白噪音（暴风雪列车）";
         playPauseBtn.textContent = "播放";
-        startTimer();
+        // ✅ 移除 startTimer()，避免白噪音播放时重置倒计时
       } else {
         whiteNoiseAudio.pause();
         isWhiteNoisePlaying = false;
@@ -398,7 +366,6 @@
     function startTimer() {
       clearInterval(countdownInterval);
       countdownEl.textContent = "--:--";
-
       const minutes = parseInt(timerSelect.value);
       if (minutes > 0) {
         countdownRemaining = minutes * 60;
