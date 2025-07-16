@@ -63,7 +63,14 @@
     #whiteNoiseBtn:hover {
       background: var(--primary-dark);
     }
-    #controls,
+    #controls {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      margin-top: 1rem;
+    }
     #timerControl {
       display: flex;
       gap: 0.7rem;
@@ -71,6 +78,8 @@
       justify-content: center;
       align-items: center;
       margin-top: 1rem;
+      width: 100%;
+      max-width: 500px;
     }
     button,
     select {
@@ -90,6 +99,14 @@
     button:disabled {
       background: #9db9ff;
       cursor: not-allowed;
+    }
+    #timerInput {
+        width: 80px;
+        padding: 0.6em;
+        font-size: 1rem;
+        border-radius: var(--radius);
+        border: 1px solid #ccc;
+        text-align: center;
     }
     .volume-control {
       display: flex;
@@ -150,16 +167,19 @@
     }
     @media (max-width: 600px) {
       .top-bar,
-      #controls,
-      #timerControl {
+      #controls {
         flex-direction: column;
         align-items: stretch;
         width: 100%;
       }
+      #timerControl {
+        flex-direction: column;
+      }
       #filePicker,
       #whiteNoiseBtn,
       button,
-      select {
+      select,
+      #timerInput {
         width: 100%;
       }
       .volume-control {
@@ -191,14 +211,11 @@
   </div>
 
   <div id="timerControl">
-    <label>定时关闭：</label>
-    <select id="timerSelect">
-      <option value="0">不设定</option>
-      <option value="5">5 分钟</option>
-      <option value="10">10 分钟</option>
-      <option value="30">30 分钟</option>
-      <option value="60">60 分钟</option>
-    </select>
+    <label>定时关闭(分钟):</label>
+    <input type="number" id="timerInput" min="1" placeholder="分钟" />
+    <button id="setTimerBtn">设定</button>
+    <button id="pauseResumeTimerBtn" disabled>暂停倒计时</button>
+    <button id="cancelTimerBtn" disabled>取消倒计时</button>
     <div id="countdown">--:--</div>
   </div>
 
@@ -215,6 +232,7 @@
   <audio id="whiteNoiseAudio" loop hidden></audio>
 
   <script>
+    // --- DOM Elements ---
     const filePicker = document.getElementById("filePicker");
     const audio = document.getElementById("audio");
     const whiteNoiseAudio = document.getElementById("whiteNoiseAudio");
@@ -225,25 +243,36 @@
     const playlistEl = document.getElementById("playlist");
     const nowPlayingEl = document.getElementById("nowPlaying");
     const whiteNoiseBtn = document.getElementById("whiteNoiseBtn");
-    const timerSelect = document.getElementById("timerSelect");
-    const countdownEl = document.getElementById("countdown");
     const volumeSlider = document.getElementById("volumeSlider");
+    const timerInput = document.getElementById("timerInput");
+    const setTimerBtn = document.getElementById("setTimerBtn");
+    const pauseResumeTimerBtn = document.getElementById("pauseResumeTimerBtn");
+    const cancelTimerBtn = document.getElementById("cancelTimerBtn");
+    const countdownEl = document.getElementById("countdown");
 
-    const whiteNoiseUrl = "https://developer-oss.lanrar.com/file/?CG5bZQo7BjcCCwc/VmMCblFuUmoFCQVpVT1bKgEuA3ZUO1ZzCDgFDlFzBSEGM101Wm4GXAUtAGoKZFUnVWxRPghnW2UKJAY3AnoHPFZyAjBRLVIxBTMFa1U3WwIBNANmVGlWMwhhBWVRMgVqBmNdalo2BjsFfABkCn5VblU4UWYIMFs9Cm4GZgJlB2VWJAJzUXtSagVoBTdVYFtoAXIDMlRjVi4IZQVpUSgFNQZlXTpaYQZgBW8AOwo+VWJValFjCG5bNApjBmACMAdkVmcCZlE4UmEFaQVhVTRbZQFtAzFUN1ZiCGUFNVFlBX0GP10sWjMGJQUvAHEKaFUhVWBRNAg1Wz0KYAZgAmwHYlYyAjtRLVIjBTMFalU3WzsBYAMzVGNWNAhkBWhRPwVhBmddZVo2Bi0FdAAkCmtVP1V+UW0IOFsqCiIGIgIjB2xWMwI0UT5SZgVjBT9VY1tvAWoDOlRyVnQIPAUhUToFYgZjXWxaLgY7BWgALAo8VWJVOFF+CDlbNQphBnwCcgc1Vm0CdFFlUggFOQVsVW9bbQFzAyRUIFZ4CCUFNFFYBSYGM11hWjA="; // 省略
-    whiteNoiseAudio.src = whiteNoiseUrl;
-
+    // --- State Variables ---
     let tracks = [];
     let currentIndex = 0;
     let isShuffle = false;
+    let isWhiteNoisePlaying = false;
     let countdownInterval = null;
     let countdownRemaining = 0;
-    let isWhiteNoisePlaying = false;
+    let isTimerPaused = false;
 
+    const whiteNoiseInfo = {
+        name: "白噪音（暴风雪列车）",
+        url: "https://raw.githubusercontent.com/1120026847/DataSet/main/%E6%9A%B4%E9%A3%8E%E9%9B%AA%E4%B8%AD%2C%E8%A1%8C%E9%A9%B6%E7%9A%84%E5%88%97%E8%BD%A6(%E7%99%BD%E5%99%AA%E9%9F%B3).mp3
+"
+    }
+    whiteNoiseAudio.src = whiteNoiseInfo.url;
+    
+    // --- Initial Setup ---
     const savedVolume = localStorage.getItem("playerVolume") || "1";
     volumeSlider.value = savedVolume;
     audio.volume = savedVolume;
     whiteNoiseAudio.volume = savedVolume;
 
+    // --- Event Listeners ---
     volumeSlider.addEventListener("input", () => {
       const v = volumeSlider.value;
       audio.volume = v;
@@ -266,12 +295,46 @@
       enableControls();
     });
 
+    playPauseBtn.addEventListener("click", () => {
+      if(isWhiteNoisePlaying) return; 
+      if (!audio.src) return;
+      audio.paused ? playTrack() : pauseTrack();
+    });
+    
+    nextBtn.addEventListener("click", nextTrack);
+    prevBtn.addEventListener("click", prevTrack);
+    audio.addEventListener("ended", nextTrack);
+    
+    shuffleBtn.addEventListener("click", () => {
+      isShuffle = !isShuffle;
+      shuffleBtn.textContent = isShuffle ? "乱序播放" : "顺序播放";
+    });
+    
+    whiteNoiseBtn.addEventListener("click", () => {
+      if (!isWhiteNoisePlaying) {
+        stopAllAudio(); 
+        whiteNoiseAudio.play();
+        isWhiteNoisePlaying = true;
+        whiteNoiseBtn.textContent = "暂停白噪音";
+        nowPlayingEl.textContent = `正在播放：${whiteNoiseInfo.name}`;
+      } else {
+        whiteNoiseAudio.pause();
+        isWhiteNoisePlaying = false;
+        whiteNoiseBtn.textContent = "播放白噪音";
+        nowPlayingEl.textContent = "已暂停白噪音";
+      }
+    });
+
+    // --- Player Functions ---
     function enableControls() {
       [prevBtn, playPauseBtn, nextBtn, shuffleBtn].forEach(btn => btn.disabled = false);
     }
 
     function loadTrack(index) {
       stopAllAudio();
+      isWhiteNoisePlaying = false;
+      whiteNoiseBtn.textContent = "播放白噪音";
+
       currentIndex = index;
       const track = tracks[index];
       if (!track) return;
@@ -280,7 +343,6 @@
       nowPlayingEl.textContent = `正在播放：${track.name}`;
       playPauseBtn.textContent = "暂停";
       highlightCurrent();
-      // ✅ 移除 startTimer()，防止播放歌曲重置定时器
     }
 
     function stopAllAudio() {
@@ -291,6 +353,12 @@
     function playTrack() {
       audio.play();
       playPauseBtn.textContent = "暂停";
+      // --- ✅ 关键修改点 START ---
+      // 当从“定时停止”或手动暂停的状态恢复播放时，需要更新“正在播放”的文本
+      if (tracks[currentIndex]) {
+          nowPlayingEl.textContent = `正在播放：${tracks[currentIndex].name}`;
+      }
+      // --- ✅ 关键修改点 END ---
     }
 
     function pauseTrack() {
@@ -298,12 +366,8 @@
       playPauseBtn.textContent = "继续";
     }
 
-    playPauseBtn.addEventListener("click", () => {
-      if (!audio.src) return;
-      audio.paused ? playTrack() : pauseTrack();
-    });
-
     function nextTrack() {
+      if (tracks.length === 0) return;
       isShuffle
         ? currentIndex = Math.floor(Math.random() * tracks.length)
         : currentIndex = (currentIndex + 1) % tracks.length;
@@ -311,21 +375,12 @@
     }
 
     function prevTrack() {
+      if (tracks.length === 0) return;
       isShuffle
         ? currentIndex = Math.floor(Math.random() * tracks.length)
         : currentIndex = (currentIndex - 1 + tracks.length) % tracks.length;
       loadTrack(currentIndex);
     }
-
-    nextBtn.addEventListener("click", nextTrack);
-    prevBtn.addEventListener("click", prevTrack);
-
-    shuffleBtn.addEventListener("click", () => {
-      isShuffle = !isShuffle;
-      shuffleBtn.textContent = isShuffle ? "乱序播放" : "顺序播放";
-    });
-
-    audio.addEventListener("ended", nextTrack);
 
     function renderPlaylist() {
       playlistEl.innerHTML = "";
@@ -344,50 +399,81 @@
       });
     }
 
-    whiteNoiseBtn.addEventListener("click", () => {
-      stopAllAudio();
-      if (!isWhiteNoisePlaying) {
-        whiteNoiseAudio.play();
-        isWhiteNoisePlaying = true;
-        whiteNoiseBtn.textContent = "暂停白噪音";
-        nowPlayingEl.textContent = "正在播放：白噪音（暴风雪列车）";
-        playPauseBtn.textContent = "播放";
-        // ✅ 移除 startTimer()，避免白噪音播放时重置倒计时
-      } else {
-        whiteNoiseAudio.pause();
-        isWhiteNoisePlaying = false;
-        whiteNoiseBtn.textContent = "播放白噪音";
-        nowPlayingEl.textContent = "已暂停白噪音";
-      }
+    // --- Timer Logic ---
+    setTimerBtn.addEventListener('click', () => {
+        const minutes = parseInt(timerInput.value);
+        if (isNaN(minutes) || minutes <= 0) {
+            alert("请输入一个有效的分钟数！");
+            return;
+        }
+        startTimer(minutes);
     });
 
-    timerSelect.addEventListener("change", startTimer);
+    pauseResumeTimerBtn.addEventListener('click', () => {
+        isTimerPaused = !isTimerPaused;
+        pauseResumeTimerBtn.textContent = isTimerPaused ? '继续倒计时' : '暂停倒计时';
+    });
+    
+    cancelTimerBtn.addEventListener('click', () => {
+        cancelTimer();
+        alert("定时关闭已取消。");
+    });
 
-    function startTimer() {
-      clearInterval(countdownInterval);
-      countdownEl.textContent = "--:--";
-      const minutes = parseInt(timerSelect.value);
-      if (minutes > 0) {
+    function startTimer(minutes) {
+        clearInterval(countdownInterval); 
         countdownRemaining = minutes * 60;
-        updateCountdownDisplay();
+        isTimerPaused = false;
+        
+        updateCountdownUI(true); 
+
         countdownInterval = setInterval(() => {
-          countdownRemaining--;
-          updateCountdownDisplay();
-          if (countdownRemaining <= 0) {
-            stopAllAudio();
-            whiteNoiseBtn.textContent = "播放白噪音";
-            playPauseBtn.textContent = "播放";
-            nowPlayingEl.textContent = "播放已定时停止";
-            clearInterval(countdownInterval);
-          }
+            if (isTimerPaused) {
+                return;
+            }
+
+            countdownRemaining--;
+            updateCountdownDisplay();
+            
+            if (countdownRemaining <= 0) {
+                stopAllAudio();
+                isWhiteNoisePlaying = false;
+                whiteNoiseBtn.textContent = "播放白噪音";
+                playPauseBtn.textContent = "播放";
+                nowPlayingEl.textContent = "播放已定时停止";
+                
+                cancelTimer();
+            }
         }, 1000);
-      }
+    }
+    
+    function cancelTimer() {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        countdownRemaining = 0;
+        isTimerPaused = false;
+        countdownEl.textContent = "--:--";
+        updateCountdownUI(false); 
     }
 
     function updateCountdownDisplay() {
+      if (countdownRemaining < 0) return;
       const min = Math.floor(countdownRemaining / 60);
       const sec = countdownRemaining % 60;
       countdownEl.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+    }
+
+    function updateCountdownUI(isRunning) {
+        setTimerBtn.disabled = isRunning;
+        timerInput.disabled = isRunning;
+        pauseResumeTimerBtn.disabled = !isRunning;
+        cancelTimerBtn.disabled = !isRunning;
+        
+        if (!isRunning) {
+            pauseResumeTimerBtn.textContent = '暂停倒计时';
+            timerInput.value = '';
+        } else {
+             updateCountdownDisplay();
+        }
     }
   </script>
 </body>
