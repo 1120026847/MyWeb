@@ -140,3 +140,288 @@ progressCircle.style.strokeDasharray = `0 ${circumference}`;
 
 function pad2(n){ return n.toString().padStart(2,'0'); }
 function formatHMS(ms){
+    ms = Math.max(0, Math.floor(ms));
+    const h = Math.floor(ms/3600000);
+    const m = Math.floor((ms%3600000)/60000);
+    const s = Math.floor((ms%60000)/1000);
+    return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+}
+function formatCS(ms){ // 百分之一秒
+    const cs = Math.floor((ms % 1000) / 10);
+    return pad2(cs);
+}
+function parseTimeFromTitle(){ // 从标签名里解析 00:00:00 或 00:00:00.00
+    const m = document.title.match(/(\d{2}):(\d{2}):(\d{2})(?:\.(\d{2}))?/);
+    if(!m) return null;
+    const [_, hh, mm, ss, cc] = m;
+    let total = (+hh)*3600000 + (+mm)*60000 + (+ss)*1000;
+    if (cc !== undefined) total += (+cc)*10;
+    return total;
+}
+function updateProgressRingBy(remaining, total){
+    if (total <= 0) { progressCircle.style.strokeDasharray = `0 ${circumference}`; return; }
+    const progress = Math.min(1, Math.max(0, (total - remaining) / total));
+    const dash = progress * circumference;
+    progressCircle.style.strokeDasharray = `${dash} ${circumference}`;
+}
+
+/* ===================== 状态：当前 Tab ===================== */
+let currentActiveTimer = 'stopwatch';
+function switchTab(id, el){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    el.classList.add('active');
+    currentActiveTimer = id;
+}
+
+/* ===================== 计时器（秒表） ===================== */
+const swTimeEl = document.getElementById('stopwatch-time');
+const swMsEl = document.getElementById('stopwatch-ms');
+const swStartBtn = document.getElementById('stopwatch-start');
+const swLapBtn = document.getElementById('stopwatch-lap');
+const swResetBtn = document.getElementById('stopwatch-reset');
+const lapsEl = document.getElementById('laps');
+
+let swRunning = false;
+let swStartTime = 0;     // 本次开始的时间戳
+let swAccumulated = 0;   // 已累计的用时（暂停期间保持）
+function swElapsed(){
+    return swRunning ? (swAccumulated + (Date.now() - swStartTime)) : swAccumulated;
+}
+function drawStopwatch(){
+    const ms = swElapsed();
+    swTimeEl.textContent = formatHMS(ms);
+    swMsEl.textContent = '.' + formatCS(ms);
+}
+function startStopwatch(){
+    if (swRunning){
+        // 暂停
+        swAccumulated = swElapsed();
+        swRunning = false;
+        swStartBtn.textContent = '继续';
+        swLapBtn.disabled = true;
+    } else {
+        // 开始/继续
+        swStartTime = Date.now();
+        swRunning = true;
+        swStartBtn.textContent = '暂停';
+        swLapBtn.disabled = false;
+    }
+}
+function lapStopwatch(){
+    const count = document.querySelectorAll('.lap').length + 1;
+    const ms = swElapsed();
+    const div = document.createElement('div');
+    div.className = 'lap';
+    div.innerHTML = `<span>第${count}次</span><span>${formatHMS(ms)}.${formatCS(ms)}</span>`;
+    lapsEl.insertBefore(div, lapsEl.firstChild);
+}
+function resetStopwatch(){
+    swRunning = false; swAccumulated = 0; swStartTime = 0;
+    swStartBtn.textContent = '开始'; swLapBtn.disabled = true;
+    lapsEl.innerHTML = '';
+    drawStopwatch();
+}
+
+/* ===================== 倒计时 ===================== */
+const cdTimeEl = document.getElementById('countdown-time');
+const cdStartBtn = document.getElementById('countdown-start');
+const cdResetBtn = document.getElementById('countdown-reset');
+const progressContainer = document.getElementById('progress-container');
+const hoursInput = document.getElementById('hours');
+const minutesInput = document.getElementById('minutes');
+const secondsInput = document.getElementById('seconds');
+
+let cdRunning = false;
+let cdEndTime = 0;            // 运行中：结束时间戳
+let cdRemaining = 0;          // 暂停/未开始：剩余ms
+let cdTotal = 0;              // 这次倒计时总时长
+let cdNotified = false;
+
+function cdLeft(){
+    return cdRunning ? Math.max(0, cdEndTime - Date.now()) : Math.max(0, cdRemaining);
+}
+function drawCountdown(){
+    const left = cdLeft();
+    cdTimeEl.textContent = formatHMS(left);
+    updateProgressRingBy(left, cdTotal);
+}
+function setCountdown(minutes){
+    const ms = minutes * 60 * 1000;
+    cdRunning = false; cdRemaining = ms; cdTotal = ms; cdEndTime = 0; cdNotified = false;
+    progressContainer.classList.add('show');
+    drawCountdown();
+}
+function setCustomCountdown(){
+    const h = parseInt(hoursInput.value)||0;
+    const m = parseInt(minutesInput.value)||0;
+    const s = parseInt(secondsInput.value)||0;
+    const ms = (h*3600 + m*60 + s) * 1000;
+    if (ms <= 0){ alert('请设置有效的时间！'); return; }
+    cdRunning = false; cdRemaining = ms; cdTotal = ms; cdEndTime = 0; cdNotified = false;
+    progressContainer.classList.add('show');
+    drawCountdown();
+}
+function startCountdown(){
+    if (!cdRunning){
+        if (cdRemaining <= 0){ alert('请先设置倒计时时间！'); return; }
+        cdEndTime = Date.now() + cdRemaining;
+        cdRunning = true; cdStartBtn.textContent = '暂停'; cdNotified = false;
+    } else {
+        // 暂停
+        cdRemaining = cdLeft();
+        cdRunning = false; cdStartBtn.textContent = '继续';
+    }
+}
+function finishCountdown(){
+    // 只通知一次
+    if (cdNotified) return;
+    cdNotified = true;
+    cdRunning = false; cdRemaining = 0; cdEndTime = 0;
+    cdStartBtn.textContent = '开始';
+    cdTimeEl.textContent = '00:00:00';
+    showNotification('⏰ 时间到！');
+}
+function resetCountdown(){
+    cdRunning = false; cdRemaining = 0; cdEndTime = 0; cdTotal = 0; cdNotified = false;
+    cdStartBtn.textContent = '开始'; cdTimeEl.textContent = '00:00:00';
+    progressContainer.classList.remove('show');
+    hoursInput.value = ''; minutesInput.value = ''; secondsInput.value = '';
+    updateProgressRingBy(0, 0);
+}
+
+/* ===================== 提示 & 声音 ===================== */
+function showNotification(message){
+    const n = document.createElement('div');
+    n.className = 'notification'; n.textContent = message; document.body.appendChild(n);
+    try {
+        const audioContext = new (window.AudioContext||window.webkitAudioContext)();
+        const osc = audioContext.createOscillator(); const gain = audioContext.createGain();
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.frequency.value = 800; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+        osc.start(audioContext.currentTime); osc.stop(audioContext.currentTime + 1);
+    } catch(e){ /* 忽略 */ }
+    setTimeout(()=>n.remove(), 3000);
+}
+
+/* ===================== 页面可见性 & 标签名计时 ===================== */
+let titleTimer = null; // 背景时每秒刷新标题（被节流也不怕，返回会校正）
+function updateDocumentTitle(){
+    // 根据真实时间戳计算，保证即使后台节流也不会“停走”
+    if (currentActiveTimer === 'stopwatch'){
+        const ms = swElapsed();
+        if (swRunning || ms > 0){
+            document.title = `⏱️ ${formatHMS(ms)}.${formatCS(ms)} - ${TITLE_BASE}`;
+        } else {
+            document.title = TITLE_BASE;
+        }
+    } else {
+        const left = cdLeft();
+        if (cdRunning || left > 0){
+            document.title = `⏰ ${formatHMS(left)} - ${TITLE_BASE}`;
+        } else {
+            document.title = TITLE_BASE;
+        }
+    }
+
+    // 倒计时到期检测（即使在后台也会触发，只是可能稍有延迟）
+    if (cdRunning && cdLeft() <= 0){
+        finishCountdown();
+        document.title = `⏰ 时间到！ - ${TITLE_BASE}`;
+    }
+}
+function startTitleTicker(){
+    if (titleTimer) return;
+    titleTimer = setInterval(updateDocumentTitle, 1000);
+}
+function stopTitleTicker(){
+    if (!titleTimer) return;
+    clearInterval(titleTimer); titleTimer = null;
+    document.title = TITLE_BASE;
+}
+
+// 可见性变化：回来时从标题同步（满足你的“从标签名传回计时器”要求）
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden'){
+        startTitleTicker();
+        updateDocumentTitle(); // 立即更新一次
+    } else {
+        // 从标题尝试同步
+        const titleMs = parseTimeFromTitle();
+        if (titleMs !== null){
+            if (currentActiveTimer === 'stopwatch' && (swRunning || swElapsed()>0)){
+                // 将标题时间作为当前累计，用时间戳法继续
+                swAccumulated = titleMs;
+                swStartTime = Date.now(); // 下一个瞬间起继续走
+                drawStopwatch();
+            } else if (currentActiveTimer === 'countdown' && (cdRunning || cdLeft()>0 || cdTotal>0)){
+                // 将标题时间视为剩余时间
+                if (titleMs <= 0){
+                    finishCountdown();
+                } else {
+                    cdRemaining = titleMs;
+                    if (cdRunning){
+                        cdEndTime = Date.now() + cdRemaining;
+                    }
+                    drawCountdown();
+                }
+            }
+        }
+        stopTitleTicker();
+        // 立即把 UI 刷新到正确时间
+        drawStopwatch(); drawCountdown();
+    }
+});
+
+/* ===================== UI 刷新循环 ===================== */
+// 使用 requestAnimationFrame 在前台高频渲染（后台会自动暂停，时间仍由时间戳保证准确）
+function uiLoop(){
+    // 秒表：前台显示到百分之一秒
+    drawStopwatch();
+
+    // 倒计时：前台每帧校正，必要时触发完成
+    const left = cdLeft();
+    if (cdRunning && left <= 0){
+        finishCountdown();
+    } else {
+        drawCountdown();
+    }
+
+    requestAnimationFrame(uiLoop);
+}
+
+/* ===================== 事件绑定 & 初始化 ===================== */
+swStartBtn.addEventListener('click', startStopwatch);
+swLapBtn.addEventListener('click', lapStopwatch);
+swResetBtn.addEventListener('click', resetStopwatch);
+cdStartBtn.addEventListener('click', startCountdown);
+cdResetBtn.addEventListener('click', resetCountdown);
+
+// 空格键：当前 Tab 的开始/暂停
+document.addEventListener('keydown', e => {
+    if (e.code === 'Space'){
+        e.preventDefault();
+        if (currentActiveTimer === 'stopwatch') startStopwatch();
+        else startCountdown();
+    }
+});
+
+// 初始
+document.addEventListener('DOMContentLoaded', () => {
+    document.title = TITLE_BASE;
+    // 默认选中计时器
+    currentActiveTimer = 'stopwatch';
+    swLapBtn.disabled = true;
+    drawStopwatch();
+    drawCountdown();
+    requestAnimationFrame(uiLoop);
+    // 前台也每秒更新一次标题（轻量），保证显示一致
+    startTitleTicker();
+    setTimeout(stopTitleTicker, 50); // 立刻停掉，只在后台保留
+});
+</script>
+</body>
+</html>
