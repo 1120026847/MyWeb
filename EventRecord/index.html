@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>时间记录表 · Excel 风格 · Supabase 同步</title>
 
-<!-- 延迟加载 supabase-js；我们会在 DOMContentLoaded 里再 createClient -->
+<!-- 延迟加载 supabase-js；我们在 ensureClient()/initAuth 里再创建客户端 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
 <style>
@@ -46,12 +46,13 @@
     <div id="signed-out" style="display:flex;gap:8px;align-items:center">
       <input type="email" id="email" placeholder="邮箱" />
       <input type="password" id="password" placeholder="密码（≥6位）" />
-      <button class="btn" id="btnSignUp" type="button">注册</button>
-      <button class="btn primary" id="btnSignIn" type="button">登录</button>
+      <!-- 双保险：type=button + 内联 onclick 兜底 -->
+      <button class="btn" id="btnSignUp" type="button" onclick="return __signup()">注册</button>
+      <button class="btn primary" id="btnSignIn" type="button" onclick="return __signin()">登录</button>
     </div>
     <div id="signed-in" style="display:none;gap:8px;align-items:center">
       <span class="pill" id="userEmail"></span>
-      <button class="btn" id="btnSignOut" type="button">退出</button>
+      <button class="btn" id="btnSignOut" type="button" onclick="return __signout()">退出</button>
     </div>
   </div>
 </header>
@@ -106,15 +107,72 @@
 </main>
 
 <script>
-/** =========== 配置 =========== */
+/** ================== 配置 ================== */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
+/* ========= 全局（供内联 onclick 调用） ========= */
+let __sb = null;       // Supabase client
+let __user = null;
+
+/** 确保拿到 supabase 客户端（兜底：库未就绪时延迟重试） */
+function ensureClient(){
+  if (__sb) return __sb;
+  if (window.supabase?.createClient) {
+    __sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+    });
+    return __sb;
+  }
+  return null;
+}
+
+/** 兜底版登录（按钮内联调用） */
+async function __signin(){
+  try{
+    const sb = ensureClient();
+    if(!sb){ alert('supabase-js 尚未就绪，请稍后再试或刷新页面'); return false; }
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+  }catch(err){
+    alert('登录失败：'+(err?.message||err));
+  }
+  return false;
+}
+
+/** 兜底版注册 */
+async function __signup(){
+  try{
+    const sb = ensureClient();
+    if(!sb){ alert('supabase-js 尚未就绪，请稍后再试或刷新页面'); return false; }
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const { error } = await sb.auth.signUp({ email, password });
+    if(error) throw error;
+    alert('注册成功：若开启邮箱验证，请到邮箱确认后再登录');
+  }catch(err){
+    alert('注册失败：'+(err?.message||err));
+  }
+  return false;
+}
+
+/** 兜底版退出 */
+async function __signout(){
+  try{
+    const sb = ensureClient();
+    if(!sb){ return false; }
+    await sb.auth.signOut();
+  }catch(err){
+    alert('退出失败：'+(err?.message||err));
+  }
+  return false;
+}
+
+/* ========= 页面主逻辑（仍然使用 DOMContentLoaded 初始化 + 绑定） ========= */
 window.addEventListener('DOMContentLoaded', () => {
-  // ====== 变量与元素 ======
-  let sb = null;               // Supabase client（DOMContentLoaded 后再创建）
-  let currentUser = null;
-  let rows = [];               // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
+  let rows = []; // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
   const els = {
     dayPicker: document.getElementById('dayPicker'),
     btnToday: document.getElementById('btnToday'),
@@ -147,7 +205,7 @@ window.addEventListener('DOMContentLoaded', () => {
     btnSignOut: document.getElementById('btnSignOut'),
   };
 
-  // ====== 工具 ======
+  // ---- 小工具 ----
   const pad = n => String(n).padStart(2,'0');
   const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
   const monthEnd = d => new Date(d.getFullYear(), d.getMonth()+1, 0);
@@ -159,11 +217,11 @@ window.addEventListener('DOMContentLoaded', () => {
   function csvParseLine(line){ const out=[]; let i=0; while(i<line.length){ if(line[i]==='"'){ let j=i+1, s=''; while(j<line.length){ if(line[j]==='"' && line[j+1]==='"'){ s+='"'; j+=2; } else if(line[j]==='"'){ j++; break; } else { s+=line[j++]; } } out.push(s); if(line[j]===',') j++; i=j; } else { let j=i; while(j<line.length && line[j]!==',') j++; out.push(line.slice(i,j)); i=j+1; } } return out; }
   function download(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
 
-  // ====== 本地存取 ======
+  // ---- 本地存取 ----
   function loadLocal(dstr){ try{ rows = JSON.parse(localStorage.getItem(keyDay(dstr))||'[]'); }catch{ rows=[]; } }
   function saveLocal(dstr){ localStorage.setItem(keyDay(dstr), JSON.stringify(rows)); updateBadge(); }
 
-  // ====== 渲染 ======
+  // ---- 渲染 ----
   function render(){
     els.tbody.innerHTML='';
     rows.forEach((r,idx)=>{
@@ -203,7 +261,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ====== UI 绑定 ======
+  // ---- 绑定 UI ----
   function bindUI(){
     els.dayPicker.value = todayStr();
     loadLocal(els.dayPicker.value); render(); updateBadge();
@@ -243,7 +301,7 @@ window.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('offline', updateBadge);
   }
 
-  // ====== 导入实现 ======
+  // ---- 导入实现 ----
   async function onImportDay(ev){
     const file = ev.target.files[0]; ev.target.value='';
     if(!file) return;
@@ -268,9 +326,8 @@ window.addEventListener('DOMContentLoaded', () => {
     let list = [];
     if(file.name.toLowerCase().endsWith('.json')){
       try{ list = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
-      // 期望格式：[{date:'YYYY-MM-DD', start_t, end_t, content, note}, ...]
+      // 期望：[{date:'YYYY-MM-DD', start_t, end_t, content, note}]
     }else{
-      // CSV：日期,开始时间,结束时间,内容,备注
       const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
       if(lines.length && /日期.*开始.*结束.*内容/.test(lines[0])) lines.shift();
       list = lines.map(line=>{
@@ -285,15 +342,15 @@ window.addEventListener('DOMContentLoaded', () => {
     alert('导入当月完成（本地缓存）');
   }
 
-  // ====== 当月导出 ======
+  // ---- 当月导出 ----
   async function exportMonthCSV(){
     const d = new Date(els.dayPicker.value);
     const y=d.getFullYear(), m=d.getMonth()+1;
     let data = [];
-    if(currentUser){
-      const { data:cloud, error } = await sb.from('event_grid')
+    if(__user){
+      const { data:cloud, error } = await ensureClient().from('event_grid')
         .select('d,start_t,end_t,content,note')
-        .eq('user_id', currentUser.id)
+        .eq('user_id', __user.id)
         .gte('d', `${y}-${pad(m)}-01`)
         .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
         .order('d',{ascending:true}).order('start_t',{ascending:true});
@@ -316,10 +373,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const d = new Date(els.dayPicker.value);
     const y=d.getFullYear(), m=d.getMonth()+1;
     let data = [];
-    if(currentUser){
-      const { data:cloud, error } = await sb.from('event_grid')
+    if(__user){
+      const { data:cloud, error } = await ensureClient().from('event_grid')
         .select('d,start_t,end_t,content,note')
-        .eq('user_id', currentUser.id)
+        .eq('user_id', __user.id)
         .gte('d', `${y}-${pad(m)}-01`)
         .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
         .order('d',{ascending:true}).order('start_t',{ascending:true});
@@ -336,15 +393,16 @@ window.addEventListener('DOMContentLoaded', () => {
     download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `${y}-${pad(m)}_整月时间.json`);
   }
 
-  // ====== 云端：保存/读取当天 ======
+  // ---- 云端：保存/读取当天 ----
   async function saveDayToCloud(){
-    if(!currentUser){ alert('请先登录'); return; }
+    if(!__user){ alert('请先登录'); return; }
+    const sb = ensureClient();
     const dstr = els.dayPicker.value;
-    const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: dstr });
+    const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: dstr });
     if(del.error){ alert('删除旧记录失败：'+del.error.message); return; }
     const rowsReady = rows
       .filter(r=>r.start_t && r.end_t && r.content?.trim())
-      .map(r=>({ user_id: currentUser.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
+      .map(r=>({ user_id: __user.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
     if(rowsReady.length===0){ alert('没有可保存的行'); return; }
     const ins = await sb.from('event_grid').insert(rowsReady);
     if(ins.error){ alert('插入失败：'+ins.error.message); return; }
@@ -352,31 +410,37 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadDayFromCloud(){
-    if(!currentUser){ alert('请先登录'); return; }
+    if(!__user){ alert('请先登录'); return; }
+    const sb = ensureClient();
     const dstr = els.dayPicker.value;
     const { data, error } = await sb.from('event_grid')
       .select('start_t,end_t,content,note')
-      .eq('user_id', currentUser.id).eq('d', dstr)
+      .eq('user_id', __user.id).eq('d', dstr)
       .order('start_t',{ascending:true});
     if(error){ alert('载入失败：'+error.message); return; }
     rows = (data||[]).map(r=>({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}));
     saveLocal(dstr); render();
   }
 
-  // ====== 离线待同步 ======
-  function queuePending(payload){
-    const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-    q.push(payload);
-    localStorage.setItem('grid_pending', JSON.stringify(q));
-    updateBadge();
+  // ---- 待同步 & 状态 ----
+  function updateBadge(){
+    const online = navigator.onLine;
+    const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
+    const parts = [];
+    parts.push(online?'🟢 在线':'🔴 离线');
+    parts.push(__user ? '已登录' : '未登录');
+    if(__user) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
+    els.syncBadge.textContent = parts.join(' · ');
   }
+
   async function flushPending(){
-    if(!currentUser) return;
+    if(!__user) return;
+    const sb = ensureClient();
     const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
     if(q.length===0){ updateBadge(); return; }
     for(const it of q){
       if(it.type==='saveDay'){
-        const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: it.d });
+        const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: it.d });
         if(del.error){ console.warn('flush del fail', del.error.message); return; }
         const ins = await sb.from('event_grid').insert(it.rows);
         if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
@@ -386,60 +450,45 @@ window.addEventListener('DOMContentLoaded', () => {
     updateBadge();
   }
 
-  // ====== 登录相关 ======
   function updateAuthUI(){
-    if(currentUser){
+    if(__user){
       els.signedOut.style.display='none';
       els.signedIn.style.display='flex';
-      els.userEmail.textContent = currentUser.email || '已登录';
+      els.userEmail.textContent = __user.email || '已登录';
     }else{
       els.signedOut.style.display='flex';
       els.signedIn.style.display='none';
     }
     updateBadge();
   }
-  function updateBadge(){
-    const online = navigator.onLine;
-    const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
-    const parts = [];
-    parts.push(online?'🟢 在线':'🔴 离线');
-    parts.push(currentUser ? '已登录' : '未登录');
-    if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-    els.syncBadge.textContent = parts.join(' · ');
-  }
 
   async function initAuth(){
-    // 等 supabase-js 加载完毕后创建客户端
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-    });
-
+    const sb = ensureClient();
+    // 读取现有会话
     const { data:{ session } } = await sb.auth.getSession();
-    currentUser = session?.user || null;
+    __user = session?.user || null;
     updateAuthUI();
 
+    // 监听会话变化
     sb.auth.onAuthStateChange((_e, s) => {
-      currentUser = s?.user || null;
+      __user = s?.user || null;
       updateAuthUI();
-      if(currentUser) flushPending();
+      if(__user) flushPending();
     });
 
-    els.btnSignUp.onclick = async ()=>{
-      const email=els.email.value.trim(), password=els.password.value;
-      try{ const { error } = await sb.auth.signUp({ email, password }); if(error) throw error; alert('注册成功：如开启邮箱验证，请到邮箱确认后再登录'); }
-      catch(err){ alert('注册失败：'+(err?.message||err)); }
-    };
-    els.btnSignIn.onclick = async ()=>{
-      const email=els.email.value.trim(), password=els.password.value;
-      try{ const { error } = await sb.auth.signInWithPassword({ email, password }); if(error) throw error; }
-      catch(err){ alert('登录失败：'+(err?.message||err)); }
-    };
-    els.btnSignOut.onclick = async ()=>{ try{ await sb.auth.signOut(); }catch(err){ alert('退出失败：'+(err?.message||err)); } };
+    // 事件绑定（即使有内联兜底，也再绑定一次，提升兼容性）
+    els.btnSignUp.onclick = __signup;
+    els.btnSignIn.onclick = __signin;
+    els.btnSignOut.onclick = __signout;
   }
 
-  // ====== 初始化 ======
+  // ---- 初始化 UI 与登录模块 ----
   bindUI();
   initAuth();
+
+  // 网络状态
+  window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
+  window.addEventListener('offline', updateBadge);
 });
 </script>
 </body>
