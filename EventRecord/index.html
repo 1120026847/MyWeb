@@ -1,138 +1,141 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>EventRecord · 云端同步版</title>
-<style>
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#f5f7fb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Noto Sans SC','Microsoft Yahei',sans-serif;color:#222}
-  header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid #eee;position:sticky;top:0;z-index:5}
-  .app-title{font-weight:800}
-  .auth{display:flex;gap:8px;align-items:center}
-  .auth input{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:160px}
-  .btn{padding:8px 12px;border-radius:8px;border:1px solid #e1e1e1;background:#fff;cursor:pointer}
-  .btn.primary{background:#4CAF50;color:#fff;border-color:#4CAF50}
-  .pill{padding:4px 8px;border:1px solid #e1e1e1;border-radius:999px;font-size:12px;color:#666}
-
-  .wrap{flex:1;max-width:960px;margin:20px auto;padding:20px;background:#fff;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,.06)}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
-  .date-display{font-size:22px;font-weight:700;text-align:center;margin:6px 0 14px}
-  .output-box{min-height:260px;border:1px solid #e6e6e6;border-radius:10px;padding:12px;overflow:auto;background:#fafafa}
-  .event{padding:6px 8px}
-  .event-line{margin:0}
-  hr{margin:6px 0;border:0;border-top:1px solid #eee}
-  .controls{display:flex;gap:8px;margin:12px 0}
-  .edit-box{width:100%;height:92px;border:1px solid #e6e6e6;border-radius:10px;padding:10px;margin-top:6px}
-
-  .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;align-items:center;justify-content:center}
-  .dialog{background:#fff;padding:22px;border-radius:12px;min-width:380px;max-width:92vw}
-  .dialog textarea{width:100%;height:120px;margin:8px 0;padding:10px;border:1px solid #ddd;border-radius:8px}
-  .dialog .row{display:flex;gap:8px;margin:8px 0}
-  .dialog .row input{flex:1;padding:10px;border:1px solid #ddd;border-radius:8px}
-  .dialog-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
-</style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>时间记录（月表/日表 · Excel 风格 · Supabase 同步）</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --grid:#e5e7eb; --header:#f8fafc; --accent:#4caf50; --blue:#2196f3; --red:#ef4444; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Microsoft Yahei','Noto Sans SC',sans-serif;background:#f5f7fb;color:#111}
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
+  .auth input{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:160px}
+  .btn{padding:8px 12px;border:1px solid #ddd;background:#fff;border-radius:8px;cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .pill{padding:4px 8px;border:1px solid #ddd;border-radius:999px;font-size:12px;color:#555}
+  .wrap{max-width:1100px;margin:20px auto;background:#fff;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,.06);padding:16px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .toolbar .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .sheet{margin-top:12px;border:1px solid var(--grid);border-radius:10px;overflow:auto}
+  table{border-collapse:collapse;width:100%;table-layout:fixed}
+  thead{background:var(--header);position:sticky;top:0;z-index:1}
+  th,td{border:1px solid var(--grid);padding:6px}
+  th{font-weight:700;text-align:center}
+  td input[type="time"]{width:100%;border:none;outline:none;background:transparent;padding:2px}
+  td input[type="text"]{width:100%;border:none;outline:none;background:transparent;padding:2px}
+  td .num{font-feature-settings:"tnum";font-variant-numeric:tabular-nums}
+  tr:nth-child(even) td{background:#fafafa}
+  .danger{color:#fff;background:var(--red);border-color:var(--red)}
+  .blue{background:var(--blue);border-color:var(--blue);color:#fff}
+  .muted{color:#777}
+  .status{display:flex;gap:8px;align-items:center}
+  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:#555}
+</style>
 </head>
 <body>
-  <header>
-    <div class="app-title">⏱️ EventRecord</div>
-    <div class="auth">
-      <div id="signed-out">
-        <input type="email" id="email" placeholder="邮箱"/>
-        <input type="password" id="password" placeholder="密码（≥6位）"/>
-        <button class="btn" id="btnSignUp">注册</button>
-        <button class="btn primary" id="btnSignIn">登录</button>
-      </div>
-      <div id="signed-in" style="display:none;gap:8px;align-items:center">
-        <span class="pill" id="userEmail"></span>
-        <span class="pill" id="syncBadge">未登录</span>
-        <button class="btn" id="btnSignOut">退出</button>
-      </div>
+<header>
+  <div class="status">
+    <strong>📅 时间记录表</strong>
+    <span class="pill" id="syncBadge">未登录</span>
+  </div>
+  <div class="auth">
+    <div id="signed-out" style="display:flex;gap:8px;align-items:center">
+      <input type="email" id="email" placeholder="邮箱" />
+      <input type="password" id="password" placeholder="密码（≥6位）" />
+      <button class="btn" id="btnSignUp">注册</button>
+      <button class="btn primary" id="btnSignIn">登录</button>
     </div>
-  </header>
-
-  <main class="wrap">
-    <div class="toolbar">
-      <button class="btn" onclick="location.href='https://www.molijun.com'">首页</button>
-      <button class="btn" id="btnStats">导出统计（txt）</button>
-      <button class="btn" id="btnExportJSON">导出 JSON</button>
-      <button class="btn" id="btnSyncLocal">同步本地 → 云端</button>
-      <button class="btn" id="btnClear">清空全部</button>
-      <span style="color:#666;font-size:12px">（未登录仅保存在本地）</span>
+    <div id="signed-in" style="display:none;gap:8px;align-items:center">
+      <span class="pill" id="userEmail"></span>
+      <button class="btn" id="btnSignOut">退出</button>
     </div>
+  </div>
+</header>
 
-    <div class="date-display" id="dateDisplay"></div>
-
-    <div class="output-box" id="outputBox"></div>
-
-    <div class="controls">
-      <button class="btn primary" id="btnStart">开始记录</button>
-      <button class="btn primary" id="btnEnd">结束记录</button>
-      <button class="btn" id="btnFree">自由编辑</button>
-    </div>
-
+<main class="wrap">
+  <div class="toolbar">
     <div>
-      <div>事项内容：</div>
-      <div class="edit-box" id="editBox" contenteditable="true"></div>
+      日期：
+      <input type="date" id="dayPicker" />
+      <button class="btn" id="btnToday">今天</button>
+      <span class="muted">（切换日期 = 切换当日表）</span>
     </div>
-  </main>
 
-  <!-- 自由编辑 -->
-  <div class="modal" id="editModal">
-    <div class="dialog">
-      <h3 style="margin:0 0 6px">自由编辑记录</h3>
-      <textarea id="freeContent" placeholder="输入事项内容..."></textarea>
-      <div class="row">
-        <input type="date" id="freeDate">
-      </div>
-      <div class="row">
-        <input type="time" id="freeStart">
-        <input type="time" id="freeEnd">
-      </div>
-      <div class="dialog-actions">
-        <button class="btn" id="btnConfirmFree">确认记录</button>
-        <button class="btn" id="btnCancelFree">取消</button>
-      </div>
+    <div class="right">
+      <button class="btn" id="btnAdd">新增行</button>
+      <button class="btn" id="btnDelete">删除勾选行</button>
+      <button class="btn blue" id="btnLoadCloud">从云端载入当天</button>
+      <button class="btn primary" id="btnSaveCloud">保存当天到云端</button>
     </div>
   </div>
 
+  <div class="sheet">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:44px"><input type="checkbox" id="checkAll"/></th>
+          <th style="width:120px">开始时间</th>
+          <th style="width:120px">结束时间</th>
+          <th>内容</th>
+          <th style="width:240px">备注</th>
+          <th style="width:120px">时长</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+      </tbody>
+    </table>
+  </div>
+
+  <div class="foot">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="fileInput" hidden />
+      <button class="btn" id="btnImportDay">导入当天（JSON/CSV）</button>
+      <button class="btn" id="btnExportDayCSV">导出当天 CSV</button>
+      <button class="btn" id="btnExportDayJSON">导出当天 JSON</button>
+      <span class="muted">CSV 字段：开始时间,结束时间,内容,备注（建议不含逗号）</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn" id="btnImportMonth">导入当月（JSON/CSV）</button>
+      <button class="btn" id="btnExportMonthCSV">导出当月 CSV</button>
+      <button class="btn" id="btnExportMonthJSON">导出当月 JSON</button>
+    </div>
+  </div>
+</main>
+
 <script>
-/* ================= Supabase（你的项目配置） ================= */
+/* =================== Supabase（你的项目配置） =================== */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
 });
 
-/* ================= 状态 & 元素 ================= */
-let startTime = null;
-let events = []; // {id, content, start_at (ISO), end_at (ISO), duration_ms, created_at}
+/* =================== 状态 & 元素 =================== */
 let currentUser = null;
-let rtChannel = null;
-
+let rows = []; // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
 const els = {
-  dateDisplay: document.getElementById('dateDisplay'),
-  outputBox: document.getElementById('outputBox'),
-  editBox: document.getElementById('editBox'),
-  // toolbar
-  btnStats: document.getElementById('btnStats'),
-  btnExportJSON: document.getElementById('btnExportJSON'),
-  btnSyncLocal: document.getElementById('btnSyncLocal'),
-  btnClear: document.getElementById('btnClear'),
-  // record
-  btnStart: document.getElementById('btnStart'),
-  btnEnd: document.getElementById('btnEnd'),
-  btnFree: document.getElementById('btnFree'),
-  // modal
-  editModal: document.getElementById('editModal'),
-  freeContent: document.getElementById('freeContent'),
-  freeDate: document.getElementById('freeDate'),
-  freeStart: document.getElementById('freeStart'),
-  freeEnd: document.getElementById('freeEnd'),
-  btnConfirmFree: document.getElementById('btnConfirmFree'),
-  btnCancelFree: document.getElementById('btnCancelFree'),
+  dayPicker: document.getElementById('dayPicker'),
+  btnToday: document.getElementById('btnToday'),
+  tbody: document.getElementById('tbody'),
+  checkAll: document.getElementById('checkAll'),
+
+  btnAdd: document.getElementById('btnAdd'),
+  btnDelete: document.getElementById('btnDelete'),
+  btnSaveCloud: document.getElementById('btnSaveCloud'),
+  btnLoadCloud: document.getElementById('btnLoadCloud'),
+
+  btnImportDay: document.getElementById('btnImportDay'),
+  btnExportDayCSV: document.getElementById('btnExportDayCSV'),
+  btnExportDayJSON: document.getElementById('btnExportDayJSON'),
+
+  btnImportMonth: document.getElementById('btnImportMonth'),
+  btnExportMonthCSV: document.getElementById('btnExportMonthCSV'),
+  btnExportMonthJSON: document.getElementById('btnExportMonthJSON'),
+
+  fileInput: document.getElementById('fileInput'),
+
   // auth
   signedOut: document.getElementById('signed-out'),
   signedIn: document.getElementById('signed-in'),
@@ -140,353 +143,312 @@ const els = {
   syncBadge: document.getElementById('syncBadge'),
 };
 
-/* ================= 启动 ================= */
-window.addEventListener('load', async () => {
-  displayToday();
-  restoreLocal();
-  renderEvents();
-  wireUI();
-  await initAuth();
-});
+/* =================== 工具函数 =================== */
+const pad = n => String(n).padStart(2,'0');
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const monthStart = d => new Date(d.getFullYear(), d.getMonth(), 1);
+const monthEnd   = d => new Date(d.getFullYear(), d.getMonth()+1, 0);
+const keyDay = dstr => `sheet:${dstr}`;
+const parseTime = t => {
+  if(!t) return null;
+  if(/^\d{1,2}:\d{2}$/.test(t)) return `${t}:00`;
+  if(/^\d{1,2}:\d{2}:\d{2}$/.test(t)) return t;
+  return null;
+};
+function durMs(a,b){ if(!a||!b) return 0; const [ah,am,as]=a.split(':').map(Number); const [bh,bm,bs]=b.split(':').map(Number); return ((bh*3600+bm*60+bs)-(ah*3600+am*60+as))*1000; }
+function fmtDur(ms){ const s=Math.max(0,Math.floor(ms/1000)); const sec=s%60; const min=Math.floor(s/60)%60; const hr=Math.floor(s/3600); if(hr>0) return `${hr}时 ${min}分 ${sec}秒`; if(min>0) return `${min}分 ${sec}秒`; return `${sec}秒`; }
+function csvEscape(v){ if(v==null) v=''; v=String(v); if(/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`; return v; }
+function csvParseLine(line){ // 简单 CSV 行解析（不支持换行内嵌）
+  const out=[]; let i=0; while(i<line.length){ if(line[i]==='"'){ let j=i+1, s=''; while(j<line.length){ if(line[j]==='"' && line[j+1]==='"'){ s+='"'; j+=2; } else if(line[j]==='"'){ j++; break; } else { s+=line[j++]; } } out.push(s); if(line[j]===',') j++; i=j; } else { let j=i; while(j<line.length && line[j]!==',') j++; out.push(line.slice(i,j)); i=j+1; } } return out; }
 
-function wireUI(){
-  els.btnStart.onclick = startTiming;
-  els.btnEnd.onclick = endTiming;
-  els.btnFree.onclick = () => openFreeModal(true);
-  els.btnConfirmFree.onclick = confirmFree;
-  els.btnCancelFree.onclick = () => openFreeModal(false);
+/* =================== 本地存取 =================== */
+function loadLocal(dstr){ try{ rows = JSON.parse(localStorage.getItem(keyDay(dstr))||'[]'); }catch{ rows=[]; } }
+function saveLocal(dstr){ localStorage.setItem(keyDay(dstr), JSON.stringify(rows)); updateBadge(); }
 
-  els.btnStats.onclick = exportStats;
-  els.btnExportJSON.onclick = exportJSON;
-  els.btnSyncLocal.onclick = syncLocalToCloud;
-  els.btnClear.onclick = clearAll;
+/* =================== 渲染表格 =================== */
+function render(){
+  els.tbody.innerHTML='';
+  rows.forEach((r,idx)=>{
+    const tr=document.createElement('tr');
 
-  document.getElementById('btnSignUp').onclick = signUp;
-  document.getElementById('btnSignIn').onclick = signIn;
-  document.getElementById('btnSignOut').onclick = signOut;
+    const tdSel=document.createElement('td');
+    tdSel.innerHTML=`<input type="checkbox" data-idx="${idx}" class="rowchk" />`;
+    tr.appendChild(tdSel);
 
-  window.addEventListener('online', ()=>{ updateStatusIndicator(); flushPending(); });
-  window.addEventListener('offline', updateStatusIndicator);
-}
+    const tdStart=document.createElement('td');
+    tdStart.innerHTML=`<input type="time" step="1" value="${r.start_t||''}" />`;
+    tdStart.firstChild.onchange=e=>{ r.start_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
+    tr.appendChild(tdStart);
 
-function displayToday(){
-  const now = new Date();
-  els.dateDisplay.textContent = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
-}
+    const tdEnd=document.createElement('td');
+    tdEnd.innerHTML=`<input type="time" step="1" value="${r.end_t||''}" />`;
+    tdEnd.firstChild.onchange=e=>{ r.end_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
+    tr.appendChild(tdEnd);
 
-/* ================= 本地存储 ================= */
-function restoreLocal(){ try{ events = JSON.parse(localStorage.getItem('events')||'[]'); }catch{} }
-function saveLocal(){ localStorage.setItem('events', JSON.stringify(events)); }
+    const tdContent=document.createElement('td');
+    tdContent.innerHTML=`<input type="text" value="${r.content||''}" placeholder="输入内容..."/>`;
+    tdContent.firstChild.oninput=e=>{ r.content=e.target.value; saveLocal(els.dayPicker.value); };
+    tr.appendChild(tdContent);
 
-/* ================= Auth ================= */
-async function initAuth(){
-  const { data: { session } } = await sb.auth.getSession();
-  currentUser = session?.user || null; updateAuthUI();
-  if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-  sb.auth.onAuthStateChange(async (_e, session) => {
-    currentUser = session?.user || null; updateAuthUI();
-    if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-    else { unsubscribeRealtime(); restoreLocal(); renderEvents(); }
+    const tdNote=document.createElement('td');
+    tdNote.innerHTML=`<input type="text" value="${r.note||''}" placeholder="备注（可空）"/>`;
+    tdNote.firstChild.oninput=e=>{ r.note=e.target.value; saveLocal(els.dayPicker.value); };
+    tr.appendChild(tdNote);
+
+    const tdDur=document.createElement('td');
+    const ms=durMs(r.start_t,r.end_t);
+    tdDur.innerHTML=`<span class="num">${fmtDur(ms)}</span>`;
+    if(ms<0) tdDur.style.color='var(--red)';
+    tr.appendChild(tdDur);
+
+    els.tbody.appendChild(tr);
   });
 }
 
-async function signUp(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  try{
-    toggleBtn('btnSignUp', true, '注册中…');
-    const { error } = await sb.auth.signUp({ email, password });
-    if(error) throw error;
-    alert('注册成功：若开启邮箱验证，请先到邮箱完成验证再登录。');
-  }catch(err){
-    console.error('[signUp]', err);
-    alert('注册失败：' + (err?.message || err));
-  }finally{ toggleBtn('btnSignUp', false, '注册'); }
+/* =================== 事件绑定 =================== */
+function bindUI(){
+  els.dayPicker.value = todayStr();
+  loadLocal(els.dayPicker.value); render(); updateBadge();
+
+  els.btnToday.onclick = ()=>{ els.dayPicker.value=todayStr(); loadLocal(els.dayPicker.value); render(); };
+  els.dayPicker.onchange = ()=>{ loadLocal(els.dayPicker.value); render(); };
+
+  els.btnAdd.onclick = ()=>{ rows.push({start_t:'',end_t:'',content:'',note:''}); saveLocal(els.dayPicker.value); render(); };
+  els.checkAll.onclick = e=>{
+    document.querySelectorAll('.rowchk').forEach(ch=>ch.checked=e.target.checked);
+  };
+  els.btnDelete.onclick = ()=>{
+    const keep=[]; document.querySelectorAll('.rowchk').forEach((ch,i)=>{ if(!ch.checked) keep.push(rows[i]); });
+    rows = keep; saveLocal(els.dayPicker.value); render();
+  };
+
+  // 导入/导出（当天）
+  els.btnImportDay.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportDay; els.fileInput.click(); };
+  els.btnExportDayCSV.onclick = ()=>{
+    const lines = rows.map(r=>[r.start_t||'',r.end_t||'',r.content||'',r.note||''].map(csvEscape).join(','));
+    const csv = `开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
+    download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${els.dayPicker.value}_events.csv`);
+  };
+  els.btnExportDayJSON.onclick = ()=>{
+    download(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'}), `${els.dayPicker.value}_events.json`);
+  };
+
+  // 导入/导出（当月）
+  els.btnImportMonth.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportMonth; els.fileInput.click(); };
+  els.btnExportMonthCSV.onclick = exportMonthCSV;
+  els.btnExportMonthJSON.onclick = exportMonthJSON;
+
+  // 云端
+  els.btnSaveCloud.onclick = saveDayToCloud;
+  els.btnLoadCloud.onclick = loadDayFromCloud;
+
+  // 网络状态
+  window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
+  window.addEventListener('offline', updateBadge);
 }
 
-async function signIn(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if(!email || !password){ alert('请输入邮箱和密码'); return; }
-  try{
-    toggleBtn('btnSignIn', true, '登录中…');
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      const map = {
-        'Email not confirmed': '邮箱未验证：请到邮箱点确认链接（或在 Auth/Email 临时关闭 Confirm email）',
-        'Invalid login credentials': '邮箱或密码不正确'
-      };
-      alert('登录失败：' + (map[error.message] || error.message));
-      return;
+/* =================== 导入实现 =================== */
+async function onImportDay(ev){
+  const file = ev.target.files[0]; ev.target.value='';
+  if(!file) return;
+  const text = await file.text();
+  if(file.name.toLowerCase().endsWith('.json')){
+    try{ rows = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
+  }else{ // CSV
+    const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
+    if(lines.length && /开始.*结束.*内容/.test(lines[0])) lines.shift(); // 去表头
+    rows = lines.map(line=>{
+      const cols = csvParseLine(line).map(s=>s.trim());
+      return { start_t:parseTime(cols[0]), end_t:parseTime(cols[1]), content:cols[2]||'', note:cols[3]||'' };
+    });
+  }
+  saveLocal(els.dayPicker.value); render();
+}
+
+async function onImportMonth(ev){
+  const file = ev.target.files[0]; ev.target.value='';
+  if(!file) return;
+  const text = await file.text();
+  let list = [];
+  if(file.name.toLowerCase().endsWith('.json')){
+    try{ list = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
+    // 期望格式：[{date:'YYYY-MM-DD', start_t, end_t, content, note}, ...]
+  }else{
+    // CSV 期望表头：日期,开始时间,结束时间,内容,备注
+    const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
+    if(lines.length && /日期.*开始.*结束.*内容/.test(lines[0])) lines.shift();
+    list = lines.map(line=>{
+      const c = csvParseLine(line).map(s=>s.trim());
+      return { date: c[0], start_t:parseTime(c[1]), end_t:parseTime(c[2]), content:c[3]||'', note:c[4]||'' };
+    });
+  }
+  // 写入本地（按日覆盖）
+  const byDay = {};
+  for(const r of list){ if(!r?.date) continue; (byDay[r.date] ??= []).push({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}); }
+  Object.keys(byDay).forEach(d=> localStorage.setItem(keyDay(d), JSON.stringify(byDay[d])) );
+  // 如果包含当前日，刷新页面
+  if(byDay[els.dayPicker.value]){ loadLocal(els.dayPicker.value); render(); }
+  alert('导入当月完成（本地缓存）');
+}
+
+/* =================== 导出当月 =================== */
+async function exportMonthCSV(){
+  const d = new Date(els.dayPicker.value);
+  const y=d.getFullYear(), m=d.getMonth()+1;
+  let data = [];
+  if(currentUser){
+    const { data:cloud, error } = await sb.from('event_grid')
+      .select('d,start_t,end_t,content,note')
+      .eq('user_id', currentUser.id)
+      .gte('d', `${y}-${pad(m)}-01`)
+      .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
+      .order('d',{ascending:true}).order('start_t',{ascending:true});
+    if(error){ alert('云端导出失败：'+error.message); return; }
+    data = cloud || [];
+  }else{
+    // 汇总本地：遍历当月每天 key
+    const days = monthEnd(d).getDate();
+    for(let day=1; day<=days; day++){
+      const ds = `${y}-${pad(m)}-${pad(day)}`;
+      const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
+      arr.forEach(r=> data.push({d:ds, ...r}));
     }
-    currentUser = data?.user || (await sb.auth.getUser()).data?.user || null;
-    updateAuthUI();
-    await loadAllFromCloud();
-    subscribeRealtime();
-  }catch(err){
-    console.error('[signIn] error', err);
-    alert('网络或脚本错误：' + (err?.message || err));
-  }finally{ toggleBtn('btnSignIn', false, '登录'); }
+  }
+  const lines = data.map(r=>[r.d, r.start_t||'', r.end_t||'', r.content||'', r.note||''].map(csvEscape).join(','));
+  const csv = `日期,开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
+  download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${y}-${pad(m)}_整月时间.csv`);
 }
 
-async function signOut(){
-  try{
-    toggleBtn('btnSignOut', true, '退出中…');
-    await sb.auth.signOut();
-  }catch(err){
-    console.error('[signOut]', err);
-    alert('退出失败：' + (err?.message || err));
-  }finally{ toggleBtn('btnSignOut', false, '退出'); }
+async function exportMonthJSON(){
+  const d = new Date(els.dayPicker.value);
+  const y=d.getFullYear(), m=d.getMonth()+1;
+  let data = [];
+  if(currentUser){
+    const { data:cloud, error } = await sb.from('event_grid')
+      .select('d,start_t,end_t,content,note')
+      .eq('user_id', currentUser.id)
+      .gte('d', `${y}-${pad(m)}-01`)
+      .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
+      .order('d',{ascending:true}).order('start_t',{ascending:true});
+    if(error){ alert('云端导出失败：'+error.message); return; }
+    data = cloud || [];
+  }else{
+    const days = monthEnd(d).getDate();
+    for(let day=1; day<=days; day++){
+      const ds = `${y}-${pad(m)}-${pad(day)}`;
+      const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
+      arr.forEach(r=> data.push({d:ds, ...r}));
+    }
+  }
+  download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `${y}-${pad(m)}_整月时间.json`);
 }
 
+function download(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+
+/* =================== 云端（保存/读取当天） =================== */
+async function saveDayToCloud(){
+  if(!currentUser){ alert('请先登录'); return; }
+  const dstr = els.dayPicker.value;
+  // 简单稳妥：先删当日，再整体插入
+  const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: dstr });
+  if(del.error){ alert('删除旧记录失败：'+del.error.message); return; }
+  const rowsReady = rows
+    .filter(r=>r.start_t && r.end_t && r.content?.trim())
+    .map(r=>({ user_id: currentUser.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
+  if(rowsReady.length===0){ alert('没有可保存的行'); return; }
+  const ins = await sb.from('event_grid').insert(rowsReady);
+  if(ins.error){ alert('插入失败：'+ins.error.message); return; }
+  alert('已保存到云端');
+}
+
+async function loadDayFromCloud(){
+  if(!currentUser){ alert('请先登录'); return; }
+  const dstr = els.dayPicker.value;
+  const { data, error } = await sb.from('event_grid')
+    .select('start_t,end_t,content,note')
+    .eq('user_id', currentUser.id).eq('d', dstr)
+    .order('start_t',{ascending:true});
+  if(error){ alert('载入失败：'+error.message); return; }
+  rows = (data||[]).map(r=>({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}));
+  saveLocal(dstr); render();
+}
+
+/* =================== 待同步（离线兜底） =================== */
+function queuePending(payload){
+  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+  q.push(payload);
+  localStorage.setItem('grid_pending', JSON.stringify(q));
+  updateBadge();
+}
+async function flushPending(){
+  if(!currentUser) return;
+  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+  if(q.length===0){ updateBadge(); return; }
+  for(const it of q){
+    if(it.type==='saveDay'){
+      const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: it.d });
+      if(del.error){ console.warn('flush del fail', del.error.message); return; }
+      const ins = await sb.from('event_grid').insert(it.rows);
+      if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
+    }
+  }
+  localStorage.removeItem('grid_pending');
+  updateBadge();
+}
+
+/* =================== 登录逻辑 =================== */
 function updateAuthUI(){
   if(currentUser){
     els.signedOut.style.display='none';
     els.signedIn.style.display='flex';
-    els.userEmail.textContent = currentUser.email || '已登录';
+    (document.getElementById('userEmail')||{}).textContent = currentUser.email || '已登录';
   }else{
-    els.signedOut.style.display='block';
+    els.signedOut.style.display='flex';
     els.signedIn.style.display='none';
   }
-  updateStatusIndicator();
+  updateBadge();
 }
-
-/* ================= 云端交互 ================= */
-async function loadAllFromCloud(){
-  if(!currentUser) return;
-  const { data, error } = await sb.from('events')
-    .select('id, content, start_at, end_at, duration_ms, created_at')
-    .eq('user_id', currentUser.id)
-    .order('start_at', { ascending: true });
-  if(error){ console.warn('加载云端失败：', error.message); return; }
-  events = data || [];
-  saveLocal();
-  renderEvents();
-}
-
-async function insertEvent(e){
-  if(currentUser){
-    const { data, error } = await sb.from('events')
-      .insert({ user_id: currentUser.id, ...e })
-      .select('*').single();
-    if(error){
-      console.warn('云端插入失败：', error.message);
-      queuePending({type:'insert', row:{ ...e }});
-      // 本地先展示
-      events.push({ id:'local-'+Date.now(), ...e });
-    }else{
-      events.push(data);
-    }
-  }else{
-    events.push({ id:'local-'+Date.now(), ...e });
-  }
-  saveLocal();
-  renderEvents();
-}
-
-async function clearAll(){
-  if(!confirm('确认清空所有记录？（登录状态下会同时删除云端数据）')) return;
-  events = [];
-  saveLocal(); renderEvents();
-  if(currentUser){
-    const { error } = await sb.from('events').delete().eq('user_id', currentUser.id);
-    if(error){ alert('云端清空失败：'+error.message); }
-  }
-}
-
-/* ================= Realtime ================= */
-function subscribeRealtime(){
-  if(rtChannel) sb.removeChannel(rtChannel);
-  rtChannel = sb.channel('events-ch');
-  rtChannel.on('postgres_changes', { event:'*', schema:'public', table:'events', filter:`user_id=eq.${currentUser.id}` }, async ()=>{ await loadAllFromCloud(); }).subscribe();
-}
-function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
-
-/* ================= 待同步队列（离线兜底） ================= */
-function queuePending(item){
-  const q = JSON.parse(localStorage.getItem('events_pending')||'[]');
-  q.push(item);
-  localStorage.setItem('events_pending', JSON.stringify(q));
-  updateStatusIndicator();
-}
-async function flushPending(){
-  if(!currentUser) return;
-  let q = JSON.parse(localStorage.getItem('events_pending')||'[]');
-  if(q.length===0){ updateStatusIndicator(); return; }
-  for(const it of q){
-    if(it.type==='insert'){
-      const { error } = await sb.from('events').insert({ user_id: currentUser.id, ...it.row });
-      if(error){ console.warn('flush insert 失败', error.message); return; }
-    }
-  }
-  localStorage.removeItem('events_pending');
-  await loadAllFromCloud();
-  updateStatusIndicator();
-}
-
-/* ================= 记录操作 ================= */
-function startTiming(){
-  startTime = new Date();
-  toast(`开始时间：${fmtTime(startTime)}`);
-}
-
-async function endTiming(){
-  if(!startTime){ alert('请先点击“开始记录”'); return; }
-  const content = els.editBox.innerText.trim();
-  if(!content){ alert('请输入内容'); return; }
-  const end = new Date();
-  const duration = end - startTime;
-  const e = {
-    content,
-    start_at: startTime.toISOString(),
-    end_at: end.toISOString(),
-    duration_ms: duration,
-    created_at: new Date().toISOString()
-  };
-  await insertEvent(e);
-  els.editBox.innerText = '';
-  startTime = null;
-}
-
-/* —— 自由编辑 —— */
-function openFreeModal(on){
-  if(on){
-    els.freeContent.value='';
-    els.freeDate.value = new Date().toISOString().slice(0,10);
-    els.freeStart.value = '';
-    els.freeEnd.value = '';
-  }
-  els.editModal.style.display = on? 'flex':'none';
-}
-
-async function confirmFree(){
-  const content = els.freeContent.value.trim();
-  const date = els.freeDate.value;
-  const s = els.freeStart.value;
-  const e = els.freeEnd.value;
-  if(!content || !date || !s || !e){ alert('请输入完整的记录'); return; }
-  const start = new Date(`${date}T${s}:00`);
-  const end = new Date(`${date}T${e}:00`);
-  const duration = end - start;
-  if(isNaN(duration) || duration < 0){ alert('时间不合法'); return; }
-
-  await insertEvent({
-    content,
-    start_at: start.toISOString(),
-    end_at: end.toISOString(),
-    duration_ms: duration,
-    created_at: new Date().toISOString()
-  });
-  openFreeModal(false);
-}
-
-/* ================= 渲染 & 导出 ================= */
-function renderEvents(){
-  // 按日期分组
-  const groups = {};
-  for(const ev of events){
-    const d = isoToDateKey(ev.start_at);
-    if(!groups[d]) groups[d] = [];
-    groups[d].push(ev);
-  }
-  const days = Object.keys(groups).sort(); // 升序
-  els.outputBox.innerHTML = '';
-  for(const day of days){
-    const head = document.createElement('div');
-    head.style.cssText = 'padding:6px 0;color:#4b5563;font-weight:700;';
-    const dt = new Date(day);
-    head.textContent = `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;
-    els.outputBox.appendChild(head);
-    for(const ev of groups[day]){
-      const div = document.createElement('div');
-      div.className='event';
-      div.innerHTML = `
-        <p class="event-line">开始时间：${fmtTime(ev.start_at)}</p>
-        <p class="event-line">内容：${escapeHtml(ev.content)}</p>
-        <p class="event-line">结束时间：${fmtTime(ev.end_at)}</p>
-        <p class="event-line">间隔时间：${fmtDuration(ev.duration_ms)}</p>
-      `;
-      els.outputBox.appendChild(div);
-      const hr = document.createElement('hr'); els.outputBox.appendChild(hr);
-    }
-  }
-}
-
-function exportStats(){
-  const merged = {};
-  for(const ev of events){
-    merged[ev.content] = (merged[ev.content] || 0) + (ev.duration_ms || 0);
-  }
-  const total = Object.values(merged).reduce((a,b)=>a+b,0);
-  let text = `总的累积时长: ${fmtDuration(total)}\n-------------------------\n`;
-  const sorted = Object.entries(merged).sort((a,b)=>b[1]-a[1]);
-  sorted.forEach(([content, dur], idx)=>{ text += `${idx+1}. ${content} -> ${fmtDuration(dur)}\n`; });
-
-  const blob = new Blob([text], { type:'text/plain' });
-  const now = new Date();
-  const filename = `${now.getFullYear()}年${pad(now.getMonth()+1)}月${pad(now.getDate())}日${pad(now.getHours())}时${pad(now.getMinutes())}分${pad(now.getSeconds())}秒统计时间.txt`;
-  downloadBlob(blob, filename);
-}
-
-function exportJSON(){
-  if(currentUser){
-    downloadBlob(new Blob([JSON.stringify(events,null,2)],{type:'application/json'}), 'events_cloud.json');
-  }else{
-    downloadBlob(new Blob([JSON.stringify(events,null,2)],{type:'application/json'}), 'events_local.json');
-  }
-}
-
-async function syncLocalToCloud(){
-  if(!currentUser){ alert('请先登录'); return; }
-  const locals = events.filter(e=>String(e.id).startsWith('local-'));
-  if(locals.length===0){ alert('没有需要同步的本地记录'); return; }
-  const rows = locals.map(({id, ...rest}) => ({ user_id: currentUser.id, ...rest }));
-  const { error } = await sb.from('events').insert(rows);
-  if(error){ alert('同步失败：'+error.message); return; }
-  await loadAllFromCloud();
-  alert('本地记录已同步至云端');
-}
-
-/* ================= 小工具 ================= */
-function fmtTime(x){
-  const d = (x instanceof Date) ? x : new Date(x);
-  return d.toLocaleTimeString('zh-CN', { hour12:false });
-}
-function fmtDuration(ms){
-  const s = Math.floor(ms/1000);
-  const sec = s%60;
-  const min = Math.floor(s/60)%60;
-  const hr = Math.floor(s/3600);
-  if(hr>0) return `${hr}时 ${min}分 ${sec}秒`;
-  if(min>0) return `${min}分 ${sec}秒`;
-  return `${sec}秒`;
-}
-function isoToDateKey(iso){
-  const d = new Date(iso);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().slice(0,10);
-}
-function pad(n){ return String(n).padStart(2,'0'); }
-function downloadBlob(blob, filename){ const a=document.createElement('a'); a.download=filename; a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href); }
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
-function toggleBtn(id, disabled, text){ const btn=document.getElementById(id); if(!btn) return; btn.disabled=!!disabled; if(text) btn.textContent=text; }
-function toast(msg){ console.log(msg); }
-
-/* —— 指示灯 —— */
-function updateStatusIndicator(){
+function updateBadge(){
   const online = navigator.onLine;
-  const pending = JSON.parse(localStorage.getItem('events_pending')||'[]').length;
+  const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
   const parts = [];
-  parts.push(online ? '🟢 在线' : '🔴 离线');
+  parts.push(online?'🟢 在线':'🔴 离线');
   parts.push(currentUser ? '已登录' : '未登录');
   if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
   els.syncBadge.textContent = parts.join(' · ');
 }
 
-/* —— 兜底 —— */
-window.addEventListener('unhandledrejection', e=>{
-  console.error('[unhandledrejection]', e.reason);
-  alert('出错了：' + (e.reason?.message || e.reason));
-});
+async function initAuth(){
+  const { data:{ session } } = await sb.auth.getSession();
+  currentUser = session?.user || null;
+  updateAuthUI();
+
+  sb.auth.onAuthStateChange(async (_e, s) => {
+    currentUser = s?.user || null;
+    updateAuthUI();
+    if(currentUser) flushPending();
+  });
+
+  document.getElementById('btnSignUp').onclick = async ()=>{
+    const email=document.getElementById('email').value.trim();
+    const password=document.getElementById('password').value;
+    try{ await sb.auth.signUp({ email, password }); alert('注册成功：如开启邮箱验证，请到邮箱点确认链接后再登录'); }
+    catch(err){ alert('注册失败：'+(err?.message||err)); }
+  };
+  document.getElementById('btnSignIn').onclick = async ()=>{
+    const email=document.getElementById('email').value.trim();
+    const password=document.getElementById('password').value;
+    try{
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+    }catch(err){ alert('登录失败：'+(err?.message||err)); }
+  };
+  document.getElementById('btnSignOut').onclick = async ()=>{ await sb.auth.signOut(); };
+}
+
+/* =================== 启动 =================== */
+bindUI();
+initAuth();
 </script>
 </body>
 </html>
