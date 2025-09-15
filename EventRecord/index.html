@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>时间记录（Excel风格）</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -11,8 +11,8 @@
     --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px;
 
     /* 列宽（桌面） */
-    --w-start:120px;   /* 开始时间（已缩小） */
-    --w-end:120px;     /* 结束时间（已缩小） */
+    --w-start:120px;   /* 开始（已缩小） */
+    --w-end:120px;     /* 结束（已缩小） */
     --w-content:360px; /* 内容 */
     --w-note:280px;    /* 备注 */
     --w-duration:100px;/* 时长 */
@@ -41,6 +41,8 @@
 
   input,button{border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;outline:none;background:#fff}
   input:focus,button:focus{border-color:var(--accent)}
+  /* 关键：移动端输入 >=16px 防 iOS 自动放大 */
+  input{font-size:16px}
   .btn{background:var(--accent);color:#fff;border:none}
   .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
   .btn.ghost{background:transparent}
@@ -51,46 +53,44 @@
   .toolbar{display:flex;gap:10px;flex-wrap:wrap}
   .toolbar .btn{height:40px}
 
-  /* 表格容器：不再使用 sticky，统一纯白背景避免色差；可横向滚动以防万一 */
+  /* 表格：不使用 sticky，统一白底，允许横向滚动以防万一 */
   .grid{
     margin-top:12px;border:1px solid var(--line);border-radius:14px;
     background:#fff; position:relative; overflow-x:auto;
     -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
   }
 
-  /* 完整模式（显示备注与时长） */
   .thead,.trow{
     display:grid;
     grid-template-columns:
       var(--w-start) var(--w-end)
       minmax(var(--w-content),2fr) minmax(var(--w-note),1.4fr)
       var(--w-duration) var(--w-actions);
-    min-width: 1100px;                /* 桌面更宽 */
+    min-width:1100px;
     border-bottom:1px solid var(--line)
   }
   .cell{padding:10px 12px;display:flex;align-items:center;min-width:0;background:#fff}
   .thead .cell{background:#f3f4f6;font-weight:600}
-  .trow input[type="text"]{width:100%;min-width:0;height:46px;font-size:16px}
+  .trow input[type="text"]{width:100%;min-width:0;height:46px}
   .duration{font-variant-numeric:tabular-nums}
-  .actions{display:flex;gap:8px;justify-content:flex-end} /* 仅保留 保存 + 删除 紧挨排列 */
+  .actions{display:flex;gap:8px;justify-content:flex-end}
 
   .tfoot{display:flex;justify-content:space-between;align-items:center;
          padding:10px 12px;background:#fafafa}
   .tip{font-size:12px;color:var(--muted)}
 
-  /* 紧凑模式（隐藏备注 + 时长），用于手机适配 */
+  /* 紧凑模式（隐藏备注 + 时长） */
   .grid.compact .thead,.grid.compact .trow{
     grid-template-columns: 92px 92px minmax(120px,1fr) 130px; /* 开始 结束 内容 操作 */
-    min-width: 0; /* 让它尽量填满屏，不强制横向滚动 */
+    min-width:0;
   }
   .grid.compact .thead .cell:nth-child(4),
   .grid.compact .thead .cell:nth-child(5),
   .grid.compact .trow  .cell:nth-child(4),
-  .grid.compact .trow  .cell:nth-child(5){ display:none; }
+  .grid.compact .trow  .cell:nth-child(5){display:none}
 
-  /* 手机端按钮和间距更紧凑 */
   @media (max-width:480px){
-    .trow input[type="text"]{height:42px;font-size:16px}
+    .trow input[type="text"]{height:42px}
     .cell{padding:8px}
     .btn{padding:8px 10px;font-size:14px}
     .btn.danger{padding:8px 10px}
@@ -101,6 +101,31 @@
   .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
   .toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
   @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ========= 模态（登录 / 注册 / 账户） ========= */
+  .modal{position:fixed;inset:0;z-index:30000;display:none}
+  .modal.show{display:block}
+  .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+  /* 桌面：居中卡片；移动：底部抽屉 */
+  .modal .panel{
+    position:absolute;left:50%;top:10%;transform:translateX(-50%);
+    width:min(92vw,480px);max-height:80vh;overflow:auto;
+    background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px
+  }
+  @media (max-width:680px){
+    .modal .panel{
+      left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;
+      border-radius:16px 16px 12px 12px
+    }
+  }
+  .modal .close-x{
+    position:absolute;right:10px;top:10px;width:36px;height:36px;
+    border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer
+  }
+  .modal .title{margin:0 40px 10px 0;font-size:18px}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .field label{font-size:12px;color:var(--muted)}
+  .panel .btn{height:42px}
 </style>
 </head>
 <body>
@@ -131,10 +156,7 @@
       <button id="exportCsv" class="btn secondary">导出 CSV</button>
       <input id="csvFile" type="file" accept=".csv" style="display:none">
       <button id="importCsv" class="btn secondary">导入 CSV</button>
-
-      <!-- 新增：隐藏/显示 备注 + 时长 -->
       <button id="toggleCols" class="btn secondary">隐藏备注与时长</button>
-
       <div class="right" style="display:flex;gap:10px;align-items:center">
         <div id="syncState" class="muted" style="display:none">
           <span style="display:inline-block;width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
@@ -167,12 +189,12 @@
   </div>
 </main>
 
-<!-- 模态：登录/注册/账户 -->
+<!-- 模态：登录/注册/账户（移动端抽屉 + 桌面卡片） -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
-  <div class="dialog" role="document">
+  <div class="panel" role="document">
     <button class="close-x" id="modalClose" aria-label="关闭">✕</button>
-    <h3 id="dialogTitle">登录 / 注册</h3>
+    <h3 id="dialogTitle" class="title">登录 / 注册</h3>
     <div id="dialogBody"></div>
   </div>
 </div>
@@ -206,45 +228,94 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 /* ========= 状态 & DOM ========= */
 let session=null, rows=[], syncing=0;
 const $=id=>document.getElementById(id);
-const els={app:$('app'),guest:$('guestCard'),date:$('dateInput'),tbody:$('tbody'),total:$('total'),
+const els={
+  app:$('app'),guest:$('guestCard'),date:$('dateInput'),tbody:$('tbody'),total:$('total'),
   add:$('addRow'),exp:$('exportCsv'),imp:$('importCsv'),file:$('csvFile'),refresh:$('refreshBtn'),
   hist:$('historyList'),rehist:$('reloadHistory'),sync:$('syncState'),account:$('accountBtn'),
-  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody'),
-  toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols') };
+  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),
+  title:$('dialogTitle'),body:$('dialogBody'),
+  toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols')
+};
 
 const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
-const setSync=v=>{syncing+=v?1:-1; if(syncing<0)syncing=0; els.sync.style.display=syncing>0?'':'none'};
+function setSync(v){
+  syncing += v ? 1 : -1;
+  if (syncing < 0) syncing = 0;
+  els.sync.style.display = syncing > 0 ? '' : 'none';
+  // 15 秒兜底，防止意外异常导致一直显示
+  if (v) setTimeout(() => { if (syncing > 0) { syncing = 0; els.sync.style.display = 'none'; } }, 15000);
+}
 
-/* ========= 时间工具 ========= */
+/* ========= 时间与日期 ========= */
 const parseTime=s=>{s=(s||'').trim();if(!s)return null;const a=s.split(':');if(a.length<2||a.length>3)return null;const h=+a[0],m=+a[1],se=a[2]?+a[2]:0;if([h,m,se].some(Number.isNaN))return null; if(h<0||h>47||m<0||m>59||se<0||se>59)return null;return h*3600+m*60+se};
 const fmt=sec=>{sec=Math.max(0,sec|0);const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`};
 const dur=(s,e)=>{if(s==null||e==null)return 0;let d=e-s; if(d<0)d+=86400; return d};
 
-/* ========= 模态登录/注册/账户 ========= */
+// Safari 友好：把 'YYYY-MM-DD' 解析为当天 00:00:00 的 ISO 形式
+function parseDay(yyyy_mm_dd){ return new Date(`${yyyy_mm_dd}T00:00:00`); }
+function toDayString(d){ return d.toISOString().slice(0,10); }
+
+/* ========= 模态（登录 / 注册 / 账户） ========= */
 let lastFocus=null;
-const openModal=(title,html)=>{els.title.textContent=title;els.body.innerHTML=html;lastFocus=document.activeElement;els.modal.classList.add('show');els.modal.removeAttribute('aria-hidden');document.body.style.overflow='hidden';const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0)};
-const closeModal=()=>{els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow='';if(lastFocus)lastFocus.focus()};
-els.backdrop.onclick=closeModal;els.close.onclick=closeModal;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
+function openModal(title,html){
+  els.title.textContent=title;els.body.innerHTML=html;
+  lastFocus=document.activeElement;els.modal.classList.add('show');els.modal.removeAttribute('aria-hidden');
+  document.body.style.overflow='hidden';
+  const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
+}
+function closeModal(){
+  els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow='';
+  if(lastFocus)lastFocus.focus();
+}
+els.backdrop.onclick=closeModal;els.close.onclick=closeModal;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
+
 function showAuth(){
   openModal('登录 / 注册', `
-    <div class="field"><label class="muted">邮箱</label><input id="em" type="email" placeholder="you@example.com" style="font-size:16px"></div>
-    <div class="field"><label class="muted">密码（≥6位）</label><input id="pw" type="password" placeholder="******" style="font-size:16px"></div>
+    <div class="field"><label>邮箱</label><input id="em" type="email" placeholder="you@example.com"></div>
+    <div class="field"><label>密码（≥6位）</label><input id="pw" type="password" placeholder="******"></div>
     <div class="row" style="gap:8px;justify-content:flex-end"><button id="lg" class="btn">登录</button><button id="sg" class="btn secondary">注册</button></div>
     <div id="hint" class="muted" style="margin-top:6px"></div>
   `);
   const hint=$('hint');
-  $('lg').onclick=async()=>{const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return hint.textContent='请输入邮箱和密码';const {error}=await sb.auth.signInWithPassword({email,password}); if(error)hint.textContent='登录失败：'+error.message; else{hint.textContent='';toast('登录成功');closeModal()}};
-  $('sg').onclick=async()=>{const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return hint.textContent='请输入邮箱和密码';const {error}=await sb.auth.signUp({email,password});hint.textContent=error?('注册失败：'+error.message):'注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。'};
+  $('lg').onclick=async()=>{
+    const email=$('em').value.trim(),password=$('pw').value;
+    if(!email||!password) return hint.textContent='请输入邮箱和密码';
+    setSync(true);
+    try{
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error){ hint.textContent='登录失败：'+error.message; }
+      else { hint.textContent=''; toast('登录成功'); closeModal(); }
+    }catch(err){ hint.textContent='登录异常：'+(err?.message||err); }
+    finally{ setSync(false); }
+  };
+  $('sg').onclick=async()=>{
+    const email=$('em').value.trim(),password=$('pw').value;
+    if(!email||!password) return hint.textContent='请输入邮箱和密码';
+    setSync(true);
+    try{
+      const { error } = await sb.auth.signUp({ email, password });
+      hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。';
+    }catch(err){ hint.textContent='注册异常：'+(err?.message||err); }
+    finally{ setSync(false); }
+  };
 }
 function showAccount(u){
-  openModal('账户', `<div class="field"><div class="muted">邮箱：${u.email||''}</div></div><div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="btn">退出登录</button></div>`);
-  $('lo').onclick=async()=>{await sb.auth.signOut();toast('您已退出登录');closeModal()};
+  openModal('账户', `
+    <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
+    <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="btn">退出登录</button></div>
+  `);
+  $('lo').onclick=async()=>{ setSync(true); try{ await sb.auth.signOut(); toast('您已退出登录'); closeModal(); } finally{ setSync(false);} };
 }
 $('accountBtn').onclick=()=>{session?.user?showAccount(session.user):showAuth()};
 
-/* ========= UI渲染 ========= */
-function applySessionUI(){ $('accountBtn').textContent = session?.user?`已登录：${session.user.email||'用户'}`:'登录 / 注册'; $('app').style.display=session?'':'none'; $('guestCard').style.display=session?'none':'' }
-function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);$('total').textContent='合计：'+fmt(sum)}
+/* ========= UI 渲染 ========= */
+function applySessionUI(){
+  $('accountBtn').textContent = session?.user?`已登录：${session.user.email||'用户'}`:'登录 / 注册';
+  $('app').style.display=session?'':'none';
+  $('guestCard').style.display=session?'none':'';
+}
+function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);els.total.textContent='合计：'+fmt(sum)}
 
 function rowDOM(item){
   const tr=document.createElement('div');tr.className='trow';
@@ -262,52 +333,74 @@ function rowDOM(item){
   return tr;
 }
 function renderBody(){
-  $('tbody').innerHTML='';const f=document.createDocumentFragment();for(const it of rows)f.appendChild(rowDOM(it));
-  $('tbody').appendChild(f);renderTotal();
+  els.tbody.innerHTML='';
+  const f=document.createDocumentFragment();
+  for(const it of rows) f.appendChild(rowDOM(it));
+  els.tbody.appendChild(f);
+  renderTotal();
 }
 
 /* ========= CRUD ========= */
 async function fetchRowsByDate(dateStr, tip=false){
-  if(!session){rows=[];renderBody();return}
+  if(!session){ rows=[]; renderBody(); return; }
   setSync(true);
-  const { data, error } = await sb.from(TABLE)
-    .select(`id, ${COL_START}, ${COL_END}, ${COL_CONTENT}, ${COL_NOTE}, ${COL_DUR}`)
-    .eq('user_id', session.user.id)
-    .eq(COL_DATE, dateStr)
-    .order(COL_START,{ascending:true});
-  setSync(false);
-  if(error){toast('拉取失败：'+error.message,'error');return}
-  rows=(data||[]).map(r=>({id:r.id,start:r[COL_START],end:r[COL_END],content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',duration:r[COL_DUR]||0}));
-  renderBody(); if(tip)toast('已从云端同步');
+  try{
+    const { data, error } = await sb.from(TABLE)
+      .select(`id, ${COL_START}, ${COL_END}, ${COL_CONTENT}, ${COL_NOTE}, ${COL_DUR}`)
+      .eq('user_id', session.user.id)
+      .eq(COL_DATE, dateStr)
+      .order(COL_START,{ascending:true});
+    if(error){ toast('拉取失败：'+error.message,'error'); return; }
+    rows=(data||[]).map(r=>({ id:r.id,start:r[COL_START],end:r[COL_END],content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',duration:r[COL_DUR]||0 }));
+    renderBody(); if(tip) toast('已从云端同步');
+  }catch(err){ toast('同步异常：'+(err?.message||err),'error'); }
+  finally{ setSync(false); }
 }
+
 async function saveRow(item, btn){
-  if(!session)return toast('请先登录','error');
+  if(!session) return toast('请先登录','error');
   const s=parseTime(item.start), e=parseTime(item.end);
   if(s==null||e==null) return toast('时间格式应为 HH:MM 或 HH:MM:SS','error');
   const seconds=dur(s,e);
   btn.disabled=true; setSync(true);
-  const payload={ user_id: session.user.id, [COL_DATE]: $('dateInput').value, [COL_START]: item.start, [COL_END]: item.end, [COL_DUR]: seconds, [COL_CONTENT]: item.content||'', [COL_NOTE]: item.note||'' };
-  let error;
-  if(item.id){ ({error}=await sb.from(TABLE).update(payload).eq('id',item.id)); }
-  else{ const res=await sb.from(TABLE).insert(payload).select('id').single(); error=res.error; if(!error) item.id=res.data.id; }
-  setSync(false); btn.disabled=false;
-  if(error) return toast('保存失败：'+error.message,'error');
-  toast('✅ 已保存并同步到云端');
+  try{
+    const payload={ user_id: session.user.id, [COL_DATE]: els.date.value, [COL_START]: item.start, [COL_END]: item.end, [COL_DUR]: seconds, [COL_CONTENT]: item.content||'', [COL_NOTE]: item.note||'' };
+    if(item.id){
+      const { error } = await sb.from(TABLE).update(payload).eq('id',item.id);
+      if(error) return toast('保存失败：'+error.message,'error');
+    }else{
+      const { data, error } = await sb.from(TABLE).insert(payload).select('id').single();
+      if(error) return toast('保存失败：'+error.message,'error');
+      item.id=data.id;
+    }
+    toast('✅ 已保存并同步到云端');
+  }catch(err){ toast('保存异常：'+(err?.message||err),'error'); }
+  finally{ setSync(false); btn.disabled=false; }
 }
+
 async function removeRow(item){
   const idx=rows.indexOf(item); if(idx<0) return;
-  if(item.id){ setSync(true); const {error}=await sb.from(TABLE).delete().eq('id',item.id); setSync(false); if(error) return toast('删除失败：'+error.message,'error'); }
-  rows.splice(idx,1); renderBody(); toast('🗑️ 已删除');
+  if(!item.id){ rows.splice(idx,1); renderBody(); return; }
+  setSync(true);
+  try{
+    const { error } = await sb.from(TABLE).delete().eq('id',item.id);
+    if(error) return toast('删除失败：'+error.message,'error');
+    rows.splice(idx,1); renderBody(); toast('🗑️ 已删除');
+  }catch(err){ toast('删除异常：'+(err?.message||err),'error'); }
+  finally{ setSync(false); }
 }
 
 /* ========= CSV ========= */
 function toCSV(){
   const header=[COL_DATE,COL_START,COL_END,COL_CONTENT,COL_NOTE];
   const lines=[header.join(',')];
-  for(const it of rows){ lines.push([$('dateInput').value,it.start||'',it.end||'',(it.content||'').replace(/,/g,'，'),(it.note||'').replace(/,/g,'，')].join(',')) }
+  for(const it of rows) lines.push([els.date.value,it.start||'',it.end||'',(it.content||'').replace(/,/g,'，'),(it.note||'').replace(/,/g,'，')].join(','));
   return lines.join('\n');
 }
-function download(name,text){const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
+function download(name,text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+}
 function parseCSV(text){
   const lines=text.split(/\r?\n/).filter(Boolean); if(lines.length===0) return [];
   const head=lines[0].split(','); const idx={
@@ -317,60 +410,73 @@ function parseCSV(text){
     content: head.findIndex(h=>/content|内容/i.test(h)),
     note: head.findIndex(h=>/note|备注/i.test(h)),
   };
-  const out=[]; for(let i=1;i<lines.length;i++){const c=lines[i].split(',');const d=c[idx.date]||$('dateInput').value;if(d!==$('dateInput').value) continue; const s=c[idx.start]||'', e=c[idx.end]||''; out.push({id:null,start:s,end:e,content:(c[idx.content]||'').replace(/，/g,','),note:(c[idx.note]||'').replace(/，/g,','),duration:dur(parseTime(s),parseTime(e))})}
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(',');
+    const d=c[idx.date]||els.date.value; if(d!==els.date.value) continue;
+    const s=c[idx.start]||'', e=c[idx.end]||'';
+    out.push({id:null,start:s,end:e,content:(c[idx.content]||'').replace(/，/g,','),note:(c[idx.note]||'').replace(/，/g,','),duration:dur(parseTime(s),parseTime(e))});
+  }
   return out;
 }
 
 /* ========= 历史 ========= */
 async function loadHistory(){
-  if(!session){$('historyList').textContent='—';return}
-  const from=new Date($('dateInput').value); from.setDate(from.getDate()-29);
+  if(!session){els.historyList.textContent='—';return}
+  const curStr=els.date.value;
+  const from=parseDay(curStr); from.setDate(from.getDate()-29);
+  const fromStr=toDayString(from);
   setSync(true);
-  const { data, error } = await sb.from(TABLE)
-    .select(`${COL_DATE}, ${COL_DUR}`)
-    .eq('user_id', session.user.id)
-    .gte(COL_DATE, from.toISOString().slice(0,10))
-    .lte(COL_DATE, $('dateInput').value);
-  setSync(false);
-  if(error){toast('历史拉取失败：'+error.message,'error');return}
-  const map=new Map();
-  for(const r of (data||[])){ map.set(r[COL_DATE], (map.get(r[COL_DATE])||0) + (r[COL_DUR]||0)); }
-  const items=[...map.entries()].sort((a,b)=>a[0]<b[0]?1:-1);
-  $('historyList').innerHTML = items.length ? items.map(([d,s])=>`<div class="row"><div>${d}</div><div class="muted">合计：${fmt(s)}</div></div>`).join('') : '—';
+  try{
+    const { data, error } = await sb.from(TABLE)
+      .select(`${COL_DATE}, ${COL_DUR}`)
+      .eq('user_id', session.user.id)
+      .gte(COL_DATE, fromStr)
+      .lte(COL_DATE, curStr);
+    if(error){ toast('历史拉取失败：'+error.message,'error'); return; }
+    const map=new Map();
+    for(const r of (data||[])) map.set(r[COL_DATE], (map.get(r[COL_DATE])||0) + (r[COL_DUR]||0));
+    const items=[...map.entries()].sort((a,b)=>a[0]<b[0]?1:-1);
+    els.historyList.innerHTML = items.length
+      ? items.map(([d,s])=>`<div class="row"><div>${d}</div><div class="muted">合计：${fmt(s)}</div></div>`).join('')
+      : '—';
+  }catch(err){ toast('历史同步异常：'+(err?.message||err),'error'); }
+  finally{ setSync(false); }
 }
 
 /* ========= 视图切换：隐藏/显示 备注 + 时长 ========= */
 function applyCompactUI(on){
   if(on){ els.grid.classList.add('compact'); els.toggle.textContent='显示备注与时长'; }
   else { els.grid.classList.remove('compact'); els.toggle.textContent='隐藏备注与时长'; }
-  // 每次切换之后，确保不会残留横向滚动位置
   els.grid.scrollLeft = 0;
-  // 记忆状态
   localStorage.setItem('hideNoteDur', on ? '1' : '0');
 }
 
 /* ========= 事件 ========= */
-$('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0});renderBody()};
-$('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
-$('importCsv').onclick=()=>$('csvFile').click();
-$('csvFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const text=await f.text();const list=parseCSV(text);if(list.length===0)return toast('CSV 没有可导入的当前日期数据','error');rows.push(...list);renderBody();toast(`已加入 ${list.length} 行，记得点“保存”写入云端`)};
-$('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,true);
-$('reloadHistory').onclick=loadHistory;
-$('toggleCols').onclick=()=>applyCompactUI(!els.grid.classList.contains('compact'));
+els.add.onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0});renderBody()};
+els.exp.onclick=()=>download(`timelog_${els.date.value}.csv`,toCSV());
+els.imp.onclick=()=>els.file.click();
+els.file.onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const text=await f.text(); const list=parseCSV(text);
+  if(list.length===0) return toast('CSV 没有可导入的当前日期数据','error');
+  rows.push(...list); renderBody(); toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
+};
+els.refresh.onclick=()=>fetchRowsByDate(els.date.value,true);
+els.rehist.onclick=loadHistory;
+els.toggle.onclick=()=>applyCompactUI(!els.grid.classList.contains('compact'));
 
 /* ========= 认证监听 & 初始化 ========= */
-sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate($('dateInput').value);loadHistory()}});
+sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate(els.date.value);loadHistory()}});
 
-(async function init(){
-  const today=new Date(); $('dateInput').value=today.toISOString().slice(0,10);
-  const {data} = await sb.auth.getSession(); session=data.session||null; applySessionUI();
-  // 默认：手机端开启紧凑模式，桌面端记忆上次选择
+(function init(){
+  const today=new Date(); els.date.value=today.toISOString().slice(0,10);
+  sb.auth.getSession().then(({data})=>{session=data.session||null; applySessionUI(); if(session){fetchRowsByDate(els.date.value);loadHistory()}});
+  // 手机默认紧凑；桌面记忆上次
   const remembered = localStorage.getItem('hideNoteDur');
   const isSmall = window.matchMedia('(max-width: 480px)').matches;
   applyCompactUI(remembered ? remembered==='1' : isSmall);
-
-  if(session){fetchRowsByDate($('dateInput').value);loadHistory()}
-  $('dateInput').onchange=()=>{if(session){fetchRowsByDate($('dateInput').value)} renderBody(); loadHistory()}
+  els.date.onchange=()=>{ if(session){ fetchRowsByDate(els.date.value) } renderBody(); loadHistory(); };
 })();
 </script>
 </body>
