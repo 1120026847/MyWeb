@@ -136,7 +136,60 @@ function waitSupabaseReady(timeoutMs=5000){
 /* 兜底：若被别处调用，确保拿到 client */
 function ensureClient(){ return __sb || (window.supabase?.createClient ? (__sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null); }
 
-/* ================= 登录相关（硬化版） ================= */
+/* =============== 全局：状态徽标 & UI =============== */
+function updateBadge(){
+  const el = document.getElementById('syncBadge');
+  if(!el) return;
+  const online = navigator.onLine;
+  const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
+  const parts = [];
+  parts.push(online?'🟢 在线':'🔴 离线');
+  parts.push(__user ? '已登录' : '未登录');
+  if(__user) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
+  el.textContent = parts.join(' · ');
+}
+
+function updateAuthUI(){
+  const out = document.getElementById('signed-out');
+  const _in = document.getElementById('signed-in');
+  const mail = document.getElementById('userEmail');
+  if(__user){
+    if(out) out.style.display='none';
+    if(_in) _in.style.display='flex';
+    if(mail) mail.textContent = __user.email || '已登录';
+  }else{
+    if(out) out.style.display='flex';
+    if(_in) _in.style.display='none';
+  }
+  updateBadge();
+}
+
+/* =============== 全局：离线队列同步 =============== */
+function queuePending(payload){
+  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+  q.push(payload);
+  localStorage.setItem('grid_pending', JSON.stringify(q));
+  updateBadge();
+}
+
+async function flushPending(){
+  if(!__user) return;
+  const sb = ensureClient();
+  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+  if(q.length===0){ updateBadge(); return; }
+  for(const it of q){
+    if(it.type==='saveDay'){
+      const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: it.d });
+      if(del.error){ console.warn('flush del fail', del.error.message); return; }
+      const ins = await sb.from('event_grid').insert(it.rows);
+      if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
+    }
+  }
+  localStorage.removeItem('grid_pending');
+  updateBadge();
+}
+
+/* ============== 全局：登录相关（硬化） ============== */
 /* 强制拉会话并刷新 UI —— 登录/注册/退出后都调用一次 */
 async function forceRefreshAuthUI() {
   const sb = ensureClient(); if (!sb) return;
@@ -229,12 +282,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
       fileInput: document.getElementById('fileInput'),
 
-      signedOut: document.getElementById('signed-out'),
-      signedIn: document.getElementById('signed-in'),
-      userEmail: document.getElementById('userEmail'),
-      syncBadge: document.getElementById('syncBadge'),
-      email: document.getElementById('email'),
-      password: document.getElementById('password'),
       btnSignUp: document.getElementById('btnSignUp'),
       btnSignIn: document.getElementById('btnSignIn'),
       btnSignOut: document.getElementById('btnSignOut'),
@@ -294,39 +341,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
         els.tbody.appendChild(tr);
       });
-    }
-
-    // ---- 待同步队列 & 状态指示 ----
-    function queuePending(payload){
-      const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-      q.push(payload);
-      localStorage.setItem('grid_pending', JSON.stringify(q));
-      updateBadge();
-    }
-    async function flushPending(){
-      if(!__user) return;
-      const sb = ensureClient();
-      const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-      if(q.length===0){ updateBadge(); return; }
-      for(const it of q){
-        if(it.type==='saveDay'){
-          const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: it.d });
-          if(del.error){ console.warn('flush del fail', del.error.message); return; }
-          const ins = await sb.from('event_grid').insert(it.rows);
-          if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
-        }
-      }
-      localStorage.removeItem('grid_pending');
-      updateBadge();
-    }
-    function updateBadge(){
-      const online = navigator.onLine;
-      const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
-      const parts = [];
-      parts.push(online?'🟢 在线':'🔴 离线');
-      parts.push(__user ? '已登录' : '未登录');
-      if(__user) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-      els.syncBadge.textContent = parts.join(' · ');
     }
 
     // ---- 绑定 UI ----
@@ -501,19 +515,7 @@ window.addEventListener('DOMContentLoaded', () => {
       saveLocal(dstr); render();
     }
 
-    // ---- Auth UI & 事件 ----
-    function updateAuthUI(){
-      if(__user){
-        els.signedOut.style.display='none';
-        els.signedIn.style.display='flex';
-        els.userEmail.textContent = __user.email || '已登录';
-      }else{
-        els.signedOut.style.display='flex';
-        els.signedIn.style.display='none';
-      }
-      updateBadge();
-    }
-
+    // ---- Auth & 事件 ----
     async function initAuth(){
       const sb = ensureClient();
       // 首次刷新会话
@@ -537,11 +539,15 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---- 初始化 ----
-    bindUI();
-    await initAuth();
+    function initUI(){
+      bindUI();
+      initAuth();
+      window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
+      window.addEventListener('offline', updateBadge);
+    }
 
-    window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
-    window.addEventListener('offline', updateBadge);
+    // 开始
+    initUI();
   })();
 });
 </script>
