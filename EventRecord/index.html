@@ -1,428 +1,601 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Event Record</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            justify-content: space-between;
-        }
-        .date-display {
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            margin-top: 10px; /* 增加顶端日期的上边距 */
-        }
-        .output-box {
-            flex-grow: 1;
-            width: 100%;
-            border: 1px solid #ccc;
-            padding: 10px;
-            box-sizing: border-box;
-            overflow-y: auto;
-            margin-bottom: 20px;
-        }
-        .edit-box {
-            width: 100%;
-            height: 100px;
-            margin-bottom: 5px; /* 增加下方的文本输入框的底部边距 */
-            border: 1px solid #ccc;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        .button-container {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px; /* 增加底端三个按钮的底部边距 */
-        }
-        .button-container button {
-            padding: 10px 20px;
-            font-size: 16px;
-        }
-        .menu {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            cursor: pointer;
-            font-size: 24px;
-            padding: 10px;
-        }
-        .menu-dropdown {
-            display: none;
-            position: absolute;
-            top: 40px;
-            right: 0;
-            background-color: white;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-            flex-direction: column;
-            width: 160px;
-        }
-        .menu:hover .menu-dropdown {
-            display: flex;
-        }
-        .menu-dropdown button {
-            background: none;
-            border: none;
-            padding: 12px 16px;
-            text-align: center;
-            width: 100%;
-            box-sizing: border-box;
-            cursor: pointer;
-        }
-        .menu-dropdown button:hover {
-            background-color: #f1f1f1;
-        }
-        .dialog-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .dialog {
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            text-align: center;
-        }
-        .dialog button {
-            margin: 10px;
-            padding: 10px 20px;
-        }
-        body {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            margin: 0;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Record · 云端同步版</title>
+  <style>
+    :root {
+      --bg:#fff; --fg:#222; --muted:#777; --line:#ddd; --brand:#4f46e5; --brand-2:#22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'PingFang SC', 'Noto Sans CJK SC', 'Microsoft Yahei', sans-serif;
+      margin: 0; display: flex; flex-direction: column; min-height: 100vh; color: var(--fg); background: var(--bg);
+    }
+    header {
+      display: flex; gap: 12px; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 5;
+    }
+    .app-title { font-weight: 700; }
+    .auth-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .auth-bar input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; min-width: 180px; }
+    .btn {
+      padding: 8px 12px; border: 1px solid var(--line); background: #f7f7f7; border-radius: 8px; cursor: pointer;
+    }
+    .btn.primary { background: var(--brand); color: white; border-color: var(--brand); }
+    .btn.ghost { background: transparent; }
+    .btn.small { padding: 6px 10px; }
+    .pill { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 
-        .content {
-            flex: 1; /* 确保内容区占据剩余空间 */
-        }
+    .toolbar { display: flex; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); align-items: center; flex-wrap: wrap; }
+    .menu { margin-left: auto; position: relative; }
+    .menu > button { font-size: 18px; }
+    .menu-dropdown { display: none; position: absolute; right: 0; top: calc(100% + 4px); background: white; border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0,0,0,.08); min-width: 180px; border-radius: 10px; overflow: hidden; z-index:10; }
+    .menu:hover .menu-dropdown { display: block; }
+    .menu-dropdown button, .menu-dropdown label {
+      display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; background: white; cursor: pointer;
+    }
+    .menu-dropdown button:hover, .menu-dropdown label:hover { background: #f5f5f5; }
 
-        /* 底部链接容器的样式 */
-        .footer {
-            display: flex;
-            justify-content: center; /* 水平居中 */
-            align-items: center; /* 垂直居中 */
-            height: 10px; /* 设置底部高度 */
-            background-color: #f1f1f1; /* 底部背景色 */
-        }
+    main { display: flex; flex-direction: column; gap: 12px; padding: 16px; flex: 1; }
+    .date-display { text-align: center; font-size: 20px; font-weight: 700; margin: 4px 0 8px; }
+    .output-box { flex: 1; width: 100%; border: 1px solid var(--line); padding: 10px; overflow-y: auto; border-radius: 10px; background: #fff; }
+    .edit-box { width: 100%; height: 100px; border: 1px solid var(--line); padding: 10px; border-radius: 10px; }
 
-        /* 底部链接的样式 */
-        #test-link {
-            text-align: center;
-        }
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-        /* 修改后的 .event-line 样式：减少事件属性之间的上下间隔 */
-        .event-line { 
-            margin: 0;  /* 缩小上下间隔为0 */
-        }
+    .event-line { margin: 0; }
+    hr { margin: 4px 0; border: 0; border-top: 1px dashed var(--line); }
 
-        /* 修改后的 <hr> 标签样式：减少横线上下的间隔 */
-        hr {
-            margin: 2px 0;  /* 设置更小的上下边距 */
-        }
-    </style>
+    .dialog-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); align-items: center; justify-content: center; z-index: 1000; }
+    .dialog { background: white; padding: 16px; border-radius: 10px; min-width: 320px; }
+    .dialog textarea { width: 100%; }
+
+    footer { display: flex; align-items: center; justify-content: center; height: 40px; background: #f7f7f7; border-top: 1px solid var(--line); }
+    #test-link { font-size: 12px; color: var(--muted); }
+    #test-link a { color: inherit; text-decoration: none; }
+  </style>
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <div class="menu">
-        ⋮
-        <div class="menu-dropdown">
-            <button onclick="outputText()"><span>统计</span></button>
-            <button onclick="showClearDialog()"><span>清空内容</span></button>
-            <button id="editButton" onclick="toggleEdit()"><span>编辑内容</span></button>
-        </div>
+  <header>
+    <div class="app-title">🕒 Event Record</div>
+    <div class="auth-bar">
+      <div id="auth-signed-out">
+        <input type="email" id="email" placeholder="邮箱" />
+        <input type="password" id="password" placeholder="密码（≥6位）" />
+        <button class="btn" id="btnSignUp">注册</button>
+        <button class="btn primary" id="btnSignIn">登录</button>
+      </div>
+      <div id="auth-signed-in" style="display:none; gap:8px; align-items:center;">
+        <span class="pill" id="userEmail"></span>
+        <span class="pill" id="syncStatus">未同步</span>
+        <button class="btn" id="btnSignOut">退出</button>
+      </div>
     </div>
+  </header>
+
+  <div class="toolbar">
+    <span class="pill" id="todayTag">今天</span>
+    <div class="menu">
+      <button class="btn ghost">⋮</button>
+      <div class="menu-dropdown">
+        <button id="btnStats">统计（下载TXT）</button>
+        <button id="btnClearLocal">清空本地内容</button>
+        <button id="btnToggleEdit">编辑内容</button>
+        <button id="btnExportJson">导出JSON（云端/本地）</button>
+        <label for="importJson">导入JSON → 插入云端/本地</label>
+        <input id="importJson" type="file" accept="application/json" style="display:none;" />
+        <button id="btnSyncNow">立即同步（离线缓存→云端）</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
     <div class="date-display" id="dateDisplay"></div>
     <div class="output-box" id="outputBox" contenteditable="false"></div>
-    <div class="button-container">
-        <button onclick="startTiming()">开始记录</button>
-        <button onclick="endTiming()">结束记录</button>
-        <button onclick="showEditDialog()">自由编辑</button>
-    </div>
-    <div class="edit-box" contenteditable="true" id="editBox"></div>
-    <div class="dialog-overlay" id="dialogOverlay">
-        <div class="dialog">
-            <textarea id="dialogEditBox" rows="4" cols="50" placeholder="输入事项内容..."></textarea>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <input type="time" id="startTimeInput">
-                <input type="time" id="endTimeInput">
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <button onclick="confirmEdit()">确认记录</button>
-                <button onclick="hideEditDialog()">取消记录</button>
-            </div>
-        </div>
-    </div>
-    <div class="dialog-overlay" id="clearDialogOverlay">
-        <div class="dialog">
-            <p>确认清空内容吗？</p>
-            <button onclick="clearLog()">确定清空</button>
-            <button onclick="hideClearDialog()">取消清空</button>
-        </div>
+
+    <div class="button-row">
+      <button class="btn primary" id="btnStart">开始记录</button>
+      <button class="btn" id="btnEnd">结束记录</button>
+      <button class="btn" id="btnFreeEdit">自由编辑</button>
     </div>
 
-    <script>
-        let startTime;
-        let events = [];
-        let isEditing = false;
+    <div class="edit-box" contenteditable="true" id="editBox" placeholder="输入当前正在做的事情…"></div>
+  </main>
 
-        window.onload = function() {
-            const savedEvents = localStorage.getItem('events');
-            if (savedEvents) {
-                events = JSON.parse(savedEvents);
-                displayEvents();
-            }
-            displayCurrentDate();
+  <!-- 自由编辑弹窗 -->
+  <div class="dialog-overlay" id="dialogOverlay">
+    <div class="dialog">
+      <textarea id="dialogEditBox" rows="4" placeholder="输入事项内容..."></textarea>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <input type="time" id="startTimeInput" />
+        <input type="time" id="endTimeInput" />
+      </div>
+      <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
+        <button class="btn primary" id="btnConfirmEdit">确认记录</button>
+        <button class="btn" id="btnCancelEdit">取消记录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 清空确认弹窗 -->
+  <div class="dialog-overlay" id="clearDialogOverlay">
+    <div class="dialog">
+      <p>只会清空<span style="color:var(--brand)">本地缓存</span>（不会删除云端数据）。确认清空吗？</p>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn primary" id="btnConfirmClear">确定清空</button>
+        <button class="btn" id="btnCancelClear">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p id="test-link"><a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a></p>
+  </footer>
+
+  <script>
+    // ======================== 基本状态 ========================
+    let startTime = null;            // 计时开始时间（Date）
+    let events = [];                 // 页面内展示的事件数组（作为缓存）
+    let isEditing = false;           // 是否正在编辑 outputBox
+
+    // Supabase 客户端
+    // TODO: 替换为你自己的 Supabase 项目配置
+    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentUser = null;
+    let realtimeChannel = null;
+
+    const els = {
+      dateDisplay: document.getElementById('dateDisplay'),
+      outputBox: document.getElementById('outputBox'),
+      editBox: document.getElementById('editBox'),
+      dialogOverlay: document.getElementById('dialogOverlay'),
+      dialogEditBox: document.getElementById('dialogEditBox'),
+      startTimeInput: document.getElementById('startTimeInput'),
+      endTimeInput: document.getElementById('endTimeInput'),
+      clearDialogOverlay: document.getElementById('clearDialogOverlay'),
+      syncStatus: document.getElementById('syncStatus'),
+      userEmail: document.getElementById('userEmail'),
+      authOut: document.getElementById('auth-signed-out'),
+      authIn: document.getElementById('auth-signed-in'),
+      todayTag: document.getElementById('todayTag'),
+      importJson: document.getElementById('importJson'),
+    };
+
+    // ======================== 初始化 ========================
+    window.addEventListener('load', async () => {
+      displayCurrentDate();
+      restoreLocalCache();
+      wireUI();
+      await initAuth();
+    });
+
+    function displayCurrentDate() {
+      const now = new Date();
+      const s = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+      els.dateDisplay.textContent = s;
+    }
+
+    function wireUI() {
+      document.getElementById('btnStart').onclick = startTiming;
+      document.getElementById('btnEnd').onclick = endTiming;
+      document.getElementById('btnFreeEdit').onclick = showEditDialog;
+
+      document.getElementById('btnStats').onclick = outputStatisticsTXT;
+      document.getElementById('btnClearLocal').onclick = showClearDialog;
+      document.getElementById('btnToggleEdit').onclick = toggleEdit;
+      document.getElementById('btnExportJson').onclick = exportJSON;
+      document.getElementById('btnSyncNow').onclick = flushPending;
+      els.importJson.onchange = importJSON;
+
+      document.getElementById('btnConfirmEdit').onclick = confirmEdit;
+      document.getElementById('btnCancelEdit').onclick = hideEditDialog;
+
+      document.getElementById('btnConfirmClear').onclick = clearLocal;
+      document.getElementById('btnCancelClear').onclick = hideClearDialog;
+
+      // Auth buttons
+      document.getElementById('btnSignUp').onclick = signUp;
+      document.getElementById('btnSignIn').onclick = signIn;
+      document.getElementById('btnSignOut').onclick = signOut;
+
+      // 网络恢复后尝试同步
+      window.addEventListener('online', flushPending);
+    }
+
+    // ======================== 本地缓存 ========================
+    function restoreLocalCache() {
+      try {
+        const saved = localStorage.getItem('events');
+        if (saved) {
+          events = JSON.parse(saved);
+          displayEvents();
         }
+      } catch(e) { console.warn('读取本地缓存失败', e); }
+    }
+    function saveLocalCache() {
+      localStorage.setItem('events', JSON.stringify(events));
+    }
 
-        function displayCurrentDate() {
-            const dateDisplay = document.getElementById('dateDisplay');
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth() + 1;
-            const day = now.getDate();
-            dateDisplay.innerText = `${year}年${month}月${day}日`;
+    // ======================== 计时/记录 ========================
+    function startTiming() {
+      startTime = new Date();
+      appendLine(`开始时间：${startTime.toLocaleTimeString()}`);
+    }
+
+    async function endTiming() {
+      const content = els.editBox.innerText.trim();
+      if (!content) { alert('请输入内容'); return; }
+      const endTime = new Date();
+      if (!startTime) startTime = new Date(endTime.getTime()); // 兜底
+      const duration = endTime - startTime;
+
+      const event = {
+        // 展示字段
+        content,
+        startTime: startTime.toLocaleTimeString(),
+        endTime: endTime.toLocaleTimeString(),
+        duration,
+        // 云端字段（含日期）
+        start_time_iso: startTime.toISOString(),
+        end_time_iso: endTime.toISOString(),
+      };
+
+      events.push(event);
+      displayEvents();
+      saveLocalCache();
+      els.editBox.innerText = '';
+
+      if (currentUser) {
+        await insertEventToCloud(event);
+      }
+    }
+
+    // 自由编辑弹窗
+    function showEditDialog(){ els.dialogOverlay.style.display = 'flex'; }
+    function hideEditDialog(){ els.dialogOverlay.style.display = 'none'; }
+
+    async function confirmEdit(){
+      const content = els.dialogEditBox.value.trim();
+      const s = els.startTimeInput.value; // HH:mm
+      const e = els.endTimeInput.value;   // HH:mm
+      if (!content || !s || !e) { alert('请输入完整的记录'); return; }
+
+      const now = new Date();
+      const [sh, sm] = s.split(':').map(Number);
+      const [eh, em] = e.split(':').map(Number);
+      let sd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm, 0);
+      let ed = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0);
+      if (ed < sd) ed.setDate(ed.getDate() + 1); // 跨日
+      const duration = ed - sd;
+
+      const event = {
+        content,
+        startTime: sd.toLocaleTimeString(),
+        endTime: ed.toLocaleTimeString(),
+        duration,
+        start_time_iso: sd.toISOString(),
+        end_time_iso: ed.toISOString(),
+      };
+      events.push(event);
+      displayEvents();
+      saveLocalCache();
+      hideEditDialog();
+
+      if (currentUser) {
+        await insertEventToCloud(event);
+      }
+
+      // 清空弹窗输入
+      els.dialogEditBox.value=''; els.startTimeInput.value=''; els.endTimeInput.value='';
+    }
+
+    function appendLine(html){
+      els.outputBox.insertAdjacentHTML('beforeend', `<p class="event-line">${html}</p>`);
+    }
+
+    function displayEvents(){
+      els.outputBox.innerHTML = '';
+      events.forEach(ev => {
+        els.outputBox.insertAdjacentHTML('beforeend', `
+          <div class="event">
+            <p class="event-line">开始时间：${ev.startTime}</p>
+            <p class="event-line">内容：${ev.content}</p>
+            <p class="event-line">结束时间：${ev.endTime}</p>
+            <p class="event-line">间隔时间：${formatElapsedTime(ev.duration)}</p>
+          </div>
+          <hr />
+        `);
+      });
+    }
+
+    function formatElapsedTime(ms){
+      const totalSeconds = Math.floor(ms/1000);
+      const seconds = totalSeconds % 60;
+      const totalMinutes = Math.floor(totalSeconds/60);
+      const minutes = totalMinutes % 60;
+      const hours = Math.floor(totalMinutes/60);
+      if (hours>0) return `${hours}时 ${minutes}分 ${seconds}秒`;
+      if (minutes>0) return `${minutes}分 ${seconds}秒`;
+      return `${seconds}秒`;
+    }
+
+    // ======================== 编辑 outputBox ========================
+    async function toggleEdit(){
+      const editBtn = document.getElementById('btnToggleEdit');
+      if (isEditing){
+        // 从文本解析 → 覆盖今天的云端数据（仅当已登录）
+        const updated = parseEventsFromText(els.outputBox.innerText);
+        events = updated; displayEvents(); saveLocalCache();
+        els.outputBox.contentEditable = 'false';
+        editBtn.textContent = '编辑内容';
+        isEditing = false;
+        if (currentUser){ await overwriteTodayOnCloud(updated); }
+      } else {
+        els.outputBox.contentEditable = 'true';
+        editBtn.textContent = '锁定内容';
+        isEditing = true;
+      }
+    }
+
+    function parseEventsFromText(text){
+      const lines = text.split('\n');
+      const updated = []; let cur = {};
+      for (const line of lines){
+        if (line.startsWith('开始时间：')){
+          cur.startTime = line.split('：')[1].trim();
+        } else if (line.startsWith('内容：')){
+          cur.content = line.split('：')[1].trim();
+        } else if (line.startsWith('结束时间：')){
+          cur.endTime = line.split('：')[1].trim();
+        } else if (line.startsWith('间隔时间：')){
+          const durText = line.split('：')[1].trim();
+          cur.duration = parseDurationText(durText);
+          // 用今天日期拼 ISO，尽力还原
+          const today = new Date();
+          const toDate = (hhmmss)=>{
+            const [h,m,s] = hhmmss.split(':').map(Number);
+            return new Date(today.getFullYear(), today.getMonth(), today.getDate(), h||0, m||0, s||0);
+          }
+          const sd = toDate(cur.startTime);
+          const ed = toDate(cur.endTime);
+          if (ed < sd) ed.setDate(ed.getDate()+1);
+          cur.start_time_iso = sd.toISOString();
+          cur.end_time_iso = ed.toISOString();
+          updated.push({...cur});
+          cur = {};
         }
+      }
+      return updated;
+    }
 
-        function startTiming() {
-            startTime = new Date();
-            const outputBox = document.getElementById('outputBox');
-            outputBox.innerHTML += `<p>开始时间：${startTime.toLocaleTimeString()}</p>`;
-            console.log("开始记录时间：", startTime); // 调试输出
+    function parseDurationText(t){
+      const parts = t.match(/(\d+)(时|分|秒)/g) || [];
+      let ms = 0;
+      for (const part of parts){
+        const v = parseInt(part);
+        if (part.endsWith('时')) ms += v*60*60*1000;
+        else if (part.endsWith('分')) ms += v*60*1000;
+        else if (part.endsWith('秒')) ms += v*1000;
+      }
+      return ms;
+    }
+
+    // ======================== TXT 统计导出 ========================
+    function outputStatisticsTXT(){
+      const merged = {};
+      for (const ev of events){
+        merged[ev.content] = (merged[ev.content]||0) + (ev.duration||0);
+      }
+      const total = Object.values(merged).reduce((a,b)=>a+b,0);
+      let text = `总的累积时长: ${formatElapsedTime(total)}\n-------------------------\n`;
+      const sorted = Object.entries(merged).sort((a,b)=>b[1]-a[1]);
+      sorted.forEach(([content, dur], i)=>{ text += `${i+1}. ${content} -> ${formatElapsedTime(dur)}\n`; });
+      const blob = new Blob([text], { type: 'text/plain' });
+      const now = new Date();
+      const pad = n=>String(n).padStart(2,'0');
+      const filename = `${now.getFullYear()}年${pad(now.getMonth()+1)}月${pad(now.getDate())}日${pad(now.getHours())}时${pad(now.getMinutes())}分${pad(now.getSeconds())}秒统计时间.txt`;
+      downloadBlob(blob, filename);
+    }
+
+    function downloadBlob(blob, filename){
+      const a = document.createElement('a');
+      a.download = filename; a.href = URL.createObjectURL(blob); a.target = '_blank'; a.style.display='none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    // ======================== JSON 导出/导入 ========================
+    async function exportJSON(){
+      if (currentUser){
+        const { data, error } = await sb.from('events').select('*').eq('user_id', currentUser.id).order('start_time', { ascending: true });
+        if (error){ alert('导出失败：'+error.message); return; }
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, 'events-export.json');
+      } else {
+        const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, 'events-export-local.json');
+      }
+    }
+
+    async function importJSON(e){
+      const file = e.target.files?.[0]; if (!file) return;
+      const text = await file.text();
+      try {
+        const arr = JSON.parse(text);
+        if (!Array.isArray(arr)) throw new Error('JSON 格式应为数组');
+        if (currentUser){
+          const rows = arr.map(x=>({
+            user_id: currentUser.id,
+            content: x.content || x.CONTENT || '',
+            start_time: x.start_time || x.start_time_iso || new Date().toISOString(),
+            end_time: x.end_time || x.end_time_iso || new Date().toISOString(),
+            duration_ms: x.duration_ms ?? x.duration ?? 0,
+          }));
+          const { error } = await sb.from('events').insert(rows);
+          if (error) throw error;
+          await loadAllFromCloud();
+        } else {
+          // 导入到本地缓存
+          const mapped = arr.map(x=>({
+            content: x.content || '',
+            startTime: x.startTime || new Date(x.start_time||Date.now()).toLocaleTimeString(),
+            endTime: x.endTime || new Date(x.end_time||Date.now()).toLocaleTimeString(),
+            duration: x.duration ?? x.duration_ms ?? 0,
+            start_time_iso: x.start_time || x.start_time_iso || new Date().toISOString(),
+            end_time_iso: x.end_time || x.end_time_iso || new Date().toISOString(),
+          }));
+          events.push(...mapped); displayEvents(); saveLocalCache();
         }
+        alert('导入完成');
+      } catch(err){ alert('导入失败：'+err.message); }
+      e.target.value = '';
+    }
 
-        function endTiming() {
-            console.log("endTiming function called"); // 调试输出
-            const content = document.getElementById("editBox").innerText.trim();
-            if (!content) {
-                alert("请输入内容");
-                return;
-            }
-            console.log("记录内容：", content); // 调试输出
+    // ======================== Supabase - 认证 ========================
+    async function initAuth(){
+      const { data: { session } } = await sb.auth.getSession();
+      currentUser = session?.user || null; updateAuthUI();
+      if (currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
+      sb.auth.onAuthStateChange(async (_event, session) => {
+        currentUser = session?.user || null; updateAuthUI();
+        if (currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
+        else { unsubscribeRealtime(); }
+      });
+    }
 
-            const endTime = new Date();
-            console.log("结束记录时间：", endTime); // 调试输出
+    function updateAuthUI(){
+      if (currentUser){
+        els.authOut.style.display = 'none';
+        els.authIn.style.display = 'flex';
+        els.userEmail.textContent = currentUser.email || '已登录';
+        els.syncStatus.textContent = '已登录';
+      } else {
+        els.authOut.style.display = 'block';
+        els.authIn.style.display = 'none';
+        els.syncStatus.textContent = '未登录';
+      }
+    }
 
-            const duration = endTime - startTime;
-            const elapsedTime = formatElapsedTime(duration);
+    async function signUp(){
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signUp({ email, password });
+      if (error) alert('注册失败：'+error.message); else alert('注册成功，请继续登录。');
+    }
 
-            const event = {
-                content: content,
-                duration: duration,
-                startTime: startTime.toLocaleTimeString(),
-                endTime: endTime.toLocaleTimeString()
-            };
+    async function signIn(){
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) alert('登录失败：'+error.message);
+    }
 
-            console.log("记录事件：", event); // 调试输出
+    async function signOut(){
+      await sb.auth.signOut();
+      // 仅退出登录，不清空本地缓存
+    }
 
-            events.push(event);
-            displayEvents();
-            saveEvents();
-            document.getElementById("editBox").innerText = "";
-        }
+    // ======================== Supabase - 数据 ========================
+    async function insertEventToCloud(ev){
+      if (!currentUser) return;
+      const row = {
+        user_id: currentUser.id,
+        content: ev.content,
+        start_time: ev.start_time_iso || new Date().toISOString(),
+        end_time: ev.end_time_iso || new Date().toISOString(),
+        duration_ms: ev.duration || 0,
+      };
+      const { error } = await sb.from('events').insert(row);
+      if (error){
+        console.warn('云端插入失败，加入待同步队列：', error.message);
+        queuePending(row); setSyncBadge('待同步');
+      } else {
+        setSyncBadge('已同步');
+      }
+    }
 
-        function displayEvents() {
-            const outputBox = document.getElementById("outputBox");
-            outputBox.innerHTML = '';
-            events.forEach(event => {
-                outputBox.innerHTML += `
-                    <div class="event">
-                        <p class="event-line">开始时间：${event.startTime}</p>
-                        <p class="event-line">内容：${event.content}</p>
-                        <p class="event-line">结束时间：${event.endTime}</p>
-                        <p class="event-line">间隔时间：${formatElapsedTime(event.duration)}</p>
-                    </div>
-                    <hr>
-                `;
-            });
-            console.log("展示事件：", outputBox.innerHTML); // 调试输出
-        }
+    async function loadAllFromCloud(){
+      if (!currentUser) return;
+      const { data, error } = await sb.from('events').select('*').eq('user_id', currentUser.id).order('start_time', { ascending: true });
+      if (error){ console.warn('加载云端失败：', error.message); return; }
+      // 映射为页面展示结构
+      events = (data||[]).map(r=>({
+        content: r.content,
+        startTime: new Date(r.start_time).toLocaleTimeString(),
+        endTime: new Date(r.end_time).toLocaleTimeString(),
+        duration: r.duration_ms,
+        start_time_iso: r.start_time,
+        end_time_iso: r.end_time,
+      }));
+      displayEvents(); saveLocalCache();
+    }
 
-        function saveEvents() {
-            localStorage.setItem('events', JSON.stringify(events));
-        }
+    // 覆盖“今天”的云端数据（用于从文本编辑器同步）
+    async function overwriteTodayOnCloud(list){
+      if (!currentUser) return;
+      const today = new Date();
+      const y = today.getFullYear(), m = today.getMonth()+1, d = today.getDate();
+      const pad = n=>String(n).padStart(2,'0');
+      const start = `${y}-${pad(m)}-${pad(d)}T00:00:00.000Z`;
+      const end   = `${y}-${pad(m)}-${pad(d)}T23:59:59.999Z`;
+      // 先删今天，再插入
+      const { error: delErr } = await sb.from('events')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .gte('start_time', start)
+        .lte('start_time', end);
+      if (delErr){ console.warn('删除今天云端数据失败：', delErr.message); }
+      const rows = list.map(ev=>({
+        user_id: currentUser.id,
+        content: ev.content,
+        start_time: ev.start_time_iso || new Date().toISOString(),
+        end_time: ev.end_time_iso || new Date().toISOString(),
+        duration_ms: ev.duration || 0,
+      }));
+      const { error: insErr } = await sb.from('events').insert(rows);
+      if (insErr){ console.warn('批量插入失败：', insErr.message); setSyncBadge('待同步'); }
+      else setSyncBadge('已同步');
+    }
 
-        function showEditDialog() {
-            document.getElementById('dialogOverlay').style.display = 'flex';
-        }
+    // ======================== Supabase - Realtime ========================
+    function subscribeRealtime(){
+      if (!currentUser) return;
+      if (realtimeChannel) sb.removeChannel(realtimeChannel);
+      realtimeChannel = sb.channel('events-ch');
+      realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `user_id=eq.${currentUser.id}` }, async (payload) => {
+        // 任意增删改 → 重新拉取
+        await loadAllFromCloud();
+      }).subscribe();
+    }
+    function unsubscribeRealtime(){ if (realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; } }
 
-        function hideEditDialog() {
-            document.getElementById('dialogOverlay').style.display = 'none';
-        }
+    // ======================== 待同步队列（离线） ========================
+    function queuePending(row){
+      const q = JSON.parse(localStorage.getItem('pending')||'[]');
+      q.push(row); localStorage.setItem('pending', JSON.stringify(q));
+    }
+    async function flushPending(){
+      if (!currentUser) return;
+      const q = JSON.parse(localStorage.getItem('pending')||'[]');
+      if (q.length===0) { setSyncBadge('已同步'); return; }
+      const { error } = await sb.from('events').insert(q);
+      if (!error){ localStorage.removeItem('pending'); setSyncBadge('已同步'); }
+      else { console.warn('同步失败：', error.message); setSyncBadge('待同步'); }
+    }
+    function setSyncBadge(text){ els.syncStatus.textContent = text; }
 
-        function confirmEdit() {
-            const content = document.getElementById('dialogEditBox').value.trim();
-            const startTime = document.getElementById('startTimeInput').value;
-            const endTime = document.getElementById('endTimeInput').value;
-            if (!content || !startTime || !endTime) {
-                alert("请输入完整的记录");
-                return;
-            }
+    // ======================== 清空/弹窗 ========================
+    function showClearDialog(){ els.clearDialogOverlay.style.display = 'flex'; }
+    function hideClearDialog(){ els.clearDialogOverlay.style.display = 'none'; }
+    function clearLocal(){ events = []; displayEvents(); saveLocalCache(); hideClearDialog(); }
+  </script>
 
-            const event = {
-                content: content,
-                startTime: startTime,
-                endTime: endTime,
-                duration: calculateDuration(startTime, endTime)
-            };
-
-            events.push(event);
-            displayEvents();
-            saveEvents();
-            hideEditDialog();
-        }
-
-        function calculateDuration(startTime, endTime) {
-            const start = new Date(`1970-01-01T${startTime}:00`);
-            const end = new Date(`1970-01-01T${endTime}:00`);
-            return end - start;
-        }
-
-        function showClearDialog() {
-            document.getElementById('clearDialogOverlay').style.display = 'flex';
-        }
-
-        function hideClearDialog() {
-            document.getElementById('clearDialogOverlay').style.display = 'none';
-        }
-
-        function clearLog() {
-            events = [];
-            displayEvents();
-            saveEvents();
-            hideClearDialog();
-        }
-
-        function toggleEdit() {
-            const outputBox = document.getElementById("outputBox");
-            const editButton = document.getElementById("editButton");
-            if (isEditing) {
-                updateEventsFromText();
-                outputBox.contentEditable = "false";
-                editButton.innerText = "编辑内容";
-                isEditing = false;
-                saveEvents();  // 保存修改后的内容
-            } else {
-                outputBox.contentEditable = "true";
-                editButton.innerText = "锁定内容";
-                isEditing = true;
-            }
-        }
-
-        function updateEventsFromText() {
-            const outputBox = document.getElementById("outputBox");
-            const lines = outputBox.innerText.split('\n');
-            const updatedEvents = [];
-            let currentEvent = {};
-            lines.forEach(line => {
-                if (line.startsWith("开始时间：")) {
-                    currentEvent.startTime = line.split("：")[1].trim();
-                } else if (line.startsWith("内容：")) {
-                    currentEvent.content = line.split("：")[1].trim();
-                } else if (line.startsWith("结束时间：")) {
-                    currentEvent.endTime = line.split("：")[1].trim();
-                } else if (line.startsWith("间隔时间：")) {
-                    const durationText = line.split("：")[1].trim();
-                    currentEvent.duration = parseDurationText(durationText);
-                    updatedEvents.push({ ...currentEvent });
-                    currentEvent = {};
-                }
-            });
-            events = updatedEvents;
-        }
-
-        function parseDurationText(durationText) {
-            const parts = durationText.match(/(\d+)(时|分|秒)/g);
-            let duration = 0;
-            parts.forEach(part => {
-                const value = parseInt(part);
-                if (part.endsWith('时')) {
-                    duration += value * 60 * 60 * 1000;
-                } else if (part.endsWith('分')) {
-                    duration += value * 60 * 1000;
-                } else if (part.endsWith('秒')) {
-                    duration += value * 1000;
-                }
-            });
-            return duration;
-        }
-
-        function formatElapsedTime(ms) {
-            const totalSeconds = Math.floor(ms / 1000);
-            const seconds = totalSeconds % 60;
-            const totalMinutes = Math.floor(totalSeconds / 60);
-            const minutes = totalMinutes % 60;
-            const hours = Math.floor(totalMinutes / 60);
-
-            if (hours > 0) {
-                return `${hours}时 ${minutes}分 ${seconds}秒`;
-            } else if (minutes > 0) {
-                return `${minutes}分 ${seconds}秒`;
-            } else {
-                return `${seconds}秒`;
-            }
-        }
-
-        function outputText() {
-            const mergedEvents = {};
-            events.forEach(event => {
-                if (mergedEvents[event.content]) {
-                    mergedEvents[event.content] += event.duration;
-                } else {
-                    mergedEvents[event.content] = event.duration;
-                }
-            });
-
-            const totalDuration = Object.values(mergedEvents).reduce((acc, duration) => acc + duration, 0);
-            const formattedTotalDuration = formatElapsedTime(totalDuration);
-
-            // 初始化统计文本
-            let statisticsText = `总的累积时长: ${formattedTotalDuration}\n-------------------------\n`;
-
-            // 排序并格式化每个事件
-            const sortedEvents = Object.entries(mergedEvents).sort((a, b) => b[1] - a[1]);
-            sortedEvents.forEach(([content, duration], index) => {
-                statisticsText += `${index + 1}. ${content} -> ${formatElapsedTime(duration)}\n`; // 每个事件属性后换行
-            });
-
-            const blob = new Blob([statisticsText], { type: 'text/plain' });
-
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const filename = `${year}年${month}月${day}日${hours}时${minutes}分${seconds}秒统计时间.txt`;
-
-            const anchor = document.createElement('a');
-            anchor.download = filename;
-            anchor.href = window.URL.createObjectURL(blob);
-            anchor.target = '_blank';
-            anchor.style.display = 'none';
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
-        }
-    </script>
-    <p id="test-link">
-        <a href="https://beian.miit.gov.cn/" target="_blank">闽ICP备2023004461号-1</a>
-    </p>
+  <!-- 可选：Cloudflare Insights（保留你的脚本） -->
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"70f3b625243c456f9ab4034f8b8b3974","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
