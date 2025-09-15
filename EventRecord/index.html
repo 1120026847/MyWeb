@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>时间记录（月表/日表 · Excel 风格 · Supabase 同步）</title>
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>时间记录表 · Excel 风格 · Supabase 同步</title>
+
+<!-- 延迟加载 supabase-js；我们会在 DOMContentLoaded 里再 createClient -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+
 <style>
   :root { --grid:#e5e7eb; --header:#f8fafc; --accent:#4caf50; --blue:#2196f3; --red:#ef4444; }
   *{box-sizing:border-box}
@@ -44,12 +46,12 @@
     <div id="signed-out" style="display:flex;gap:8px;align-items:center">
       <input type="email" id="email" placeholder="邮箱" />
       <input type="password" id="password" placeholder="密码（≥6位）" />
-      <button class="btn" id="btnSignUp">注册</button>
-      <button class="btn primary" id="btnSignIn">登录</button>
+      <button class="btn" id="btnSignUp" type="button">注册</button>
+      <button class="btn primary" id="btnSignIn" type="button">登录</button>
     </div>
     <div id="signed-in" style="display:none;gap:8px;align-items:center">
       <span class="pill" id="userEmail"></span>
-      <button class="btn" id="btnSignOut">退出</button>
+      <button class="btn" id="btnSignOut" type="button">退出</button>
     </div>
   </div>
 </header>
@@ -59,15 +61,15 @@
     <div>
       日期：
       <input type="date" id="dayPicker" />
-      <button class="btn" id="btnToday">今天</button>
+      <button class="btn" id="btnToday" type="button">今天</button>
       <span class="muted">（切换日期 = 切换当日表）</span>
     </div>
 
     <div class="right">
-      <button class="btn" id="btnAdd">新增行</button>
-      <button class="btn" id="btnDelete">删除勾选行</button>
-      <button class="btn blue" id="btnLoadCloud">从云端载入当天</button>
-      <button class="btn primary" id="btnSaveCloud">保存当天到云端</button>
+      <button class="btn" id="btnAdd" type="button">新增行</button>
+      <button class="btn" id="btnDelete" type="button">删除勾选行</button>
+      <button class="btn blue" id="btnLoadCloud" type="button">从云端载入当天</button>
+      <button class="btn primary" id="btnSaveCloud" type="button">保存当天到云端</button>
     </div>
   </div>
 
@@ -83,372 +85,362 @@
           <th style="width:120px">时长</th>
         </tr>
       </thead>
-      <tbody id="tbody">
-      </tbody>
+      <tbody id="tbody"></tbody>
     </table>
   </div>
 
   <div class="foot">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input type="file" id="fileInput" hidden />
-      <button class="btn" id="btnImportDay">导入当天（JSON/CSV）</button>
-      <button class="btn" id="btnExportDayCSV">导出当天 CSV</button>
-      <button class="btn" id="btnExportDayJSON">导出当天 JSON</button>
+      <button class="btn" id="btnImportDay" type="button">导入当天（JSON/CSV）</button>
+      <button class="btn" id="btnExportDayCSV" type="button">导出当天 CSV</button>
+      <button class="btn" id="btnExportDayJSON" type="button">导出当天 JSON</button>
       <span class="muted">CSV 字段：开始时间,结束时间,内容,备注（建议不含逗号）</span>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn" id="btnImportMonth">导入当月（JSON/CSV）</button>
-      <button class="btn" id="btnExportMonthCSV">导出当月 CSV</button>
-      <button class="btn" id="btnExportMonthJSON">导出当月 JSON</button>
+      <button class="btn" id="btnImportMonth" type="button">导入当月（JSON/CSV）</button>
+      <button class="btn" id="btnExportMonthCSV" type="button">导出当月 CSV</button>
+      <button class="btn" id="btnExportMonthJSON" type="button">导出当月 JSON</button>
     </div>
   </div>
 </main>
 
 <script>
-/* =================== Supabase（你的项目配置） =================== */
+/** =========== 配置 =========== */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-});
 
-/* =================== 状态 & 元素 =================== */
-let currentUser = null;
-let rows = []; // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
-const els = {
-  dayPicker: document.getElementById('dayPicker'),
-  btnToday: document.getElementById('btnToday'),
-  tbody: document.getElementById('tbody'),
-  checkAll: document.getElementById('checkAll'),
+window.addEventListener('DOMContentLoaded', () => {
+  // ====== 变量与元素 ======
+  let sb = null;               // Supabase client（DOMContentLoaded 后再创建）
+  let currentUser = null;
+  let rows = [];               // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
+  const els = {
+    dayPicker: document.getElementById('dayPicker'),
+    btnToday: document.getElementById('btnToday'),
+    tbody: document.getElementById('tbody'),
+    checkAll: document.getElementById('checkAll'),
 
-  btnAdd: document.getElementById('btnAdd'),
-  btnDelete: document.getElementById('btnDelete'),
-  btnSaveCloud: document.getElementById('btnSaveCloud'),
-  btnLoadCloud: document.getElementById('btnLoadCloud'),
+    btnAdd: document.getElementById('btnAdd'),
+    btnDelete: document.getElementById('btnDelete'),
+    btnSaveCloud: document.getElementById('btnSaveCloud'),
+    btnLoadCloud: document.getElementById('btnLoadCloud'),
 
-  btnImportDay: document.getElementById('btnImportDay'),
-  btnExportDayCSV: document.getElementById('btnExportDayCSV'),
-  btnExportDayJSON: document.getElementById('btnExportDayJSON'),
+    btnImportDay: document.getElementById('btnImportDay'),
+    btnExportDayCSV: document.getElementById('btnExportDayCSV'),
+    btnExportDayJSON: document.getElementById('btnExportDayJSON'),
 
-  btnImportMonth: document.getElementById('btnImportMonth'),
-  btnExportMonthCSV: document.getElementById('btnExportMonthCSV'),
-  btnExportMonthJSON: document.getElementById('btnExportMonthJSON'),
+    btnImportMonth: document.getElementById('btnImportMonth'),
+    btnExportMonthCSV: document.getElementById('btnExportMonthCSV'),
+    btnExportMonthJSON: document.getElementById('btnExportMonthJSON'),
 
-  fileInput: document.getElementById('fileInput'),
+    fileInput: document.getElementById('fileInput'),
 
-  // auth
-  signedOut: document.getElementById('signed-out'),
-  signedIn: document.getElementById('signed-in'),
-  userEmail: document.getElementById('userEmail'),
-  syncBadge: document.getElementById('syncBadge'),
-};
-
-/* =================== 工具函数 =================== */
-const pad = n => String(n).padStart(2,'0');
-const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-const monthStart = d => new Date(d.getFullYear(), d.getMonth(), 1);
-const monthEnd   = d => new Date(d.getFullYear(), d.getMonth()+1, 0);
-const keyDay = dstr => `sheet:${dstr}`;
-const parseTime = t => {
-  if(!t) return null;
-  if(/^\d{1,2}:\d{2}$/.test(t)) return `${t}:00`;
-  if(/^\d{1,2}:\d{2}:\d{2}$/.test(t)) return t;
-  return null;
-};
-function durMs(a,b){ if(!a||!b) return 0; const [ah,am,as]=a.split(':').map(Number); const [bh,bm,bs]=b.split(':').map(Number); return ((bh*3600+bm*60+bs)-(ah*3600+am*60+as))*1000; }
-function fmtDur(ms){ const s=Math.max(0,Math.floor(ms/1000)); const sec=s%60; const min=Math.floor(s/60)%60; const hr=Math.floor(s/3600); if(hr>0) return `${hr}时 ${min}分 ${sec}秒`; if(min>0) return `${min}分 ${sec}秒`; return `${sec}秒`; }
-function csvEscape(v){ if(v==null) v=''; v=String(v); if(/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`; return v; }
-function csvParseLine(line){ // 简单 CSV 行解析（不支持换行内嵌）
-  const out=[]; let i=0; while(i<line.length){ if(line[i]==='"'){ let j=i+1, s=''; while(j<line.length){ if(line[j]==='"' && line[j+1]==='"'){ s+='"'; j+=2; } else if(line[j]==='"'){ j++; break; } else { s+=line[j++]; } } out.push(s); if(line[j]===',') j++; i=j; } else { let j=i; while(j<line.length && line[j]!==',') j++; out.push(line.slice(i,j)); i=j+1; } } return out; }
-
-/* =================== 本地存取 =================== */
-function loadLocal(dstr){ try{ rows = JSON.parse(localStorage.getItem(keyDay(dstr))||'[]'); }catch{ rows=[]; } }
-function saveLocal(dstr){ localStorage.setItem(keyDay(dstr), JSON.stringify(rows)); updateBadge(); }
-
-/* =================== 渲染表格 =================== */
-function render(){
-  els.tbody.innerHTML='';
-  rows.forEach((r,idx)=>{
-    const tr=document.createElement('tr');
-
-    const tdSel=document.createElement('td');
-    tdSel.innerHTML=`<input type="checkbox" data-idx="${idx}" class="rowchk" />`;
-    tr.appendChild(tdSel);
-
-    const tdStart=document.createElement('td');
-    tdStart.innerHTML=`<input type="time" step="1" value="${r.start_t||''}" />`;
-    tdStart.firstChild.onchange=e=>{ r.start_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
-    tr.appendChild(tdStart);
-
-    const tdEnd=document.createElement('td');
-    tdEnd.innerHTML=`<input type="time" step="1" value="${r.end_t||''}" />`;
-    tdEnd.firstChild.onchange=e=>{ r.end_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
-    tr.appendChild(tdEnd);
-
-    const tdContent=document.createElement('td');
-    tdContent.innerHTML=`<input type="text" value="${r.content||''}" placeholder="输入内容..."/>`;
-    tdContent.firstChild.oninput=e=>{ r.content=e.target.value; saveLocal(els.dayPicker.value); };
-    tr.appendChild(tdContent);
-
-    const tdNote=document.createElement('td');
-    tdNote.innerHTML=`<input type="text" value="${r.note||''}" placeholder="备注（可空）"/>`;
-    tdNote.firstChild.oninput=e=>{ r.note=e.target.value; saveLocal(els.dayPicker.value); };
-    tr.appendChild(tdNote);
-
-    const tdDur=document.createElement('td');
-    const ms=durMs(r.start_t,r.end_t);
-    tdDur.innerHTML=`<span class="num">${fmtDur(ms)}</span>`;
-    if(ms<0) tdDur.style.color='var(--red)';
-    tr.appendChild(tdDur);
-
-    els.tbody.appendChild(tr);
-  });
-}
-
-/* =================== 事件绑定 =================== */
-function bindUI(){
-  els.dayPicker.value = todayStr();
-  loadLocal(els.dayPicker.value); render(); updateBadge();
-
-  els.btnToday.onclick = ()=>{ els.dayPicker.value=todayStr(); loadLocal(els.dayPicker.value); render(); };
-  els.dayPicker.onchange = ()=>{ loadLocal(els.dayPicker.value); render(); };
-
-  els.btnAdd.onclick = ()=>{ rows.push({start_t:'',end_t:'',content:'',note:''}); saveLocal(els.dayPicker.value); render(); };
-  els.checkAll.onclick = e=>{
-    document.querySelectorAll('.rowchk').forEach(ch=>ch.checked=e.target.checked);
-  };
-  els.btnDelete.onclick = ()=>{
-    const keep=[]; document.querySelectorAll('.rowchk').forEach((ch,i)=>{ if(!ch.checked) keep.push(rows[i]); });
-    rows = keep; saveLocal(els.dayPicker.value); render();
+    signedOut: document.getElementById('signed-out'),
+    signedIn: document.getElementById('signed-in'),
+    userEmail: document.getElementById('userEmail'),
+    syncBadge: document.getElementById('syncBadge'),
+    email: document.getElementById('email'),
+    password: document.getElementById('password'),
+    btnSignUp: document.getElementById('btnSignUp'),
+    btnSignIn: document.getElementById('btnSignIn'),
+    btnSignOut: document.getElementById('btnSignOut'),
   };
 
-  // 导入/导出（当天）
-  els.btnImportDay.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportDay; els.fileInput.click(); };
-  els.btnExportDayCSV.onclick = ()=>{
-    const lines = rows.map(r=>[r.start_t||'',r.end_t||'',r.content||'',r.note||''].map(csvEscape).join(','));
-    const csv = `开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
-    download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${els.dayPicker.value}_events.csv`);
-  };
-  els.btnExportDayJSON.onclick = ()=>{
-    download(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'}), `${els.dayPicker.value}_events.json`);
-  };
+  // ====== 工具 ======
+  const pad = n => String(n).padStart(2,'0');
+  const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const monthEnd = d => new Date(d.getFullYear(), d.getMonth()+1, 0);
+  const keyDay = dstr => `sheet:${dstr}`;
+  const parseTime = t => { if(!t) return null; if(/^\d{1,2}:\d{2}$/.test(t)) return `${t}:00`; if(/^\d{1,2}:\d{2}:\d{2}$/.test(t)) return t; return null; };
+  function durMs(a,b){ if(!a||!b) return 0; const [ah,am,as]=a.split(':').map(Number); const [bh,bm,bs]=b.split(':').map(Number); return ((bh*3600+bm*60+bs)-(ah*3600+am*60+as))*1000; }
+  function fmtDur(ms){ const s=Math.max(0,Math.floor(ms/1000)); const sec=s%60; const min=Math.floor(s/60)%60; const hr=Math.floor(s/3600); if(hr>0) return `${hr}时 ${min}分 ${sec}秒`; if(min>0) return `${min}分 ${sec}秒`; return `${sec}秒`; }
+  function csvEscape(v){ if(v==null) v=''; v=String(v); if(/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`; return v; }
+  function csvParseLine(line){ const out=[]; let i=0; while(i<line.length){ if(line[i]==='"'){ let j=i+1, s=''; while(j<line.length){ if(line[j]==='"' && line[j+1]==='"'){ s+='"'; j+=2; } else if(line[j]==='"'){ j++; break; } else { s+=line[j++]; } } out.push(s); if(line[j]===',') j++; i=j; } else { let j=i; while(j<line.length && line[j]!==',') j++; out.push(line.slice(i,j)); i=j+1; } } return out; }
+  function download(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
 
-  // 导入/导出（当月）
-  els.btnImportMonth.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportMonth; els.fileInput.click(); };
-  els.btnExportMonthCSV.onclick = exportMonthCSV;
-  els.btnExportMonthJSON.onclick = exportMonthJSON;
+  // ====== 本地存取 ======
+  function loadLocal(dstr){ try{ rows = JSON.parse(localStorage.getItem(keyDay(dstr))||'[]'); }catch{ rows=[]; } }
+  function saveLocal(dstr){ localStorage.setItem(keyDay(dstr), JSON.stringify(rows)); updateBadge(); }
 
-  // 云端
-  els.btnSaveCloud.onclick = saveDayToCloud;
-  els.btnLoadCloud.onclick = loadDayFromCloud;
+  // ====== 渲染 ======
+  function render(){
+    els.tbody.innerHTML='';
+    rows.forEach((r,idx)=>{
+      const tr=document.createElement('tr');
 
-  // 网络状态
-  window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
-  window.addEventListener('offline', updateBadge);
-}
+      const tdSel=document.createElement('td');
+      tdSel.innerHTML=`<input type="checkbox" data-idx="${idx}" class="rowchk" />`;
+      tr.appendChild(tdSel);
 
-/* =================== 导入实现 =================== */
-async function onImportDay(ev){
-  const file = ev.target.files[0]; ev.target.value='';
-  if(!file) return;
-  const text = await file.text();
-  if(file.name.toLowerCase().endsWith('.json')){
-    try{ rows = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
-  }else{ // CSV
-    const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
-    if(lines.length && /开始.*结束.*内容/.test(lines[0])) lines.shift(); // 去表头
-    rows = lines.map(line=>{
-      const cols = csvParseLine(line).map(s=>s.trim());
-      return { start_t:parseTime(cols[0]), end_t:parseTime(cols[1]), content:cols[2]||'', note:cols[3]||'' };
+      const tdStart=document.createElement('td');
+      tdStart.innerHTML=`<input type="time" step="1" value="${r.start_t||''}" />`;
+      tdStart.firstChild.onchange=e=>{ r.start_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
+      tr.appendChild(tdStart);
+
+      const tdEnd=document.createElement('td');
+      tdEnd.innerHTML=`<input type="time" step="1" value="${r.end_t||''}" />`;
+      tdEnd.firstChild.onchange=e=>{ r.end_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
+      tr.appendChild(tdEnd);
+
+      const tdContent=document.createElement('td');
+      tdContent.innerHTML=`<input type="text" value="${r.content||''}" placeholder="输入内容..."/>`;
+      tdContent.firstChild.oninput=e=>{ r.content=e.target.value; saveLocal(els.dayPicker.value); };
+      tr.appendChild(tdContent);
+
+      const tdNote=document.createElement('td');
+      tdNote.innerHTML=`<input type="text" value="${r.note||''}" placeholder="备注（可空）"/>`;
+      tdNote.firstChild.oninput=e=>{ r.note=e.target.value; saveLocal(els.dayPicker.value); };
+      tr.appendChild(tdNote);
+
+      const tdDur=document.createElement('td');
+      const ms=durMs(r.start_t,r.end_t);
+      tdDur.innerHTML=`<span class="num">${fmtDur(ms)}</span>`;
+      if(ms<0) tdDur.style.color='var(--red)';
+      tr.appendChild(tdDur);
+
+      els.tbody.appendChild(tr);
     });
   }
-  saveLocal(els.dayPicker.value); render();
-}
 
-async function onImportMonth(ev){
-  const file = ev.target.files[0]; ev.target.value='';
-  if(!file) return;
-  const text = await file.text();
-  let list = [];
-  if(file.name.toLowerCase().endsWith('.json')){
-    try{ list = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
-    // 期望格式：[{date:'YYYY-MM-DD', start_t, end_t, content, note}, ...]
-  }else{
-    // CSV 期望表头：日期,开始时间,结束时间,内容,备注
-    const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
-    if(lines.length && /日期.*开始.*结束.*内容/.test(lines[0])) lines.shift();
-    list = lines.map(line=>{
-      const c = csvParseLine(line).map(s=>s.trim());
-      return { date: c[0], start_t:parseTime(c[1]), end_t:parseTime(c[2]), content:c[3]||'', note:c[4]||'' };
+  // ====== UI 绑定 ======
+  function bindUI(){
+    els.dayPicker.value = todayStr();
+    loadLocal(els.dayPicker.value); render(); updateBadge();
+
+    els.btnToday.onclick = ()=>{ els.dayPicker.value=todayStr(); loadLocal(els.dayPicker.value); render(); };
+    els.dayPicker.onchange = ()=>{ loadLocal(els.dayPicker.value); render(); };
+
+    els.btnAdd.onclick = ()=>{ rows.push({start_t:'',end_t:'',content:'',note:''}); saveLocal(els.dayPicker.value); render(); };
+    els.checkAll.onclick = e=>{ document.querySelectorAll('.rowchk').forEach(ch=>ch.checked=e.target.checked); };
+    els.btnDelete.onclick = ()=>{
+      const keep=[]; document.querySelectorAll('.rowchk').forEach((ch,i)=>{ if(!ch.checked) keep.push(rows[i]); });
+      rows = keep; saveLocal(els.dayPicker.value); render();
+    };
+
+    // 当天导入/导出
+    els.btnImportDay.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportDay; els.fileInput.click(); };
+    els.btnExportDayCSV.onclick = ()=>{
+      const lines = rows.map(r=>[r.start_t||'',r.end_t||'',r.content||'',r.note||''].map(csvEscape).join(','));
+      const csv = `开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
+      download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${els.dayPicker.value}_events.csv`);
+    };
+    els.btnExportDayJSON.onclick = ()=>{
+      download(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'}), `${els.dayPicker.value}_events.json`);
+    };
+
+    // 当月导入/导出
+    els.btnImportMonth.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportMonth; els.fileInput.click(); };
+    els.btnExportMonthCSV.onclick = exportMonthCSV;
+    els.btnExportMonthJSON.onclick = exportMonthJSON;
+
+    // 云端
+    els.btnSaveCloud.onclick = saveDayToCloud;
+    els.btnLoadCloud.onclick = loadDayFromCloud;
+
+    // 网络状态
+    window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
+    window.addEventListener('offline', updateBadge);
+  }
+
+  // ====== 导入实现 ======
+  async function onImportDay(ev){
+    const file = ev.target.files[0]; ev.target.value='';
+    if(!file) return;
+    const text = await file.text();
+    if(file.name.toLowerCase().endsWith('.json')){
+      try{ rows = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
+    }else{
+      const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
+      if(lines.length && /开始.*结束.*内容/.test(lines[0])) lines.shift();
+      rows = lines.map(line=>{
+        const cols = csvParseLine(line).map(s=>s.trim());
+        return { start_t:parseTime(cols[0]), end_t:parseTime(cols[1]), content:cols[2]||'', note:cols[3]||'' };
+      });
+    }
+    saveLocal(els.dayPicker.value); render();
+  }
+
+  async function onImportMonth(ev){
+    const file = ev.target.files[0]; ev.target.value='';
+    if(!file) return;
+    const text = await file.text();
+    let list = [];
+    if(file.name.toLowerCase().endsWith('.json')){
+      try{ list = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
+      // 期望格式：[{date:'YYYY-MM-DD', start_t, end_t, content, note}, ...]
+    }else{
+      // CSV：日期,开始时间,结束时间,内容,备注
+      const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
+      if(lines.length && /日期.*开始.*结束.*内容/.test(lines[0])) lines.shift();
+      list = lines.map(line=>{
+        const c = csvParseLine(line).map(s=>s.trim());
+        return { date: c[0], start_t:parseTime(c[1]), end_t:parseTime(c[2]), content:c[3]||'', note:c[4]||'' };
+      });
+    }
+    const byDay = {};
+    for(const r of list){ if(!r?.date) continue; (byDay[r.date] ??= []).push({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}); }
+    Object.keys(byDay).forEach(d=> localStorage.setItem(keyDay(d), JSON.stringify(byDay[d])) );
+    if(byDay[els.dayPicker.value]){ loadLocal(els.dayPicker.value); render(); }
+    alert('导入当月完成（本地缓存）');
+  }
+
+  // ====== 当月导出 ======
+  async function exportMonthCSV(){
+    const d = new Date(els.dayPicker.value);
+    const y=d.getFullYear(), m=d.getMonth()+1;
+    let data = [];
+    if(currentUser){
+      const { data:cloud, error } = await sb.from('event_grid')
+        .select('d,start_t,end_t,content,note')
+        .eq('user_id', currentUser.id)
+        .gte('d', `${y}-${pad(m)}-01`)
+        .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
+        .order('d',{ascending:true}).order('start_t',{ascending:true});
+      if(error){ alert('云端导出失败：'+error.message); return; }
+      data = cloud || [];
+    }else{
+      const days = monthEnd(d).getDate();
+      for(let day=1; day<=days; day++){
+        const ds = `${y}-${pad(m)}-${pad(day)}`;
+        const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
+        arr.forEach(r=> data.push({d:ds, ...r}));
+      }
+    }
+    const lines = data.map(r=>[r.d, r.start_t||'', r.end_t||'', r.content||'', r.note||''].map(csvEscape).join(','));
+    const csv = `日期,开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
+    download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${y}-${pad(m)}_整月时间.csv`);
+  }
+
+  async function exportMonthJSON(){
+    const d = new Date(els.dayPicker.value);
+    const y=d.getFullYear(), m=d.getMonth()+1;
+    let data = [];
+    if(currentUser){
+      const { data:cloud, error } = await sb.from('event_grid')
+        .select('d,start_t,end_t,content,note')
+        .eq('user_id', currentUser.id)
+        .gte('d', `${y}-${pad(m)}-01`)
+        .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
+        .order('d',{ascending:true}).order('start_t',{ascending:true});
+      if(error){ alert('云端导出失败：'+error.message); return; }
+      data = cloud || [];
+    }else{
+      const days = monthEnd(d).getDate();
+      for(let day=1; day<=days; day++){
+        const ds = `${y}-${pad(m)}-${pad(day)}`;
+        const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
+        arr.forEach(r=> data.push({d:ds, ...r}));
+      }
+    }
+    download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `${y}-${pad(m)}_整月时间.json`);
+  }
+
+  // ====== 云端：保存/读取当天 ======
+  async function saveDayToCloud(){
+    if(!currentUser){ alert('请先登录'); return; }
+    const dstr = els.dayPicker.value;
+    const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: dstr });
+    if(del.error){ alert('删除旧记录失败：'+del.error.message); return; }
+    const rowsReady = rows
+      .filter(r=>r.start_t && r.end_t && r.content?.trim())
+      .map(r=>({ user_id: currentUser.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
+    if(rowsReady.length===0){ alert('没有可保存的行'); return; }
+    const ins = await sb.from('event_grid').insert(rowsReady);
+    if(ins.error){ alert('插入失败：'+ins.error.message); return; }
+    alert('已保存到云端');
+  }
+
+  async function loadDayFromCloud(){
+    if(!currentUser){ alert('请先登录'); return; }
+    const dstr = els.dayPicker.value;
+    const { data, error } = await sb.from('event_grid')
+      .select('start_t,end_t,content,note')
+      .eq('user_id', currentUser.id).eq('d', dstr)
+      .order('start_t',{ascending:true});
+    if(error){ alert('载入失败：'+error.message); return; }
+    rows = (data||[]).map(r=>({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}));
+    saveLocal(dstr); render();
+  }
+
+  // ====== 离线待同步 ======
+  function queuePending(payload){
+    const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+    q.push(payload);
+    localStorage.setItem('grid_pending', JSON.stringify(q));
+    updateBadge();
+  }
+  async function flushPending(){
+    if(!currentUser) return;
+    const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+    if(q.length===0){ updateBadge(); return; }
+    for(const it of q){
+      if(it.type==='saveDay'){
+        const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: it.d });
+        if(del.error){ console.warn('flush del fail', del.error.message); return; }
+        const ins = await sb.from('event_grid').insert(it.rows);
+        if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
+      }
+    }
+    localStorage.removeItem('grid_pending');
+    updateBadge();
+  }
+
+  // ====== 登录相关 ======
+  function updateAuthUI(){
+    if(currentUser){
+      els.signedOut.style.display='none';
+      els.signedIn.style.display='flex';
+      els.userEmail.textContent = currentUser.email || '已登录';
+    }else{
+      els.signedOut.style.display='flex';
+      els.signedIn.style.display='none';
+    }
+    updateBadge();
+  }
+  function updateBadge(){
+    const online = navigator.onLine;
+    const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
+    const parts = [];
+    parts.push(online?'🟢 在线':'🔴 离线');
+    parts.push(currentUser ? '已登录' : '未登录');
+    if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
+    els.syncBadge.textContent = parts.join(' · ');
+  }
+
+  async function initAuth(){
+    // 等 supabase-js 加载完毕后创建客户端
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
     });
-  }
-  // 写入本地（按日覆盖）
-  const byDay = {};
-  for(const r of list){ if(!r?.date) continue; (byDay[r.date] ??= []).push({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}); }
-  Object.keys(byDay).forEach(d=> localStorage.setItem(keyDay(d), JSON.stringify(byDay[d])) );
-  // 如果包含当前日，刷新页面
-  if(byDay[els.dayPicker.value]){ loadLocal(els.dayPicker.value); render(); }
-  alert('导入当月完成（本地缓存）');
-}
 
-/* =================== 导出当月 =================== */
-async function exportMonthCSV(){
-  const d = new Date(els.dayPicker.value);
-  const y=d.getFullYear(), m=d.getMonth()+1;
-  let data = [];
-  if(currentUser){
-    const { data:cloud, error } = await sb.from('event_grid')
-      .select('d,start_t,end_t,content,note')
-      .eq('user_id', currentUser.id)
-      .gte('d', `${y}-${pad(m)}-01`)
-      .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
-      .order('d',{ascending:true}).order('start_t',{ascending:true});
-    if(error){ alert('云端导出失败：'+error.message); return; }
-    data = cloud || [];
-  }else{
-    // 汇总本地：遍历当月每天 key
-    const days = monthEnd(d).getDate();
-    for(let day=1; day<=days; day++){
-      const ds = `${y}-${pad(m)}-${pad(day)}`;
-      const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
-      arr.forEach(r=> data.push({d:ds, ...r}));
-    }
-  }
-  const lines = data.map(r=>[r.d, r.start_t||'', r.end_t||'', r.content||'', r.note||''].map(csvEscape).join(','));
-  const csv = `日期,开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
-  download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${y}-${pad(m)}_整月时间.csv`);
-}
-
-async function exportMonthJSON(){
-  const d = new Date(els.dayPicker.value);
-  const y=d.getFullYear(), m=d.getMonth()+1;
-  let data = [];
-  if(currentUser){
-    const { data:cloud, error } = await sb.from('event_grid')
-      .select('d,start_t,end_t,content,note')
-      .eq('user_id', currentUser.id)
-      .gte('d', `${y}-${pad(m)}-01`)
-      .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
-      .order('d',{ascending:true}).order('start_t',{ascending:true});
-    if(error){ alert('云端导出失败：'+error.message); return; }
-    data = cloud || [];
-  }else{
-    const days = monthEnd(d).getDate();
-    for(let day=1; day<=days; day++){
-      const ds = `${y}-${pad(m)}-${pad(day)}`;
-      const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
-      arr.forEach(r=> data.push({d:ds, ...r}));
-    }
-  }
-  download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `${y}-${pad(m)}_整月时间.json`);
-}
-
-function download(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
-
-/* =================== 云端（保存/读取当天） =================== */
-async function saveDayToCloud(){
-  if(!currentUser){ alert('请先登录'); return; }
-  const dstr = els.dayPicker.value;
-  // 简单稳妥：先删当日，再整体插入
-  const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: dstr });
-  if(del.error){ alert('删除旧记录失败：'+del.error.message); return; }
-  const rowsReady = rows
-    .filter(r=>r.start_t && r.end_t && r.content?.trim())
-    .map(r=>({ user_id: currentUser.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
-  if(rowsReady.length===0){ alert('没有可保存的行'); return; }
-  const ins = await sb.from('event_grid').insert(rowsReady);
-  if(ins.error){ alert('插入失败：'+ins.error.message); return; }
-  alert('已保存到云端');
-}
-
-async function loadDayFromCloud(){
-  if(!currentUser){ alert('请先登录'); return; }
-  const dstr = els.dayPicker.value;
-  const { data, error } = await sb.from('event_grid')
-    .select('start_t,end_t,content,note')
-    .eq('user_id', currentUser.id).eq('d', dstr)
-    .order('start_t',{ascending:true});
-  if(error){ alert('载入失败：'+error.message); return; }
-  rows = (data||[]).map(r=>({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}));
-  saveLocal(dstr); render();
-}
-
-/* =================== 待同步（离线兜底） =================== */
-function queuePending(payload){
-  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-  q.push(payload);
-  localStorage.setItem('grid_pending', JSON.stringify(q));
-  updateBadge();
-}
-async function flushPending(){
-  if(!currentUser) return;
-  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-  if(q.length===0){ updateBadge(); return; }
-  for(const it of q){
-    if(it.type==='saveDay'){
-      const del = await sb.from('event_grid').delete().match({ user_id: currentUser.id, d: it.d });
-      if(del.error){ console.warn('flush del fail', del.error.message); return; }
-      const ins = await sb.from('event_grid').insert(it.rows);
-      if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
-    }
-  }
-  localStorage.removeItem('grid_pending');
-  updateBadge();
-}
-
-/* =================== 登录逻辑 =================== */
-function updateAuthUI(){
-  if(currentUser){
-    els.signedOut.style.display='none';
-    els.signedIn.style.display='flex';
-    (document.getElementById('userEmail')||{}).textContent = currentUser.email || '已登录';
-  }else{
-    els.signedOut.style.display='flex';
-    els.signedIn.style.display='none';
-  }
-  updateBadge();
-}
-function updateBadge(){
-  const online = navigator.onLine;
-  const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
-  const parts = [];
-  parts.push(online?'🟢 在线':'🔴 离线');
-  parts.push(currentUser ? '已登录' : '未登录');
-  if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-  els.syncBadge.textContent = parts.join(' · ');
-}
-
-async function initAuth(){
-  const { data:{ session } } = await sb.auth.getSession();
-  currentUser = session?.user || null;
-  updateAuthUI();
-
-  sb.auth.onAuthStateChange(async (_e, s) => {
-    currentUser = s?.user || null;
+    const { data:{ session } } = await sb.auth.getSession();
+    currentUser = session?.user || null;
     updateAuthUI();
-    if(currentUser) flushPending();
-  });
 
-  document.getElementById('btnSignUp').onclick = async ()=>{
-    const email=document.getElementById('email').value.trim();
-    const password=document.getElementById('password').value;
-    try{ await sb.auth.signUp({ email, password }); alert('注册成功：如开启邮箱验证，请到邮箱点确认链接后再登录'); }
-    catch(err){ alert('注册失败：'+(err?.message||err)); }
-  };
-  document.getElementById('btnSignIn').onclick = async ()=>{
-    const email=document.getElementById('email').value.trim();
-    const password=document.getElementById('password').value;
-    try{
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(error) throw error;
-    }catch(err){ alert('登录失败：'+(err?.message||err)); }
-  };
-  document.getElementById('btnSignOut').onclick = async ()=>{ await sb.auth.signOut(); };
-}
+    sb.auth.onAuthStateChange((_e, s) => {
+      currentUser = s?.user || null;
+      updateAuthUI();
+      if(currentUser) flushPending();
+    });
 
-/* =================== 启动 =================== */
-bindUI();
-initAuth();
+    els.btnSignUp.onclick = async ()=>{
+      const email=els.email.value.trim(), password=els.password.value;
+      try{ const { error } = await sb.auth.signUp({ email, password }); if(error) throw error; alert('注册成功：如开启邮箱验证，请到邮箱确认后再登录'); }
+      catch(err){ alert('注册失败：'+(err?.message||err)); }
+    };
+    els.btnSignIn.onclick = async ()=>{
+      const email=els.email.value.trim(), password=els.password.value;
+      try{ const { error } = await sb.auth.signInWithPassword({ email, password }); if(error) throw error; }
+      catch(err){ alert('登录失败：'+(err?.message||err)); }
+    };
+    els.btnSignOut.onclick = async ()=>{ try{ await sb.auth.signOut(); }catch(err){ alert('退出失败：'+(err?.message||err)); } };
+  }
+
+  // ====== 初始化 ======
+  bindUI();
+  initAuth();
+});
 </script>
 </body>
 </html>
