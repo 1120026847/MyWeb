@@ -1,555 +1,452 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>时间记录表 · Excel 风格 · Supabase 同步</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>时间记录（Excel风格）</title>
 
-<!-- Supabase v2（非模块） -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <!-- Supabase JS（UMD，全局 supabase 变量） -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Papa Parse（CSV 导入/导出） -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-<style>
-  :root { --grid:#e5e7eb; --header:#f8fafc; --accent:#4caf50; --blue:#2196f3; --red:#ef4444; }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Microsoft Yahei','Noto Sans SC',sans-serif;background:#f5f7fb;color:#111}
-  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
-  .auth input{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:160px}
-  .btn{padding:8px 12px;border:1px solid #ddd;background:#fff;border-radius:8px;cursor:pointer}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .pill{padding:4px 8px;border:1px solid #ddd;border-radius:999px;font-size:12px;color:#555}
-  .wrap{max-width:1100px;margin:20px auto;background:#fff;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,.06);padding:16px}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .toolbar .right{margin-left:auto;display:flex;gap:8px;align-items:center}
-  .sheet{margin-top:12px;border:1px solid var(--grid);border-radius:10px;overflow:auto}
-  table{border-collapse:collapse;width:100%;table-layout:fixed}
-  thead{background:var(--header);position:sticky;top:0;z-index:1}
-  th,td{border:1px solid var(--grid);padding:6px}
-  th{font-weight:700;text-align:center}
-  td input[type="time"]{width:100%;border:none;outline:none;background:transparent;padding:2px}
-  td input[type="text"]{width:100%;border:none;outline:none;background:transparent;padding:2px}
-  td .num{font-feature-settings:"tnum";font-variant-numeric:tabular-nums}
-  tr:nth-child(even) td{background:#fafafa}
-  .danger{color:#fff;background:var(--red);border-color:var(--red)}
-  .blue{background:var(--blue);border-color:var(--blue);color:#fff}
-  .muted{color:#777}
-  .status{display:flex;gap:8px;align-items:center}
-  .foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:#555}
-</style>
+  <style>
+    :root { --bg:#0b1020; --card:#121a32; --muted:#97a2c6; --text:#e8eeff; --accent:#5b8bff; --danger:#ff6b6b;}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:linear-gradient(180deg,#0b1020,#0a0f1f); color:var(--text); font:14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;}
+    header{padding:14px 16px; border-bottom:1px solid #1a2444; position:sticky; top:0; background:rgba(11,16,32,.8); backdrop-filter: blur(6px); z-index:5}
+    h1{margin:0; font-size:18px; letter-spacing:.5px}
+    .container{max-width:1100px; margin:14px auto; padding:0 12px}
+    .card{background:var(--card); border:1px solid #1a2444; border-radius:14px; padding:14px; box-shadow: 0 8px 30px rgba(0,0,0,.25)}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .row > *{flex: none}
+    input,button,select,textarea{
+      background:#0e1530; color:var(--text); border:1px solid #1d2850; border-radius:10px; padding:10px 12px; outline:none
+    }
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    button{cursor:pointer}
+    .btn{background:var(--accent); border:0; padding:10px 14px; border-radius:10px; color:white; font-weight:600}
+    .btn.secondary{background:#1d2850}
+    .btn.ghost{background:transparent; border:1px dashed #314070}
+    .btn.danger{background:var(--danger)}
+    .muted{color:var(--muted)}
+    .right{margin-left:auto}
+    .grid{display:grid; gap:8px}
+
+    /* 表格 */
+    .table-wrap{overflow:auto; border:1px solid #1a2444; border-radius:12px}
+    table{border-collapse:separate; border-spacing:0; width:100%; min-width:820px}
+    thead th{position:sticky; top:0; background:#0f1733; z-index:2}
+    th, td{border-bottom:1px solid #1a2444; padding:10px}
+    th{font-weight:700; color:#b9c7ff; text-align:left}
+    td input, td textarea{width:100%}
+    td .time{width:130px}
+    td .note{min-width:180px}
+    td .narrow{width:90px; text-align:center}
+    td .content{min-width:200px}
+    .total{font-weight:700; color:#b9c7ff}
+
+    /* 小屏适配 */
+    @media (max-width: 640px){
+      .row{gap:8px}
+      td .time{width:110px}
+      table{min-width:700px}
+    }
+
+    .badge{display:inline-flex;align-items:center;gap:6px;background:#17224a;border:1px solid #27346a;padding:6px 10px;border-radius:999px}
+  </style>
 </head>
 <body>
-<header>
-  <div class="status">
-    <strong>📅 时间记录表</strong>
-    <span class="pill" id="syncBadge">未登录</span>
-  </div>
-  <div class="auth">
-    <div id="signed-out" style="display:flex;gap:8px;align-items:center">
-      <input type="email" id="email" placeholder="邮箱" />
-      <input type="password" id="password" placeholder="密码（≥6位）" />
-      <!-- 兜底：type=button + onclick，避免表单提交刷新 -->
-      <button class="btn" id="btnSignUp" type="button" onclick="return __signup()">注册</button>
-      <button class="btn primary" id="btnSignIn" type="button" onclick="return __signin()">登录</button>
+  <header>
+    <div class="row">
+      <h1>时间记录（Excel风格）</h1>
+      <div class="right" id="authArea">
+        <!-- 登录状态/操作放这里 -->
+      </div>
     </div>
-    <div id="signed-in" style="display:none;gap:8px;align-items:center">
-      <span class="pill" id="userEmail"></span>
-      <button class="btn" id="btnSignOut" type="button" onclick="return __signout()">退出</button>
-    </div>
-  </div>
-</header>
+  </header>
 
-<main class="wrap">
-  <div class="toolbar">
-    <div>
-      日期：
-      <input type="date" id="dayPicker" />
-      <button class="btn" id="btnToday" type="button">今天</button>
-      <span class="muted">（切换日期 = 切换当日表）</span>
+  <div class="container">
+    <!-- 认证卡片 -->
+    <div class="card" id="authCard">
+      <div class="row">
+        <strong>登录 / 注册</strong>
+        <span class="muted">登录后数据会自动与云端同步</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="email" type="email" placeholder="邮箱" />
+        <input id="password" type="password" placeholder="密码（≥6位）" />
+        <button class="btn" id="btnLogin">登录</button>
+        <button class="btn secondary" id="btnSignup">注册</button>
+        <button class="btn ghost" id="btnLogout" style="display:none">退出</button>
+      </div>
+      <div class="muted" id="authHint" style="margin-top:8px"></div>
     </div>
 
-    <div class="right">
-      <button class="btn" id="btnAdd" type="button">新增行</button>
-      <button class="btn" id="btnDelete" type="button">删除勾选行</button>
-      <button class="btn blue" id="btnLoadCloud" type="button">从云端载入当天</button>
-      <button class="btn primary" id="btnSaveCloud" type="button">保存当天到云端</button>
-    </div>
-  </div>
+    <!-- 应用卡片 -->
+    <div class="card" id="appCard" style="margin-top:14px; display:none">
+      <div class="row">
+        <div class="badge"><span>📅</span>选择日期</div>
+        <input type="date" id="datePicker" />
+        <button class="btn" id="btnAddRow">+ 新增一行</button>
+        <button class="btn secondary" id="btnExport">导出 CSV</button>
+        <label class="btn ghost" for="csvImport">导入 CSV</label>
+        <input id="csvImport" type="file" accept=".csv" style="display:none" />
+        <div class="right muted" id="summary"></div>
+      </div>
 
-  <div class="sheet">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:44px"><input type="checkbox" id="checkAll"/></th>
-          <th style="width:120px">开始时间</th>
-          <th style="width:120px">结束时间</th>
-          <th>内容</th>
-          <th style="width:240px">备注</th>
-          <th style="width:120px">时长</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
+      <div class="table-wrap" style="margin-top:10px">
+        <table id="grid">
+          <thead>
+            <tr>
+              <th>开始时间</th>
+              <th>结束时间</th>
+              <th>内容</th>
+              <th>备注</th>
+              <th>时长</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" class="total">合计</td>
+              <td class="total" id="totalCell">00:00:00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
-  <div class="foot">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input type="file" id="fileInput" hidden />
-      <button class="btn" id="btnImportDay" type="button">导入当天（JSON/CSV）</button>
-      <button class="btn" id="btnExportDayCSV" type="button">导出当天 CSV</button>
-      <button class="btn" id="btnExportDayJSON" type="button">导出当天 JSON</button>
-      <span class="muted">CSV 字段：开始时间,结束时间,内容,备注（建议不含逗号）</span>
+      <div style="margin-top:10px" class="muted">
+        提示：时长自动按“结束 - 开始”计算；若跨午夜（结束 < 开始）会自动按 +24 小时处理。
+      </div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <button class="btn" id="btnImportMonth" type="button">导入当月（JSON/CSV）</button>
-      <button class="btn" id="btnExportMonthCSV" type="button">导出当月 CSV</button>
-      <button class="btn" id="btnExportMonthJSON" type="button">导出当月 JSON</button>
+
+    <!-- 历史卡片 -->
+    <div class="card" id="historyCard" style="margin-top:14px; display:none">
+      <div class="row">
+        <strong>最近 30 天历史</strong>
+        <div class="muted">按日期汇总</div>
+        <div class="right"><button class="btn secondary" id="btnReloadHistory">刷新</button></div>
+      </div>
+      <div id="historyList" style="margin-top:10px"></div>
     </div>
   </div>
-</main>
 
 <script>
-/* ================== Supabase 配置 ================== */
+/* ------------------ Supabase 初始化 ------------------ */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
-/* ============ 全局（给内联 onclick 用） ============ */
-let __sb = null;       // Supabase client
-let __user = null;
+const { createClient } = supabase; // 来自 UMD 全局变量
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 缺省 persistSession=true，会把 session 存在 localStorage（浏览器环境）
+// 参考：Installing（CDN 用法）与初始化文档、Auth 概览（默认会持久化会话）。:contentReference[oaicite:3]{index=3}
 
-/* 等待 supabase-js 可用，再创建 client（最稳） */
-function waitSupabaseReady(timeoutMs=5000){
-  return new Promise((resolve, reject)=>{
-    const t0 = Date.now();
-    const tick = ()=>{
-      if (window.supabase?.createClient){
-        __sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-          auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-        });
-        return resolve(__sb);
-      }
-      if (Date.now()-t0 > timeoutMs) return reject(new Error('supabase-js 加载超时'));
-      setTimeout(tick, 50);
+/* ------------------ 简单状态 ------------------ */
+let session = null;
+let currentDate = new Date();
+let rows = []; // 当前日期的行数据（含已保存/未保存）
+const tbody = document.getElementById('tbody');
+const datePicker = document.getElementById('datePicker');
+const totalCell = document.getElementById('totalCell');
+const summary = document.getElementById('summary');
+
+/* ------------------ 工具函数 ------------------ */
+const two = n => String(n).padStart(2,'0');
+
+function parseTimeToSec(t) {
+  // 接受 "H:mm" 或 "H:mm:ss"
+  if (!t) return null;
+  const parts = t.split(':').map(x=>parseInt(x,10));
+  if (parts.length < 2) return null;
+  const h = parts[0]||0, m = parts[1]||0, s = parts[2]||0;
+  return h*3600 + m*60 + s;
+}
+function secToHHMMSS(s) {
+  if (s == null) return '00:00:00';
+  const sign = s<0?'-':'';
+  s = Math.abs(s|0);
+  const h = Math.floor(s/3600);
+  const m = Math.floor((s%3600)/60);
+  const sec = s%60;
+  return `${sign}${two(h)}:${two(m)}:${two(sec)}`;
+}
+function todayStr(d=new Date()){
+  const y=d.getFullYear(),m=two(d.getMonth()+1),da=two(d.getDate());
+  return `${y}-${m}-${da}`;
+}
+function computeDuration(start, end){
+  if (start==null || end==null) return 0;
+  // 跨午夜：end < start => +24h
+  if (end < start) end += 24*3600;
+  return end - start;
+}
+function setAuthUI(user){
+  const authArea = document.getElementById('authArea');
+  const btnLogout = document.getElementById('btnLogout');
+  if (user){
+    authArea.innerHTML = `<span class="badge">已登录：${user.email||'用户'}</span>`;
+    btnLogout.style.display='inline-block';
+    document.getElementById('authCard').querySelector('#authHint').textContent = '登录成功，数据已与云端同步';
+  }else{
+    authArea.innerHTML = `<span class="muted">未登录</span>`;
+    btnLogout.style.display='none';
+  }
+}
+function show(el, v){ el.style.display = v ? '' : 'none'; }
+
+/* ------------------ 渲染表格 ------------------ */
+function render(){
+  tbody.innerHTML = '';
+  let total = 0;
+  rows.forEach((r, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="time" type="time" step="1" value="${r.start}" /></td>
+      <td><input class="time" type="time" step="1" value="${r.end}" /></td>
+      <td><input class="content" type="text" value="${r.content||''}" placeholder="内容" /></td>
+      <td><input class="note" type="text" value="${r.note||''}" placeholder="备注" /></td>
+      <td class="muted">${secToHHMMSS(r.duration)}</td>
+      <td>
+        <button class="btn secondary" data-act="save">保存</button>
+        <button class="btn ghost" data-act="dup">复制</button>
+        <button class="btn danger" data-act="del">删除</button>
+      </td>`;
+    tbody.appendChild(tr);
+
+    // 事件
+    const [startI, endI, contentI, noteI] = tr.querySelectorAll('input');
+    const update = ()=>{
+      r.start = startI.value;
+      r.end = endI.value;
+      r.content = contentI.value;
+      r.note = noteI.value;
+      const s = parseTimeToSec(r.start);
+      const e = parseTimeToSec(r.end);
+      r.duration = computeDuration(s,e);
+      tr.children[4].textContent = secToHHMMSS(r.duration);
+      updateSummary();
     };
-    tick();
+    startI.addEventListener('change', update);
+    endI.addEventListener('change', update);
+    contentI.addEventListener('input', ()=>{ r.content = contentI.value; });
+    noteI.addEventListener('input', ()=>{ r.note = noteI.value; });
+
+    tr.querySelector('[data-act="save"]').onclick = ()=> saveRow(r, tr);
+    tr.querySelector('[data-act="dup"]').onclick = ()=>{
+      const copy = {...r, id:null};
+      rows.splice(idx+1,0,copy);
+      render();
+    };
+    tr.querySelector('[data-act="del"]').onclick = ()=> deleteRow(r, idx);
+    total += (r.duration||0);
+  });
+  totalCell.textContent = secToHHMMSS(total);
+}
+function updateSummary(){
+  const total = rows.reduce((a,b)=> a + (b.duration||0), 0);
+  summary.textContent = `当前日期共 ${rows.length} 条，合计 ${secToHHMMSS(total)}`;
+  totalCell.textContent = secToHHMMSS(total);
+}
+
+/* ------------------ CRUD（与 Supabase 交互） ------------------ */
+async function loadRows(dateStr){
+  if (!session){ rows = []; render(); return; }
+  const { data, error } = await sb
+    .from('time_entries')
+    .select('*')
+    .eq('entry_date', dateStr)
+    .order('start_time', { ascending: true });
+  if (error){ console.error(error); alert('加载失败：'+error.message); return; }
+  rows = (data||[]).map(rec => ({
+    id: rec.id,
+    start: rec.start_time,
+    end: rec.end_time,
+    content: rec.content,
+    note: rec.note,
+    duration: rec.duration_seconds
+  }));
+  render();
+}
+
+async function saveRow(r, tr){
+  if (!session){ alert('请先登录'); return; }
+  const s = parseTimeToSec(r.start);
+  const e = parseTimeToSec(r.end);
+  if (s==null || e==null){ alert('请正确填写开始/结束时间'); return; }
+  const duration = computeDuration(s,e);
+  const payload = {
+    id: r.id || undefined, // upsert 需要主键参与；没有则插入
+    user_id: session.user.id,
+    entry_date: datePicker.value,
+    start_time: r.start,
+    end_time: r.end,
+    duration_seconds: duration,
+    content: r.content || null,
+    note: r.note || null
+  };
+  const { data, error } = await sb.from('time_entries').upsert(payload).select().single();
+  // Supabase 的 upsert：对象或数组均可，主键在 values 中；需要 .select() 才返回行。:contentReference[oaicite:4]{index=4}
+  if (error){ console.error(error); alert('保存失败：'+error.message); return; }
+  r.id = data.id;
+  r.duration = data.duration_seconds;
+  tr.children[4].textContent = secToHHMMSS(r.duration);
+  updateSummary();
+}
+
+async function deleteRow(r, idx){
+  if (!r.id){ rows.splice(idx,1); render(); return; }
+  const ok = confirm('确定删除该行吗？');
+  if (!ok) return;
+  const { error } = await sb.from('time_entries').delete().eq('id', r.id);
+  if (error){ alert('删除失败：'+error.message); return; }
+  rows.splice(idx,1);
+  render();
+}
+
+/* ------------------ CSV 导入/导出 ------------------ */
+function exportCSV(){
+  // 导出中文表头：与截图一致
+  const data = rows.map(r=>({
+    '开始时间': r.start,
+    '结束时间': r.end,
+    '内容': r.content||'',
+    '备注': r.note||'',
+    '时长': secToHHMMSS(r.duration||0),
+  }));
+  const csv = Papa.unparse(data); // 文档：Papa.unparse 把对象数组转 CSV。:contentReference[oaicite:5]{index=5}
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'}); // BOM 处理，Excel 打开中文不乱码
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `时间记录_${datePicker.value}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function importCSV(file){
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true, // 解析带表头 CSV。:contentReference[oaicite:6]{index=6}
+    complete: async (res)=>{
+      const arr = res.data || [];
+      // 兼容中英表头
+      function pick(o, keys){ for(const k of keys){ if (o[k]!=null && o[k]!=='') return o[k]; } return ''; }
+      // 批量 upsert（没 id 的都是新增）
+      const toUpsert = [];
+      for (const row of arr){
+        const start = pick(row, ['开始时间','start','Start']);
+        const end   = pick(row, ['结束时间','end','End']);
+        const content = pick(row, ['内容','content','Content']);
+        const note    = pick(row, ['备注','note','Note']);
+        const s = parseTimeToSec(start), e = parseTimeToSec(end);
+        if (s==null || e==null) continue;
+        const duration = computeDuration(s,e);
+        toUpsert.push({
+          user_id: session?.user?.id, // 必须登录，否则跳过
+          entry_date: datePicker.value,
+          start_time: start,
+          end_time: end,
+          duration_seconds: duration,
+          content, note
+        });
+      }
+      if (!session){ alert('导入需要先登录'); return; }
+      if (!toUpsert.length){ alert('没有可导入的数据'); return; }
+      const { error } = await sb.from('time_entries').upsert(toUpsert);
+      if (error){ alert('导入失败：'+error.message); return; }
+      await loadRows(datePicker.value);
+      alert(`导入成功：${toUpsert.length} 条`);
+    }
   });
 }
 
-/* 兜底：若被别处调用，确保拿到 client */
-function ensureClient(){ return __sb || (window.supabase?.createClient ? (__sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)) : null); }
-
-/* =============== 全局：状态徽标 & UI =============== */
-function updateBadge(){
-  const el = document.getElementById('syncBadge');
-  if(!el) return;
-  const online = navigator.onLine;
-  const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
-  const parts = [];
-  parts.push(online?'🟢 在线':'🔴 离线');
-  parts.push(__user ? '已登录' : '未登录');
-  if(__user) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-  el.textContent = parts.join(' · ');
+/* ------------------ 历史（最近 30 天汇总） ------------------ */
+async function loadHistory(){
+  if (!session){ document.getElementById('historyList').innerHTML='请先登录'; return; }
+  const end = new Date();
+  const start = new Date(); start.setDate(end.getDate()-29);
+  const { data, error } = await sb.from('time_entries')
+    .select('entry_date,duration_seconds')
+    .gte('entry_date', todayStr(start))
+    .lte('entry_date', todayStr(end))
+    .order('entry_date', { ascending: false });
+  if (error){ console.error(error); return; }
+  const map = new Map();
+  for (const r of data){
+    const d = r.entry_date;
+    map.set(d, (map.get(d)||0) + (r.duration_seconds||0));
+  }
+  const list = [...map.entries()].sort((a,b)=> b[0].localeCompare(a[0]));
+  const wrap = document.getElementById('historyList');
+  wrap.innerHTML = list.map(([d,sec])=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed #1a2444">
+    <div><strong>${d}</strong></div><div class="muted">合计：${secToHHMMSS(sec)}</div></div>`).join('') || '<div class="muted">暂无数据</div>';
 }
 
-function updateAuthUI(){
-  const out = document.getElementById('signed-out');
-  const _in = document.getElementById('signed-in');
-  const mail = document.getElementById('userEmail');
-  if(__user){
-    if(out) out.style.display='none';
-    if(_in) _in.style.display='flex';
-    if(mail) mail.textContent = __user.email || '已登录';
+/* ------------------ 认证（登录/注册/登出） ------------------ */
+async function login(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  if (!email || !password) return alert('请输入邮箱和密码');
+  const { error } = await sb.auth.signInWithPassword({ email, password }); // 登录（邮箱+密码）。:contentReference[oaicite:7]{index=7}
+  if (error) return alert('登录失败：'+error.message);
+}
+async function signup(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  if (!email || !password) return alert('请输入邮箱和密码');
+  const { error } = await sb.auth.signUp({ email, password }); // 注册（默认可能需要邮件确认，后台可关闭）。:contentReference[oaicite:8]{index=8}
+  if (error) return alert('注册失败：'+error.message);
+  document.getElementById('authHint').textContent = '注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。';
+}
+async function logout(){
+  await sb.auth.signOut(); // 登出并清理本地会话。:contentReference[oaicite:9]{index=9}
+}
+
+// 监听登录状态变化
+sb.auth.onAuthStateChange((_event, sess)=>{
+  session = sess;
+  setAuthUI(sess?.user || null);
+  show(document.getElementById('appCard'), !!session);
+  show(document.getElementById('historyCard'), !!session);
+  if (session){
+    loadRows(datePicker.value);
+    loadHistory();
   }else{
-    if(out) out.style.display='flex';
-    if(_in) _in.style.display='none';
+    rows = []; render();
+    document.getElementById('historyList').innerHTML = '';
   }
-  updateBadge();
-}
+}); // onAuthStateChange 用法参见文档。:contentReference[oaicite:10]{index=10}
 
-/* =============== 全局：离线队列同步 =============== */
-function queuePending(payload){
-  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-  q.push(payload);
-  localStorage.setItem('grid_pending', JSON.stringify(q));
-  updateBadge();
-}
-
-async function flushPending(){
-  if(!__user) return;
-  const sb = ensureClient();
-  const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-  if(q.length===0){ updateBadge(); return; }
-  for(const it of q){
-    if(it.type==='saveDay'){
-      const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: it.d });
-      if(del.error){ console.warn('flush del fail', del.error.message); return; }
-      const ins = await sb.from('event_grid').insert(it.rows);
-      if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
-    }
-  }
-  localStorage.removeItem('grid_pending');
-  updateBadge();
-}
-
-/* ============== 全局：登录相关（硬化） ============== */
-/* 强制拉会话并刷新 UI —— 登录/注册/退出后都调用一次 */
-async function forceRefreshAuthUI() {
-  const sb = ensureClient(); if (!sb) return;
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    __user = session?.user || null;
-    if (!__user) {
-      const { data: ures } = await sb.auth.getUser();
-      __user = ures?.user || null;
-    }
-  } catch {
-    __user = null;
-  }
-  updateAuthUI();
-  if (__user) flushPending(); // 登录后尝试同步队列
-}
-
-/* 登录：直接用返回结果更新 UI（不再只依赖 onAuthStateChange） */
-async function __signin(){
-  try{
-    const sb = ensureClient();
-    if(!sb){ alert('supabase-js 尚未就绪，请稍后再试或刷新页面'); return false; }
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error) throw error;
-    __user = data?.user || data?.session?.user || null;   // 关键：立刻用返回数据更新
-    updateAuthUI();
-    // 双保险：再拉一次会话（避免极端时序）
-    await forceRefreshAuthUI();
-  }catch(err){
-    alert('登录失败：'+(err?.message||err));
-  }
-  return false;
-}
-
-async function __signup(){
-  try{
-    const sb = ensureClient();
-    if(!sb){ alert('supabase-js 尚未就绪，请稍后再试或刷新页面'); return false; }
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const { error } = await sb.auth.signUp({ email, password });
-    if(error) throw error;
-    alert('注册成功：若开启邮箱验证，请先去邮箱确认再登录');
-    await forceRefreshAuthUI();
-  }catch(err){
-    alert('注册失败：'+(err?.message||err));
-  }
-  return false;
-}
-
-async function __signout(){
-  try{
-    const sb = ensureClient();
-    if(sb) await sb.auth.signOut();
-    __user = null;
-    updateAuthUI();
-  }catch(err){
-    alert('退出失败：'+(err?.message||err));
-  }
-  return false;
-}
-
-/* ================= 页面主逻辑 ================= */
-window.addEventListener('DOMContentLoaded', () => {
-  (async function initPage(){
-    // 1) 等 supabase-js
-    try { await waitSupabaseReady(); } catch(e){ console.warn(e.message); }
-
-    let rows = []; // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
-    const els = {
-      dayPicker: document.getElementById('dayPicker'),
-      btnToday: document.getElementById('btnToday'),
-      tbody: document.getElementById('tbody'),
-      checkAll: document.getElementById('checkAll'),
-
-      btnAdd: document.getElementById('btnAdd'),
-      btnDelete: document.getElementById('btnDelete'),
-      btnSaveCloud: document.getElementById('btnSaveCloud'),
-      btnLoadCloud: document.getElementById('btnLoadCloud'),
-
-      btnImportDay: document.getElementById('btnImportDay'),
-      btnExportDayCSV: document.getElementById('btnExportDayCSV'),
-      btnExportDayJSON: document.getElementById('btnExportDayJSON'),
-
-      btnImportMonth: document.getElementById('btnImportMonth'),
-      btnExportMonthCSV: document.getElementById('btnExportMonthCSV'),
-      btnExportMonthJSON: document.getElementById('btnExportMonthJSON'),
-
-      fileInput: document.getElementById('fileInput'),
-
-      btnSignUp: document.getElementById('btnSignUp'),
-      btnSignIn: document.getElementById('btnSignIn'),
-      btnSignOut: document.getElementById('btnSignOut'),
-    };
-
-    // ---- 小工具 ----
-    const pad = n => String(n).padStart(2,'0');
-    const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-    const monthEnd = d => new Date(d.getFullYear(), d.getMonth()+1, 0);
-    const keyDay = dstr => `sheet:${dstr}`;
-    const parseTime = t => { if(!t) return null; if(/^\d{1,2}:\d{2}$/.test(t)) return `${t}:00`; if(/^\d{1,2}:\d{2}:\d{2}$/.test(t)) return t; return null; };
-    function durMs(a,b){ if(!a||!b) return 0; const [ah,am,as]=a.split(':').map(Number); const [bh,bm,bs]=b.split(':').map(Number); return ((bh*3600+bm*60+bs)-(ah*3600+am*60+as))*1000; }
-    function fmtDur(ms){ const s=Math.max(0,Math.floor(ms/1000)); const sec=s%60; const min=Math.floor(s/60)%60; const hr=Math.floor(s/3600); if(hr>0) return `${hr}时 ${min}分 ${sec}秒`; if(min>0) return `${min}分 ${sec}秒`; return `${sec}秒`; }
-    function csvEscape(v){ if(v==null) v=''; v=String(v); if(/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`; return v; }
-    function csvParseLine(line){ const out=[]; let i=0; while(i<line.length){ if(line[i]==='"'){ let j=i+1, s=''; while(j<line.length){ if(line[j]==='"' && line[j+1]==='"'){ s+='"'; j+=2; } else if(line[j]==='"'){ j++; break; } else { s+=line[j++]; } } out.push(s); if(line[j]===',') j++; i=j; } else { let j=i; while(j<line.length && line[j]!==',') j++; out.push(line.slice(i,j)); i=j+1; } } return out; }
-    function download(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
-
-    // ---- 本地存取 ----
-    function loadLocal(dstr){ try{ rows = JSON.parse(localStorage.getItem(keyDay(dstr))||'[]'); }catch{ rows=[]; } }
-    function saveLocal(dstr){ localStorage.setItem(keyDay(dstr), JSON.stringify(rows)); updateBadge(); }
-
-    // ---- 渲染 ----
-    function render(){
-      els.tbody.innerHTML='';
-      rows.forEach((r,idx)=>{
-        const tr=document.createElement('tr');
-
-        const tdSel=document.createElement('td');
-        tdSel.innerHTML=`<input type="checkbox" data-idx="${idx}" class="rowchk" />`;
-        tr.appendChild(tdSel);
-
-        const tdStart=document.createElement('td');
-        tdStart.innerHTML=`<input type="time" step="1" value="${r.start_t||''}" />`;
-        tdStart.firstChild.onchange=e=>{ r.start_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
-        tr.appendChild(tdStart);
-
-        const tdEnd=document.createElement('td');
-        tdEnd.innerHTML=`<input type="time" step="1" value="${r.end_t||''}" />`;
-        tdEnd.firstChild.onchange=e=>{ r.end_t=parseTime(e.target.value); saveLocal(els.dayPicker.value); render(); };
-        tr.appendChild(tdEnd);
-
-        const tdContent=document.createElement('td');
-        tdContent.innerHTML=`<input type="text" value="${r.content||''}" placeholder="输入内容..."/>`;
-        tdContent.firstChild.oninput=e=>{ r.content=e.target.value; saveLocal(els.dayPicker.value); };
-        tr.appendChild(tdContent);
-
-        const tdNote=document.createElement('td');
-        tdNote.innerHTML=`<input type="text" value="${r.note||''}" placeholder="备注（可空）"/>`;
-        tdNote.firstChild.oninput=e=>{ r.note=e.target.value; saveLocal(els.dayPicker.value); };
-        tr.appendChild(tdNote);
-
-        const tdDur=document.createElement('td');
-        const ms=durMs(r.start_t,r.end_t);
-        tdDur.innerHTML=`<span class="num">${fmtDur(ms)}</span>`;
-        if(ms<0) tdDur.style.color='var(--red)';
-        tr.appendChild(tdDur);
-
-        els.tbody.appendChild(tr);
-      });
-    }
-
-    // ---- 绑定 UI ----
-    function bindUI(){
-      els.dayPicker.value = todayStr();
-      loadLocal(els.dayPicker.value); render(); updateBadge();
-
-      els.btnToday.onclick = ()=>{ els.dayPicker.value=todayStr(); loadLocal(els.dayPicker.value); render(); };
-      els.dayPicker.onchange = ()=>{ loadLocal(els.dayPicker.value); render(); };
-
-      els.btnAdd.onclick = ()=>{ rows.push({start_t:'',end_t:'',content:'',note:''}); saveLocal(els.dayPicker.value); render(); };
-      els.checkAll.onclick = e=>{ document.querySelectorAll('.rowchk').forEach(ch=>ch.checked=e.target.checked); };
-      els.btnDelete.onclick = ()=>{
-        const keep=[]; document.querySelectorAll('.rowchk').forEach((ch,i)=>{ if(!ch.checked) keep.push(rows[i]); });
-        rows = keep; saveLocal(els.dayPicker.value); render();
-      };
-
-      // 当天导入/导出
-      els.btnImportDay.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportDay; els.fileInput.click(); };
-      els.btnExportDayCSV.onclick = ()=>{
-        const lines = rows.map(r=>[r.start_t||'',r.end_t||'',r.content||'',r.note||''].map(csvEscape).join(','));
-        const csv = `开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
-        download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${els.dayPicker.value}_events.csv`);
-      };
-      els.btnExportDayJSON.onclick = ()=>{
-        download(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'}), `${els.dayPicker.value}_events.json`);
-      };
-
-      // 当月导入/导出
-      els.btnImportMonth.onclick = ()=>{ els.fileInput.accept=".json,.csv"; els.fileInput.onchange = onImportMonth; els.fileInput.click(); };
-      els.btnExportMonthCSV.onclick = exportMonthCSV;
-      els.btnExportMonthJSON.onclick = exportMonthJSON;
-
-      // 云端
-      els.btnSaveCloud.onclick = saveDayToCloud;
-      els.btnLoadCloud.onclick = loadDayFromCloud;
-
-      // 网络状态
-      window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
-      window.addEventListener('offline', updateBadge);
-    }
-
-    // ---- 导入实现 ----
-    async function onImportDay(ev){
-      const file = ev.target.files[0]; ev.target.value='';
-      if(!file) return;
-      const text = await file.text();
-      if(file.name.toLowerCase().endsWith('.json')){
-        try{ rows = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
-      }else{
-        const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
-        if(lines.length && /开始.*结束.*内容/.test(lines[0])) lines.shift();
-        rows = lines.map(line=>{
-          const cols = csvParseLine(line).map(s=>s.trim());
-          return { start_t:parseTime(cols[0]), end_t:parseTime(cols[1]), content:cols[2]||'', note:cols[3]||'' };
-        });
-      }
-      saveLocal(els.dayPicker.value); render();
-    }
-
-    async function onImportMonth(ev){
-      const file = ev.target.files[0]; ev.target.value='';
-      if(!file) return;
-      const text = await file.text();
-      let list = [];
-      if(file.name.toLowerCase().endsWith('.json')){
-        try{ list = JSON.parse(text)||[]; }catch{ alert('JSON 解析失败'); return; }
-        // 期望：[{date:'YYYY-MM-DD', start_t, end_t, content, note}]
-      }else{
-        const lines = text.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
-        if(lines.length && /日期.*开始.*结束.*内容/.test(lines[0])) lines.shift();
-        list = lines.map(line=>{
-          const c = csvParseLine(line).map(s=>s.trim());
-          return { date: c[0], start_t:parseTime(c[1]), end_t:parseTime(c[2]), content:c[3]||'', note:c[4]||'' };
-        });
-      }
-      const byDay = {};
-      for(const r of list){ if(!r?.date) continue; (byDay[r.date] ??= []).push({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}); }
-      Object.keys(byDay).forEach(d=> localStorage.setItem(keyDay(d), JSON.stringify(byDay[d])) );
-      if(byDay[els.dayPicker.value]){ loadLocal(els.dayPicker.value); render(); }
-      alert('导入当月完成（本地缓存）');
-    }
-
-    // ---- 当月导出 ----
-    async function exportMonthCSV(){
-      const d = new Date(els.dayPicker.value);
-      const y=d.getFullYear(), m=d.getMonth()+1;
-      let data = [];
-      if(__user){
-        const { data:cloud, error } = await ensureClient().from('event_grid')
-          .select('d,start_t,end_t,content,note')
-          .eq('user_id', __user.id)
-          .gte('d', `${y}-${pad(m)}-01`)
-          .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
-          .order('d',{ascending:true}).order('start_t',{ascending:true});
-        if(error){ alert('云端导出失败：'+error.message); return; }
-        data = cloud || [];
-      }else{
-        const days = monthEnd(d).getDate();
-        for(let day=1; day<=days; day++){
-          const ds = `${y}-${pad(m)}-${pad(day)}`;
-          const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
-          arr.forEach(r=> data.push({d:ds, ...r}));
-        }
-      }
-      const lines = data.map(r=>[r.d, r.start_t||'', r.end_t||'', r.content||'', r.note||''].map(csvEscape).join(','));
-      const csv = `日期,开始时间,结束时间,内容,备注\n${lines.join('\n')}`;
-      download(new Blob([csv],{type:'text/csv;charset=utf-8'}), `${y}-${pad(m)}_整月时间.csv`);
-    }
-
-    async function exportMonthJSON(){
-      const d = new Date(els.dayPicker.value);
-      const y=d.getFullYear(), m=d.getMonth()+1;
-      let data = [];
-      if(__user){
-        const { data:cloud, error } = await ensureClient().from('event_grid')
-          .select('d,start_t,end_t,content,note')
-          .eq('user_id', __user.id)
-          .gte('d', `${y}-${pad(m)}-01`)
-          .lte('d', `${y}-${pad(m)}-${pad(monthEnd(d).getDate())}`)
-          .order('d',{ascending:true}).order('start_t',{ascending:true});
-        if(error){ alert('云端导出失败：'+error.message); return; }
-        data = cloud || [];
-      }else{
-        const days = monthEnd(d).getDate();
-        for(let day=1; day<=days; day++){
-          const ds = `${y}-${pad(m)}-${pad(day)}`;
-          const arr = JSON.parse(localStorage.getItem(keyDay(ds))||'[]');
-          arr.forEach(r=> data.push({d:ds, ...r}));
-        }
-      }
-      download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `${y}-${pad(m)}_整月时间.json`);
-    }
-
-    // ---- 云端：保存/读取当天（含“离线入队”） ----
-    async function saveDayToCloud(){
-      if(!__user){ alert('请先登录'); return; }
-      const dstr = els.dayPicker.value;
-
-      // 组装有效行
-      const rowsReady = rows
-        .filter(r=>r.start_t && r.end_t && (r.content||'').trim())
-        .map(r=>({ user_id: __user.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
-
-      if(rowsReady.length===0){ alert('没有可保存的行'); return; }
-
-      // 离线：入队待同步
-      if(!navigator.onLine){
-        queuePending({ type:'saveDay', d:dstr, rows:rowsReady });
-        alert('已离线：此次保存加入待同步队列');
-        return;
-      }
-
-      const sb = ensureClient();
-      const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: dstr });
-      if(del.error){ alert('删除旧记录失败：'+del.error.message); return; }
-      const ins = await sb.from('event_grid').insert(rowsReady);
-      if(ins.error){ alert('插入失败：'+ins.error.message); return; }
-      alert('已保存到云端');
-    }
-
-    async function loadDayFromCloud(){
-      if(!__user){ alert('请先登录'); return; }
-      const sb = ensureClient();
-      const dstr = els.dayPicker.value;
-      const { data, error } = await sb.from('event_grid')
-        .select('start_t,end_t,content,note')
-        .eq('user_id', __user.id).eq('d', dstr)
-        .order('start_t',{ascending:true});
-      if(error){ alert('载入失败：'+error.message); return; }
-      rows = (data||[]).map(r=>({start_t:r.start_t,end_t:r.end_t,content:r.content||'',note:r.note||''}));
-      saveLocal(dstr); render();
-    }
-
-    // ---- Auth & 事件 ----
-    async function initAuth(){
-      const sb = ensureClient();
-      // 首次刷新会话
-      await forceRefreshAuthUI();
-
-      // 监听会话变化（保留）
-      sb.auth.onAuthStateChange((_event, session) => {
-        __user = session?.user || null;
-        updateAuthUI();
-      });
-
-      // 监听本地存储（跨标签/SDK异步写入）
-      window.addEventListener('storage', (e) => {
-        if (e.key && e.key.includes('auth-token')) forceRefreshAuthUI();
-      });
-
-      // 再绑定一次（与内联兜底重复绑定没关系）
-      els.btnSignUp.onclick = __signup;
-      els.btnSignIn.onclick = __signin;
-      els.btnSignOut.onclick = __signout;
-    }
-
-    // ---- 初始化 ----
-    function initUI(){
-      bindUI();
-      initAuth();
-      window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
-      window.addEventListener('offline', updateBadge);
-    }
-
-    // 开始
-    initUI();
-  })();
+/* ------------------ 事件绑定 ------------------ */
+document.getElementById('btnLogin').onclick = login;
+document.getElementById('btnSignup').onclick = signup;
+document.getElementById('btnLogout').onclick = logout;
+document.getElementById('btnAddRow').onclick = ()=>{
+  rows.push({ id:null, start:'', end:'', content:'', note:'', duration:0 });
+  render();
+};
+document.getElementById('btnExport').onclick = exportCSV;
+document.getElementById('csvImport').addEventListener('change', (e)=>{
+  if (e.target.files?.[0]) importCSV(e.target.files[0]);
+  e.target.value = '';
 });
+document.getElementById('btnReloadHistory').onclick = loadHistory;
+
+// 日期选择
+datePicker.value = todayStr(currentDate);
+datePicker.addEventListener('change', ()=> loadRows(datePicker.value));
+
+/* 初始化：获取现有会话，触发界面 */
+(async function init(){
+  const { data } = await sb.auth.getSession();
+  session = data.session || null;
+  setAuthUI(session?.user || null);
+  show(document.getElementById('appCard'), !!session);
+  show(document.getElementById('historyCard'), !!session);
+  if (session){
+    await loadRows(datePicker.value);
+    await loadHistory();
+  }
+})();
 </script>
 </body>
 </html>
