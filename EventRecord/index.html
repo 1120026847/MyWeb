@@ -11,8 +11,8 @@
     --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px;
 
     /* 列宽（桌面） */
-    --w-start:120px;   /* 开始（已缩小） */
-    --w-end:120px;     /* 结束（已缩小） */
+    --w-start:120px;   /* 开始（缩小） */
+    --w-end:120px;     /* 结束（缩小） */
     --w-content:360px; /* 内容 */
     --w-note:280px;    /* 备注 */
     --w-duration:100px;/* 时长 */
@@ -41,7 +41,7 @@
 
   input,button{border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;outline:none;background:#fff}
   input:focus,button:focus{border-color:var(--accent)}
-  /* 关键：移动端输入 >=16px 防 iOS 自动放大 */
+  /* iOS 防 1.5 倍放大 */
   input{font-size:16px}
   .btn{background:var(--accent);color:#fff;border:none}
   .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
@@ -53,13 +53,12 @@
   .toolbar{display:flex;gap:10px;flex-wrap:wrap}
   .toolbar .btn{height:40px}
 
-  /* 表格：不使用 sticky，统一白底，允许横向滚动以防万一 */
+  /* 表格 */
   .grid{
     margin-top:12px;border:1px solid var(--line);border-radius:14px;
     background:#fff; position:relative; overflow-x:auto;
     -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
   }
-
   .thead,.trow{
     display:grid;
     grid-template-columns:
@@ -189,7 +188,7 @@
   </div>
 </main>
 
-<!-- 模态：登录/注册/账户（移动端抽屉 + 桌面卡片） -->
+<!-- 模态：登录/注册/账户 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="panel" role="document">
@@ -214,7 +213,7 @@ const COL_NOTE = 'note';
 
 const { createClient } = supabase;
 
-/* 安全会话存储（localStorage 不可用时用 Cookie） */
+/* 安全会话存储 */
 const cookieStorage = {
   getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
   setItem:(k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
@@ -231,7 +230,8 @@ const $=id=>document.getElementById(id);
 const els={
   app:$('app'),guest:$('guestCard'),date:$('dateInput'),tbody:$('tbody'),total:$('total'),
   add:$('addRow'),exp:$('exportCsv'),imp:$('importCsv'),file:$('csvFile'),refresh:$('refreshBtn'),
-  hist:$('historyList'),rehist:$('reloadHistory'),sync:$('syncState'),account:$('accountBtn'),
+  hist:$('historyList'), rehist:$('reloadHistory'),  /* <- 统一用 hist */
+  sync:$('syncState'),account:$('accountBtn'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),
   title:$('dialogTitle'),body:$('dialogBody'),
   toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols')
@@ -242,7 +242,7 @@ function setSync(v){
   syncing += v ? 1 : -1;
   if (syncing < 0) syncing = 0;
   els.sync.style.display = syncing > 0 ? '' : 'none';
-  // 15 秒兜底，防止意外异常导致一直显示
+  // 15 秒兜底
   if (v) setTimeout(() => { if (syncing > 0) { syncing = 0; els.sync.style.display = 'none'; } }, 15000);
 }
 
@@ -284,9 +284,9 @@ function showAuth(){
     setSync(true);
     try{
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(error){ hint.textContent='登录失败：'+error.message; }
+      if(error){ hint.textContent='登录失败：' + error.message; }
       else { hint.textContent=''; toast('登录成功'); closeModal(); }
-    }catch(err){ hint.textContent='登录异常：'+(err?.message||err); }
+    }catch(err){ hint.textContent='登录异常：' + (err?.message||err); }
     finally{ setSync(false); }
   };
   $('sg').onclick=async()=>{
@@ -295,8 +295,8 @@ function showAuth(){
     setSync(true);
     try{
       const { error } = await sb.auth.signUp({ email, password });
-      hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。';
-    }catch(err){ hint.textContent='注册异常：'+(err?.message||err); }
+      hint.textContent = error ? ('注册失败：' + error.message) : '注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。';
+    }catch(err){ hint.textContent='注册异常：' + (err?.message||err); }
     finally{ setSync(false); }
   };
 }
@@ -315,7 +315,7 @@ function applySessionUI(){
   $('app').style.display=session?'':'none';
   $('guestCard').style.display=session?'none':'';
 }
-function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);els.total.textContent='合计：'+fmt(sum)}
+function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);$('total').textContent='合计：'+fmt(sum)}
 
 function rowDOM(item){
   const tr=document.createElement('div');tr.className='trow';
@@ -333,10 +333,10 @@ function rowDOM(item){
   return tr;
 }
 function renderBody(){
-  els.tbody.innerHTML='';
+  $('tbody').innerHTML='';
   const f=document.createDocumentFragment();
   for(const it of rows) f.appendChild(rowDOM(it));
-  els.tbody.appendChild(f);
+  $('tbody').appendChild(f);
   renderTotal();
 }
 
@@ -350,10 +350,10 @@ async function fetchRowsByDate(dateStr, tip=false){
       .eq('user_id', session.user.id)
       .eq(COL_DATE, dateStr)
       .order(COL_START,{ascending:true});
-    if(error){ toast('拉取失败：'+error.message,'error'); return; }
+    if(error){ toast('拉取失败：' + error.message,'error'); return; }
     rows=(data||[]).map(r=>({ id:r.id,start:r[COL_START],end:r[COL_END],content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',duration:r[COL_DUR]||0 }));
     renderBody(); if(tip) toast('已从云端同步');
-  }catch(err){ toast('同步异常：'+(err?.message||err),'error'); }
+  }catch(err){ toast('同步异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); }
 }
 
@@ -364,17 +364,17 @@ async function saveRow(item, btn){
   const seconds=dur(s,e);
   btn.disabled=true; setSync(true);
   try{
-    const payload={ user_id: session.user.id, [COL_DATE]: els.date.value, [COL_START]: item.start, [COL_END]: item.end, [COL_DUR]: seconds, [COL_CONTENT]: item.content||'', [COL_NOTE]: item.note||'' };
+    const payload={ user_id: session.user.id, [COL_DATE]: $('dateInput').value, [COL_START]: item.start, [COL_END]: item.end, [COL_DUR]: seconds, [COL_CONTENT]: item.content||'', [COL_NOTE]: item.note||'' };
     if(item.id){
       const { error } = await sb.from(TABLE).update(payload).eq('id',item.id);
-      if(error) return toast('保存失败：'+error.message,'error');
+      if(error) return toast('保存失败：' + error.message,'error');
     }else{
       const { data, error } = await sb.from(TABLE).insert(payload).select('id').single();
-      if(error) return toast('保存失败：'+error.message,'error');
+      if(error) return toast('保存失败：' + error.message,'error');
       item.id=data.id;
     }
     toast('✅ 已保存并同步到云端');
-  }catch(err){ toast('保存异常：'+(err?.message||err),'error'); }
+  }catch(err){ toast('保存异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); btn.disabled=false; }
 }
 
@@ -384,9 +384,9 @@ async function removeRow(item){
   setSync(true);
   try{
     const { error } = await sb.from(TABLE).delete().eq('id',item.id);
-    if(error) return toast('删除失败：'+error.message,'error');
+    if(error) return toast('删除失败：' + error.message,'error');
     rows.splice(idx,1); renderBody(); toast('🗑️ 已删除');
-  }catch(err){ toast('删除异常：'+(err?.message||err),'error'); }
+  }catch(err){ toast('删除异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); }
 }
 
@@ -394,7 +394,8 @@ async function removeRow(item){
 function toCSV(){
   const header=[COL_DATE,COL_START,COL_END,COL_CONTENT,COL_NOTE];
   const lines=[header.join(',')];
-  for(const it of rows) lines.push([els.date.value,it.start||'',it.end||'',(it.content||'').replace(/,/g,'，'),(it.note||'').replace(/,/g,'，')].join(','));
+  const day=$('dateInput').value;
+  for(const it of rows) lines.push([day,it.start||'',it.end||'',(it.content||'').replace(/,/g,'，'),(it.note||'').replace(/,/g,'，')].join(','));
   return lines.join('\n');
 }
 function download(name,text){
@@ -410,10 +411,10 @@ function parseCSV(text){
     content: head.findIndex(h=>/content|内容/i.test(h)),
     note: head.findIndex(h=>/note|备注/i.test(h)),
   };
-  const out=[];
+  const out=[]; const cur=$('dateInput').value;
   for(let i=1;i<lines.length;i++){
     const c=lines[i].split(',');
-    const d=c[idx.date]||els.date.value; if(d!==els.date.value) continue;
+    const d=c[idx.date]||cur; if(d!==cur) continue;
     const s=c[idx.start]||'', e=c[idx.end]||'';
     out.push({id:null,start:s,end:e,content:(c[idx.content]||'').replace(/，/g,','),note:(c[idx.note]||'').replace(/，/g,','),duration:dur(parseTime(s),parseTime(e))});
   }
@@ -422,10 +423,15 @@ function parseCSV(text){
 
 /* ========= 历史 ========= */
 async function loadHistory(){
-  if(!session){els.historyList.textContent='—';return}
-  const curStr=els.date.value;
+  // 兜底：元素缺失直接退出，避免 innerHTML 抛错
+  if(!els.hist){ console.warn('historyList element missing'); return; }
+
+  if(!session){ els.hist.textContent='—'; return; }
+
+  const curStr=$('dateInput').value;
   const from=parseDay(curStr); from.setDate(from.getDate()-29);
   const fromStr=toDayString(from);
+
   setSync(true);
   try{
     const { data, error } = await sb.from(TABLE)
@@ -433,50 +439,56 @@ async function loadHistory(){
       .eq('user_id', session.user.id)
       .gte(COL_DATE, fromStr)
       .lte(COL_DATE, curStr);
-    if(error){ toast('历史拉取失败：'+error.message,'error'); return; }
+    if(error){ toast('历史拉取失败：' + error.message,'error'); return; }
+
     const map=new Map();
     for(const r of (data||[])) map.set(r[COL_DATE], (map.get(r[COL_DATE])||0) + (r[COL_DUR]||0));
     const items=[...map.entries()].sort((a,b)=>a[0]<b[0]?1:-1);
-    els.historyList.innerHTML = items.length
+
+    els.hist.innerHTML = items.length
       ? items.map(([d,s])=>`<div class="row"><div>${d}</div><div class="muted">合计：${fmt(s)}</div></div>`).join('')
       : '—';
-  }catch(err){ toast('历史同步异常：'+(err?.message||err),'error'); }
-  finally{ setSync(false); }
+  }catch(err){
+    // 这里曾因 els.historyList 未定义而抛错；改为 els.hist 并加兜底
+    toast('历史同步异常：' + (err?.message||err),'error');
+  }finally{
+    setSync(false);
+  }
 }
 
 /* ========= 视图切换：隐藏/显示 备注 + 时长 ========= */
 function applyCompactUI(on){
-  if(on){ els.grid.classList.add('compact'); els.toggle.textContent='显示备注与时长'; }
-  else { els.grid.classList.remove('compact'); els.toggle.textContent='隐藏备注与时长'; }
-  els.grid.scrollLeft = 0;
+  if(on){ $('grid').classList.add('compact'); $('toggleCols').textContent='显示备注与时长'; }
+  else { $('grid').classList.remove('compact'); $('toggleCols').textContent='隐藏备注与时长'; }
+  $('grid').scrollLeft = 0;
   localStorage.setItem('hideNoteDur', on ? '1' : '0');
 }
 
 /* ========= 事件 ========= */
-els.add.onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0});renderBody()};
-els.exp.onclick=()=>download(`timelog_${els.date.value}.csv`,toCSV());
-els.imp.onclick=()=>els.file.click();
-els.file.onchange=async e=>{
+$('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0});renderBody()};
+$('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
+$('importCsv').onclick=()=>$('csvFile').click();
+$('csvFile').onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   const text=await f.text(); const list=parseCSV(text);
   if(list.length===0) return toast('CSV 没有可导入的当前日期数据','error');
   rows.push(...list); renderBody(); toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
 };
-els.refresh.onclick=()=>fetchRowsByDate(els.date.value,true);
+$('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,true);
 els.rehist.onclick=loadHistory;
-els.toggle.onclick=()=>applyCompactUI(!els.grid.classList.contains('compact'));
+$('toggleCols').onclick=()=>applyCompactUI(!$('grid').classList.contains('compact'));
 
 /* ========= 认证监听 & 初始化 ========= */
-sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate(els.date.value);loadHistory()}});
+sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate($('dateInput').value);loadHistory()}});
 
 (function init(){
-  const today=new Date(); els.date.value=today.toISOString().slice(0,10);
-  sb.auth.getSession().then(({data})=>{session=data.session||null; applySessionUI(); if(session){fetchRowsByDate(els.date.value);loadHistory()}});
+  const today=new Date(); $('dateInput').value=today.toISOString().slice(0,10);
+  sb.auth.getSession().then(({data})=>{session=data.session||null; applySessionUI(); if(session){fetchRowsByDate($('dateInput').value);loadHistory()}});
   // 手机默认紧凑；桌面记忆上次
   const remembered = localStorage.getItem('hideNoteDur');
   const isSmall = window.matchMedia('(max-width: 480px)').matches;
   applyCompactUI(remembered ? remembered==='1' : isSmall);
-  els.date.onchange=()=>{ if(session){ fetchRowsByDate(els.date.value) } renderBody(); loadHistory(); };
+  $('dateInput').onchange=()=>{ if(session){ fetchRowsByDate($('dateInput').value) } renderBody(); loadHistory(); };
 })();
 </script>
 </body>
