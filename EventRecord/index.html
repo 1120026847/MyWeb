@@ -511,7 +511,7 @@ function applyCompactUI(on){
 /* ========= 事件 ========= */
 $('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0,_dirty:true}); dirty=true; renderBody(); saveDraft();};
 $('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
-$('importCsv').onclick()=>$('csvFile').click();
+$('importCsv').addEventListener('click', () => $('csvFile').click());
 $('csvFile').onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   const text=await f.text(); const list=parseCSV(text);
