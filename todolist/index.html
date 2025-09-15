@@ -4,23 +4,17 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Todo 清单</title>
-
-<!-- Supabase v2 UMD -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
-  :root{
-    --bg:#f7f9fc; --card:#fff; --line:#e5e7eb; --text:#0b1220; --muted:#6b7280;
-    --accent:#2563eb; --accent-weak:#eef2ff; --danger:#dc2626; --ok:#16a34a;
-  }
+  :root{ --bg:#f7f9fc; --card:#fff; --line:#e5e7eb; --text:#0b1220; --muted:#6b7280;
+         --accent:#2563eb; --accent-weak:#eef2ff; --danger:#dc2626; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
        font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
   header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
   .container{width:100%;padding:12px 16px}
   .nav{display:flex;align-items:center;gap:10px}
-  h1{margin:0;font-size:clamp(18px,4.5vw,22px);letter-spacing:.4px}
-
+  h1{margin:0;font-size:clamp(18px,4.5vw,22px)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
   .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   input,button{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
@@ -31,86 +25,62 @@
   .btn:disabled{opacity:.6;cursor:not-allowed}
   .right{margin-left:auto}
   .muted{color:var(--muted)}
-
   .tabs{display:flex;gap:8px;background:#f3f4f6;border:1px solid var(--line);border-radius:999px;padding:4px}
   .tab{padding:6px 12px;border-radius:999px;border:0;background:transparent;cursor:pointer}
   .tab.active{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.06);border:1px solid var(--line)}
-
   .add-wrap{display:flex;gap:10px}
   .add-wrap input{flex:1;min-width:200px}
-
   .list{margin-top:12px;display:grid;gap:10px}
   .item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
   .item.done .title{color:#94a3b8;text-decoration:line-through}
   .title{flex:1;min-width:120px}
   input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
-
-  /* 账号按钮 */
   .account{margin-left:auto}
   .account-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent-weak);color:#1e3a8a;
                border:1px solid #c7d2fe;padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-
   /* Toast */
   .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:20000;pointer-events:none}
   .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
   .toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
-
-  /* 同步小菊花与操作区 */
+  /* 同步提示 */
   .sync{display:inline-flex;align-items:center;gap:8px}
   .spinner{width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-
-  /* === 模态对话框（解决移动端被遮挡）：fixed + 高 z-index === */
+  /* 模态（登录/注册/账户） */
   .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10000}
   .modal.show{display:flex}
   .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35);backdrop-filter:saturate(1.2) blur(1.5px)}
   .dialog{position:relative;width:520px;max-width:92vw;background:#fff;border-radius:16px;border:1px solid var(--line);
           box-shadow:0 20px 60px rgba(0,0,0,.25);padding:16px}
-  .dialog h3{margin:0 0 12px 0}
+  .dialog h3{margin:0 0 12px}
   .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
   .hint{font-size:12px;color:var(--muted)}
   .dialog .row{justify-content:flex-end}
   .close-x{position:absolute;right:10px;top:8px;background:transparent;border:0;font-size:18px;cursor:pointer}
-
-  /* 手机端紧凑模式：输入更大、筛选更小，且防 iOS 输入放大 */
-  @media (max-width: 640px) {
-    .add-wrap{
-      display: grid;
-      grid-template-columns: 1fr auto;
-      column-gap: 8px; row-gap: 8px; align-items:center;
-    }
-    .add-wrap input{
-      min-width: 0; width:100%;
-      height:44px; line-height:44px; font-size:16px; /* 16px 防 iOS Safari 自动缩放 */
-      padding:10px 12px;
-    }
+  /* 手机端更紧凑 + iOS 防缩放 */
+  @media (max-width: 640px){
+    .add-wrap{display:grid;grid-template-columns:1fr auto;column-gap:8px;row-gap:8px;align-items:center}
+    .add-wrap input{min-width:0;width:100%;height:44px;line-height:44px;font-size:16px;padding:10px 12px}
     .add-wrap .btn{height:44px;padding:10px 12px}
-    .tabs{grid-column: 1 / -1; justify-content:center; padding:2px}
+    .tabs{grid-column:1/-1;justify-content:center;padding:2px}
     .tab{font-size:12.5px;padding:4px 10px;min-height:40px;line-height:1}
     .item{padding:10px}
   }
-  @media (max-width: 400px){
-    .tab{padding:3px 8px;font-size:12px}
-  }
+  @media (max-width: 400px){ .tab{padding:3px 8px;font-size:12px} }
 </style>
 </head>
 <body>
 <header>
   <div class="container nav">
     <h1>Todo 清单</h1>
-    <div class="account">
-      <button id="accountBtn" class="account-btn">登录 / 注册</button>
-    </div>
+    <div class="account"><button id="accountBtn" class="account-btn">登录 / 注册</button></div>
   </div>
 </header>
 
-<!-- Toast -->
 <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
-<!-- 主应用 -->
 <main class="container" id="app" style="display:none">
   <div class="card">
-    <!-- 添加区 -->
     <div class="add-wrap">
       <input id="newTodo" type="text" placeholder="输入新任务，如：学习 30 分钟英语" />
       <button id="addBtn" class="btn">添加</button>
@@ -120,7 +90,6 @@
         <button class="tab" data-filter="completed">已完成</button>
       </div>
     </div>
-    <!-- 汇总/操作 -->
     <div class="row" style="margin-top:10px">
       <div id="summary" class="muted">—</div>
       <div class="right sync">
@@ -130,22 +99,16 @@
       </div>
     </div>
   </div>
-
-  <!-- 列表 -->
   <div id="list" class="list" style="margin-top:12px"></div>
 </main>
 
-<!-- 未登录提示（不会遮住模态，因为模态 z-index 更高） -->
 <div class="container" id="guestCard">
   <div class="card">
-    <div class="row">
-      <strong>请先登录</strong>
-      <span class="muted">点击右上角「登录 / 注册」进入你的账户</span>
-    </div>
+    <div class="row"><strong>请先登录</strong><span class="muted">点击右上角「登录 / 注册」进入你的账户</span></div>
   </div>
 </div>
 
-<!-- 统一模态（登录/注册/账号） -->
+<!-- 统一模态 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="dialog" role="document">
@@ -156,41 +119,70 @@
 </div>
 
 <script>
-/* ====== Supabase 配置 ====== */
+/* ========= 你的 Supabase 配置 ========= */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ====== 状态 ====== */
+/* ========= SafeStorage：localStorage 可用就用；否则回退 Cookie ========= */
+/* 说明：supabase-js 默认用 localStorage 持久化会话；当环境不支持时需自定义 storage。 */
+const cookieStorage = {
+  getItem: (key) => {
+    const m = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(key) + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  },
+  setItem: (key, value) => {
+    const expires = new Date(); expires.setFullYear(expires.getFullYear() + 1);
+    document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(value)}; Path=/; Expires=${expires.toUTCString()}; SameSite=Lax; Secure`;
+  },
+  removeItem: (key) => {
+    document.cookie = `${encodeURIComponent(key)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`;
+  }
+};
+function makeSafeStorage(){
+  try{
+    const t='__sb_test__'+Math.random();
+    window.localStorage.setItem(t,'1');
+    window.localStorage.removeItem(t);
+    return window.localStorage;      // 正常用 localStorage
+  }catch(e){
+    return cookieStorage;            // 受限环境回退到 Cookie
+  }
+}
+const SAFE_STORAGE = makeSafeStorage();
+
+/* 显式指定 auth 选项（持久化+自动刷新+自定义 storageKey） */
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,      // 默认即为 true，这里显式声明。
+    autoRefreshToken: true,
+    detectSessionInUrl: false, // 未使用 OAuth 回调，可关闭
+    storage: SAFE_STORAGE,     // 关键：自定义存储适配器
+    storageKey: 'sb-todo-auth' // 避免与同域其他项目键名冲突
+  }
+});
+
+/* ========= 状态 ========= */
 let session = null;
 let todos = [];
 let currentFilter = 'all';
 let syncing = 0;
 
-/* ====== DOM ====== */
+/* ========= DOM ========= */
+const $ = (id)=>document.getElementById(id);
 const els = {
-  app: document.getElementById('app'),
-  guestCard: document.getElementById('guestCard'),
-  list: document.getElementById('list'),
-  newTodo: document.getElementById('newTodo'),
-  addBtn: document.getElementById('addBtn'),
-  summary: document.getElementById('summary'),
-  clearCompleted: document.getElementById('clearCompleted'),
-  refreshBtn: document.getElementById('refreshBtn'),
+  app: $('app'), guestCard: $('guestCard'), list: $('list'),
+  newTodo: $('newTodo'), addBtn: $('addBtn'), summary: $('summary'),
+  clearCompleted: $('clearCompleted'), refreshBtn: $('refreshBtn'),
   tabs: Array.from(document.querySelectorAll('.tab')),
-  accountBtn: document.getElementById('accountBtn'),
-  toastWrap: document.getElementById('toastWrap'),
-  syncState: document.getElementById('syncState'),
-  modal: document.getElementById('modal'),
-  modalBackdrop: document.getElementById('modalBackdrop'),
-  modalClose: document.getElementById('modalClose'),
-  dialogBody: document.getElementById('dialogBody'),
-  dialogTitle: document.getElementById('dialogTitle'),
+  accountBtn: $('accountBtn'),
+  toastWrap: $('toastWrap'), syncState: $('syncState'),
+  modal: $('modal'), modalBackdrop: $('modalBackdrop'),
+  modalClose: $('modalClose'), dialogBody: $('dialogBody'), dialogTitle: $('dialogTitle')
 };
 
-/* ====== 工具 & UI ====== */
+/* ========= 工具 ========= */
 const toast = (msg, type='ok', ms=1600)=>{
   const t = document.createElement('div');
   t.className = 'toast ' + (type==='error' ? 'err':'ok');
@@ -199,48 +191,36 @@ const toast = (msg, type='ok', ms=1600)=>{
   setTimeout(()=>{ t.style.transition='opacity .35s'; t.style.opacity='0'; }, ms);
   setTimeout(()=> t.remove(), ms+400);
 };
-const setSyncing = (on)=>{
-  syncing += on ? 1 : -1;
-  if (syncing < 0) syncing = 0;
-  els.syncState.style.display = syncing > 0 ? '' : 'none';
-};
+const setSyncing = (on)=>{ syncing += on ? 1 : -1; if (syncing<0) syncing=0; els.syncState.style.display = syncing>0 ? '' : 'none'; };
 const renderSummary = ()=>{
-  const all = todos.length;
-  const done = todos.filter(t=>t.completed).length;
-  const left = all - done;
+  const all = todos.length, done = todos.filter(t=>t.completed).length, left = all - done;
   els.summary.textContent = `共 ${all} 项 · 待完成 ${left} · 已完成 ${done}`;
 };
-const byFilter = (t)=>{
-  if (currentFilter==='active') return !t.completed;
-  if (currentFilter==='completed') return t.completed;
-  return true;
-};
+/* 立即切换 UI（不等网络），避免“已登录但卡片未隐藏”的视觉延迟 */
+function applySessionUI(){
+  els.accountBtn.textContent = session?.user ? `已登录：${session.user.email||'用户'}` : '登录 / 注册';
+  els.app.style.display = session ? '' : 'none';
+  els.guestCard.style.display = session ? 'none' : '';
+}
 
-/* ====== 模态（可访问对话框） ====== */
+/* ========= 模态 ========= */
 let lastFocus = null;
-function openModal(title, innerHTML){
+function openModal(title, html){
   els.dialogTitle.textContent = title || '对话框';
-  els.dialogBody.innerHTML = innerHTML || '';
+  els.dialogBody.innerHTML = html || '';
   lastFocus = document.activeElement;
-  els.modal.classList.add('show');
-  els.modal.removeAttribute('aria-hidden');
-  document.body.style.overflow = 'hidden';
-  // 初始焦点
-  const firstInput = els.dialogBody.querySelector('input,button,select,textarea');
-  if (firstInput) setTimeout(()=> firstInput.focus(), 0);
+  els.modal.classList.add('show'); els.modal.removeAttribute('aria-hidden'); document.body.style.overflow='hidden';
+  const first = els.dialogBody.querySelector('input,button,select,textarea'); if (first) setTimeout(()=>first.focus(),0);
 }
 function closeModal(){
-  els.modal.classList.remove('show');
-  els.modal.setAttribute('aria-hidden','true');
-  document.body.style.overflow = '';
+  els.modal.classList.remove('show'); els.modal.setAttribute('aria-hidden','true'); document.body.style.overflow='';
   if (lastFocus) lastFocus.focus();
 }
-els.modalBackdrop.addEventListener('click', closeModal);
-els.modalClose.addEventListener('click', closeModal);
-document.addEventListener('keydown', (e)=>{ if (e.key==='Escape' && els.modal.classList.contains('show')) closeModal(); });
+els.modalBackdrop.onclick = closeModal; els.modalClose.onclick = closeModal;
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && els.modal.classList.contains('show')) closeModal(); });
 
-/* ====== 账号视图 ====== */
-function renderAuthModal(){
+/* ========= 账号 UI ========= */
+function showAuthModal(){
   openModal('登录 / 注册', `
     <div class="field">
       <label class="hint">邮箱</label>
@@ -256,193 +236,131 @@ function renderAuthModal(){
     </div>
     <div id="authHint" class="hint" style="margin-top:6px"></div>
   `);
-  const hint = document.getElementById('authHint');
-  document.getElementById('btnDoLogin').onclick = async ()=>{
-    const email = document.getElementById('authEmail').value.trim();
-    const password = document.getElementById('authPassword').value;
-    if (!email || !password) return hint.textContent='请输入邮箱和密码';
+  const hint = $('authHint');
+  $('btnDoLogin').onclick = async ()=>{
+    const email = $('authEmail').value.trim(), password = $('authPassword').value;
+    if(!email || !password) return hint.textContent='请输入邮箱和密码';
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) hint.textContent = '登录失败：' + error.message;
     else { hint.textContent=''; toast('登录成功'); closeModal(); }
   };
-  document.getElementById('btnDoSignup').onclick = async ()=>{
-    const email = document.getElementById('authEmail').value.trim();
-    const password = document.getElementById('authPassword').value;
-    if (!email || !password) return hint.textContent='请输入邮箱和密码';
+  $('btnDoSignup').onclick = async ()=>{
+    const email = $('authEmail').value.trim(), password = $('authPassword').value;
+    if(!email || !password) return hint.textContent='请输入邮箱和密码';
     const { error } = await sb.auth.signUp({ email, password });
-    if (error) hint.textContent = '注册失败：' + error.message;
-    else hint.textContent = '注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。';
+    hint.textContent = error ? ('注册失败：' + error.message) : '注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。';
   };
 }
-function renderAccountModal(user){
+function showAccountModal(user){
   openModal('账户', `
     <div class="field"><div class="hint">邮箱：${user.email||''}</div></div>
     <div class="row" style="gap:8px;justify-content:flex-end">
       <button id="btnLogout" class="btn">退出登录</button>
     </div>
   `);
-  document.getElementById('btnLogout').onclick = async ()=>{
-    await sb.auth.signOut();
-    toast('您已退出登录');
-    closeModal();
-  };
+  $('btnLogout').onclick = async ()=>{ await sb.auth.signOut(); toast('您已退出登录'); closeModal(); };
 }
-// 右上角按钮：未登录→打开登录/注册；已登录→账户
-document.getElementById('accountBtn').onclick = ()=>{
-  if (session?.user) renderAccountModal(session.user);
-  else renderAuthModal();
-};
+$('accountBtn').onclick = ()=>{ session?.user ? showAccountModal(session.user) : showAuthModal(); };
 
-/* ====== 数据层（CRUD + 反馈 + 同步） ====== */
-async function fetchTodos(showToast = false){
-  if (!session) { todos=[]; render(); return; }
+/* ========= 数据：CRUD + 反馈 ========= */
+async function fetchTodos(showToast=false){
+  if(!session){ todos=[]; render(); return; }
   setSyncing(true);
-  const { data, error } = await sb
-    .from('todos')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .order('created_at', { ascending:false });
+  const { data, error } = await sb.from('todos').select('*').eq('user_id', session.user.id).order('created_at', {ascending:false});
   setSyncing(false);
-  if (error) { toast('拉取失败：'+error.message, 'error'); return; }
-  todos = data || [];
-  render();
-  if (showToast) toast('已从云端同步');
+  if(error){ toast('拉取失败：'+error.message,'error'); return; }
+  todos = data || []; render(); if(showToast) toast('已从云端同步');
 }
-
 async function addTodo(title){
-  if (!session) return toast('请先登录','error');
-  title = (title||'').trim();
-  if (!title) return;
-  els.addBtn.disabled = true;
-  setSyncing(true);
-  const { error } = await sb.from('todos')
-    .insert({ user_id: session.user.id, title, completed:false });
-  setSyncing(false);
-  els.addBtn.disabled = false;
-  if (error) return toast('添加失败：'+error.message, 'error');
-  els.newTodo.value = '';
-  await fetchTodos();
-  toast('✅ 已添加并同步到云端');
+  if(!session) return toast('请先登录','error');
+  title = (title||'').trim(); if(!title) return;
+  els.addBtn.disabled = true; setSyncing(true);
+  const { error } = await sb.from('todos').insert({ user_id: session.user.id, title, completed:false });
+  setSyncing(false); els.addBtn.disabled = false;
+  if(error) return toast('添加失败：'+error.message,'error');
+  els.newTodo.value=''; await fetchTodos(); toast('✅ 已添加并同步到云端');
 }
-
-async function toggleTodo(todo, checkboxEl){
-  if (!session) return;
-  checkboxEl.disabled = true;
-  setSyncing(true);
-  const { error } = await sb.from('todos')
-    .update({ completed: !todo.completed })
-    .eq('id', todo.id);
-  setSyncing(false);
-  checkboxEl.disabled = false;
-  if (error) return toast('更新失败：'+error.message, 'error');
-  await fetchTodos();
-  toast(todo.completed ? '已恢复为待完成（已同步）' : '已完成（已同步）');
+async function toggleTodo(todo, el){
+  if(!session) return; el.disabled = true; setSyncing(true);
+  const { error } = await sb.from('todos').update({ completed: !todo.completed }).eq('id', todo.id);
+  setSyncing(false); el.disabled = false;
+  if(error) return toast('更新失败：'+error.message,'error');
+  await fetchTodos(); toast(todo.completed ? '已恢复为待完成（已同步）' : '已完成（已同步）');
 }
-
 async function renameTodo(todo, newTitle){
-  newTitle = newTitle.trim();
-  if (!newTitle || newTitle === todo.title) return;
-  setSyncing(true);
-  const { error } = await sb.from('todos')
-    .update({ title: newTitle })
-    .eq('id', todo.id);
-  setSyncing(false);
-  if (error) return toast('重命名失败：'+error.message, 'error');
-  await fetchTodos();
-  toast('名称已更新并同步');
+  newTitle = newTitle.trim(); if(!newTitle || newTitle===todo.title) return;
+  setSyncing(true); const { error } = await sb.from('todos').update({ title:newTitle }).eq('id', todo.id);
+  setSyncing(false); if(error) return toast('重命名失败：'+error.message,'error');
+  await fetchTodos(); toast('名称已更新并同步');
 }
-
 async function removeTodo(todo, btn){
-  btn.disabled = true;
-  setSyncing(true);
+  btn.disabled = true; setSyncing(true);
   const { error } = await sb.from('todos').delete().eq('id', todo.id);
-  setSyncing(false);
-  btn.disabled = false;
-  if (error) return toast('删除失败：'+error.message, 'error');
-  await fetchTodos();
-  toast('🗑️ 已删除并同步');
+  setSyncing(false); btn.disabled = false;
+  if(error) return toast('删除失败：'+error.message,'error');
+  await fetchTodos(); toast('🗑️ 已删除并同步');
 }
-
 async function clearCompleted(){
-  if (!session) return;
+  if(!session) return;
   setSyncing(true);
-  const { error } = await sb.from('todos')
-    .delete()
-    .eq('user_id', session.user.id)
-    .eq('completed', true);
+  const { error } = await sb.from('todos').delete().eq('user_id', session.user.id).eq('completed', true);
   setSyncing(false);
-  if (error) return toast('清空失败：'+error.message, 'error');
-  await fetchTodos();
-  toast('已清空已完成并同步');
+  if(error) return toast('清空失败：'+error.message,'error');
+  await fetchTodos(); toast('已清空已完成并同步');
 }
 
-/* ====== 渲染列表 ====== */
+/* ========= 渲染 ========= */
 function render(){
-  document.getElementById('app').style.display = session ? '' : 'none';
-  document.getElementById('guestCard').style.display = session ? 'none' : '';
-  if (!session){ return; }
-
   renderSummary();
-  // 标签激活态
-  els.tabs.forEach(btn=> btn.classList.toggle('active', btn.dataset.filter===currentFilter));
-
-  // 列表
+  els.tabs.forEach(btn=>btn.classList.toggle('active', btn.dataset.filter===currentFilter));
   els.list.innerHTML = '';
   const frag = document.createDocumentFragment();
-  for (const t of todos.filter(it=>{
-    if (currentFilter==='active') return !it.completed;
-    if (currentFilter==='completed') return it.completed;
+  for(const t of todos.filter(it=>{
+    if(currentFilter==='active') return !it.completed;
+    if(currentFilter==='completed') return it.completed;
     return true;
   })){
     const row = document.createElement('div');
-    row.className = 'item' + (t.completed ? ' done':'');
+    row.className = 'item' + (t.completed ? ' done' : '');
     row.innerHTML = `
       <input type="checkbox" ${t.completed?'checked':''} aria-label="完成">
       <div class="title" title="双击可重命名">${t.title.replace(/</g,'&lt;')}</div>
       <div><button class="btn danger">删除</button></div>
     `;
-    const chk = row.querySelector('input[type="checkbox"]');
-    chk.onchange = ()=> toggleTodo(t, chk);
-
+    const chk = row.querySelector('input[type="checkbox"]'); chk.onchange = ()=>toggleTodo(t, chk);
     const titleEl = row.querySelector('.title');
     titleEl.ondblclick = ()=>{
-      const input = document.createElement('input');
-      input.type = 'text'; input.value = t.title; input.style.width='100%';
-      const save = async ()=>{ await renameTodo(t, input.value); };
-      input.onblur = save;
-      input.onkeydown = (e)=>{ if (e.key==='Enter'){ input.blur(); } };
-      row.replaceChild(input, titleEl);
-      input.focus(); input.select();
+      const input=document.createElement('input'); input.type='text'; input.value=t.title; input.style.width='100%';
+      input.onblur = ()=>renameTodo(t, input.value);
+      input.onkeydown = (e)=>{ if(e.key==='Enter') input.blur(); };
+      row.replaceChild(input, titleEl); input.focus(); input.select();
     };
-
-    const del = row.querySelector('.btn.danger');
-    del.onclick = ()=> removeTodo(t, del);
-
+    const del = row.querySelector('.btn.danger'); del.onclick = ()=>removeTodo(t, del);
     frag.appendChild(row);
   }
   els.list.appendChild(frag);
 }
 
-/* ====== 事件绑定 ====== */
-els.addBtn.onclick = ()=> addTodo(els.newTodo.value);
-els.newTodo.addEventListener('keydown', (e)=>{ if (e.key==='Enter') addTodo(els.newTodo.value); });
+/* ========= 事件 ========= */
+els.addBtn.onclick = ()=>addTodo(els.newTodo.value);
+els.newTodo.onkeydown = (e)=>{ if(e.key==='Enter') addTodo(els.newTodo.value); };
 els.clearCompleted.onclick = clearCompleted;
-els.refreshBtn.onclick = ()=> fetchTodos(true);
-els.tabs.forEach(btn=>{ btn.onclick = ()=>{ currentFilter = btn.dataset.filter; render(); }; });
+els.refreshBtn.onclick = ()=>fetchTodos(true);
+els.tabs.forEach(btn=> btn.onclick = ()=>{ currentFilter = btn.dataset.filter; render(); });
 
-/* ====== 认证监听与初始化 ====== */
+/* ========= 认证监听 & 初始化 ========= */
+/* 监听登录/退出 → 立刻切 UI，然后拉数据（避免慢网时 UI 不更新） */
 sb.auth.onAuthStateChange((_evt, sess)=>{
   session = sess;
-  // 顶部按钮显示
-  document.getElementById('accountBtn').textContent = session?.user ? `已登录：${session.user.email||'用户'}` : '登录 / 注册';
-  fetchTodos();
-});
+  applySessionUI();   // 立刻切换 UI
+  fetchTodos();       // 然后拉取云端
+});  // 监听说明见文档。
 
 (async function init(){
-  const { data } = await sb.auth.getSession();
+  const { data } = await sb.auth.getSession(); // 读取持久化会话
   session = data.session || null;
-  document.getElementById('accountBtn').textContent = session?.user ? `已登录：${session.user.email||'用户'}` : '登录 / 注册';
-  await fetchTodos();
+  applySessionUI();   // 首屏按会话显示
+  await fetchTodos(); // 如已登录，拉一次数据
 })();
 </script>
 </body>
