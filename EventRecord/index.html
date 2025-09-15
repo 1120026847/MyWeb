@@ -11,50 +11,62 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
   <style>
-    :root { --bg:#0b1020; --card:#121a32; --muted:#97a2c6; --text:#e8eeff; --accent:#5b8bff; --danger:#ff6b6b;}
+    :root {
+      --bg:#f7f9fc; --card:#ffffff; --muted:#6b7280; --text:#0b1220;
+      --accent:#2563eb; --danger:#dc2626; --line:#e5e7eb; --thead:#f3f4f6;
+    }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0; background:linear-gradient(180deg,#0b1020,#0a0f1f); color:var(--text); font:14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;}
-    header{padding:14px 16px; border-bottom:1px solid #1a2444; position:sticky; top:0; background:rgba(11,16,32,.8); backdrop-filter: blur(6px); z-index:5}
+    body{
+      margin:0; background:var(--bg); color:var(--text);
+      font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    }
+    header{
+      padding:14px 16px; position:sticky; top:0; z-index:5; background:#fff;
+      border-bottom:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.04)
+    }
     h1{margin:0; font-size:18px; letter-spacing:.5px}
     .container{max-width:1100px; margin:14px auto; padding:0 12px}
-    .card{background:var(--card); border:1px solid #1a2444; border-radius:14px; padding:14px; box-shadow: 0 8px 30px rgba(0,0,0,.25)}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 4px 24px rgba(0,0,0,.06)}
     .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .row > *{flex: none}
+    .row > *{flex:none}
     input,button,select,textarea{
-      background:#0e1530; color:var(--text); border:1px solid #1d2850; border-radius:10px; padding:10px 12px; outline:none
+      background:#fff; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 12px; outline:none
     }
+    input::placeholder{color:#9aa4b2}
     input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    input:invalid{border-color:var(--danger)}
     button{cursor:pointer}
     .btn{background:var(--accent); border:0; padding:10px 14px; border-radius:10px; color:white; font-weight:600}
-    .btn.secondary{background:#1d2850}
-    .btn.ghost{background:transparent; border:1px dashed #314070}
+    .btn.secondary{background:#eef2ff; color:#1e3a8a}
+    .btn.ghost{background:transparent; border:1px dashed var(--line); color:#334155}
     .btn.danger{background:var(--danger)}
     .muted{color:var(--muted)}
     .right{margin-left:auto}
     .grid{display:grid; gap:8px}
 
     /* 表格 */
-    .table-wrap{overflow:auto; border:1px solid #1a2444; border-radius:12px}
+    .table-wrap{overflow:auto; border:1px solid var(--line); border-radius:12px}
     table{border-collapse:separate; border-spacing:0; width:100%; min-width:820px}
-    thead th{position:sticky; top:0; background:#0f1733; z-index:2}
-    th, td{border-bottom:1px solid #1a2444; padding:10px}
-    th{font-weight:700; color:#b9c7ff; text-align:left}
+    thead th{position:sticky; top:0; background:var(--thead); z-index:2}
+    th, td{border-bottom:1px solid var(--line); padding:10px}
+    th{font-weight:700; color:#0f172a; text-align:left}
     td input, td textarea{width:100%}
-    td .time{width:130px}
+    td .time{width:140px}
     td .note{min-width:180px}
     td .narrow{width:90px; text-align:center}
     td .content{min-width:200px}
-    .total{font-weight:700; color:#b9c7ff}
+    .total{font-weight:700; color:#0f172a}
 
     /* 小屏适配 */
     @media (max-width: 640px){
       .row{gap:8px}
-      td .time{width:110px}
+      td .time{width:120px}
       table{min-width:700px}
     }
 
-    .badge{display:inline-flex;align-items:center;gap:6px;background:#17224a;border:1px solid #27346a;padding:6px 10px;border-radius:999px}
+    .badge{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;
+      padding:6px 10px;border-radius:999px}
   </style>
 </head>
 <body>
@@ -120,7 +132,7 @@
       </div>
 
       <div style="margin-top:10px" class="muted">
-        提示：时长自动按“结束 - 开始”计算；若跨午夜（结束 < 开始）会自动按 +24 小时处理。
+        提示：时间格式如 <code>17:18</code> 或 <code>17:18:17</code>；若跨午夜（结束 &lt; 开始）会自动 +24 小时。
       </div>
     </div>
 
@@ -140,14 +152,14 @@
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
-const { createClient } = supabase; // 来自 UMD 全局变量
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 缺省 persistSession=true，会把 session 存在 localStorage（浏览器环境）
-// 参考：Installing（CDN 用法）与初始化文档、Auth 概览（默认会持久化会话）。:contentReference[oaicite:3]{index=3}
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 浏览器端 createClient（会默认持久化会话）
+// 参考：初始化与 Auth 概览（persistSession 默认开启）。 
 
 /* ------------------ 简单状态 ------------------ */
 let session = null;
 let currentDate = new Date();
-let rows = []; // 当前日期的行数据（含已保存/未保存）
+let rows = []; // 当前日期的行数据
 const tbody = document.getElementById('tbody');
 const datePicker = document.getElementById('datePicker');
 const totalCell = document.getElementById('totalCell');
@@ -162,6 +174,7 @@ function parseTimeToSec(t) {
   const parts = t.split(':').map(x=>parseInt(x,10));
   if (parts.length < 2) return null;
   const h = parts[0]||0, m = parts[1]||0, s = parts[2]||0;
+  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) return null;
   return h*3600 + m*60 + s;
 }
 function secToHHMMSS(s) {
@@ -179,9 +192,12 @@ function todayStr(d=new Date()){
 }
 function computeDuration(start, end){
   if (start==null || end==null) return 0;
-  // 跨午夜：end < start => +24h
-  if (end < start) end += 24*3600;
+  if (end < start) end += 24*3600; // 跨午夜
   return end - start;
+}
+function isValidTimeStr(str){
+  if (!str) return false;
+  return /^(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(str);
 }
 function setAuthUI(user){
   const authArea = document.getElementById('authArea');
@@ -197,15 +213,23 @@ function setAuthUI(user){
 }
 function show(el, v){ el.style.display = v ? '' : 'none'; }
 
-/* ------------------ 渲染表格 ------------------ */
+/* ------------------ 渲染表格（手动文本输入） ------------------ */
 function render(){
   tbody.innerHTML = '';
   let total = 0;
   rows.forEach((r, idx)=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input class="time" type="time" step="1" value="${r.start}" /></td>
-      <td><input class="time" type="time" step="1" value="${r.end}" /></td>
+      <td><input class="time" type="text"
+            placeholder="HH:mm 或 HH:mm:ss"
+            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"
+            title="24小时制，示例：08:05 或 17:18:17"
+            value="${r.start||''}" /></td>
+      <td><input class="time" type="text"
+            placeholder="HH:mm 或 HH:mm:ss"
+            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"
+            title="24小时制，示例：08:05 或 17:18:17"
+            value="${r.end||''}" /></td>
       <td><input class="content" type="text" value="${r.content||''}" placeholder="内容" /></td>
       <td><input class="note" type="text" value="${r.note||''}" placeholder="备注" /></td>
       <td class="muted">${secToHHMMSS(r.duration)}</td>
@@ -216,21 +240,26 @@ function render(){
       </td>`;
     tbody.appendChild(tr);
 
-    // 事件
     const [startI, endI, contentI, noteI] = tr.querySelectorAll('input');
+
     const update = ()=>{
-      r.start = startI.value;
-      r.end = endI.value;
+      r.start = startI.value.trim();
+      r.end = endI.value.trim();
       r.content = contentI.value;
       r.note = noteI.value;
       const s = parseTimeToSec(r.start);
       const e = parseTimeToSec(r.end);
-      r.duration = computeDuration(s,e);
+      if (isValidTimeStr(r.start) && isValidTimeStr(r.end)){
+        r.duration = computeDuration(s,e);
+      }else{
+        r.duration = 0;
+      }
       tr.children[4].textContent = secToHHMMSS(r.duration);
       updateSummary();
     };
-    startI.addEventListener('change', update);
-    endI.addEventListener('change', update);
+
+    startI.addEventListener('input', update);
+    endI.addEventListener('input', update);
     contentI.addEventListener('input', ()=>{ r.content = contentI.value; });
     noteI.addEventListener('input', ()=>{ r.note = noteI.value; });
 
@@ -273,12 +302,14 @@ async function loadRows(dateStr){
 
 async function saveRow(r, tr){
   if (!session){ alert('请先登录'); return; }
+  if (!isValidTimeStr(r.start) || !isValidTimeStr(r.end)){
+    alert('请按 24 小时制填写时间，如 08:05 或 17:18:17'); return;
+  }
   const s = parseTimeToSec(r.start);
   const e = parseTimeToSec(r.end);
-  if (s==null || e==null){ alert('请正确填写开始/结束时间'); return; }
   const duration = computeDuration(s,e);
   const payload = {
-    id: r.id || undefined, // upsert 需要主键参与；没有则插入
+    id: r.id || undefined,
     user_id: session.user.id,
     entry_date: datePicker.value,
     start_time: r.start,
@@ -288,7 +319,6 @@ async function saveRow(r, tr){
     note: r.note || null
   };
   const { data, error } = await sb.from('time_entries').upsert(payload).select().single();
-  // Supabase 的 upsert：对象或数组均可，主键在 values 中；需要 .select() 才返回行。:contentReference[oaicite:4]{index=4}
   if (error){ console.error(error); alert('保存失败：'+error.message); return; }
   r.id = data.id;
   r.duration = data.duration_seconds;
@@ -308,16 +338,15 @@ async function deleteRow(r, idx){
 
 /* ------------------ CSV 导入/导出 ------------------ */
 function exportCSV(){
-  // 导出中文表头：与截图一致
   const data = rows.map(r=>({
-    '开始时间': r.start,
-    '结束时间': r.end,
+    '开始时间': r.start||'',
+    '结束时间': r.end||'',
     '内容': r.content||'',
     '备注': r.note||'',
     '时长': secToHHMMSS(r.duration||0),
   }));
-  const csv = Papa.unparse(data); // 文档：Papa.unparse 把对象数组转 CSV。:contentReference[oaicite:5]{index=5}
-  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'}); // BOM 处理，Excel 打开中文不乱码
+  const csv = Papa.unparse(data);
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `时间记录_${datePicker.value}.csv`;
@@ -325,23 +354,21 @@ function exportCSV(){
 }
 function importCSV(file){
   Papa.parse(file, {
-    header: true, skipEmptyLines: true, // 解析带表头 CSV。:contentReference[oaicite:6]{index=6}
+    header: true, skipEmptyLines: true,
     complete: async (res)=>{
       const arr = res.data || [];
-      // 兼容中英表头
       function pick(o, keys){ for(const k of keys){ if (o[k]!=null && o[k]!=='') return o[k]; } return ''; }
-      // 批量 upsert（没 id 的都是新增）
       const toUpsert = [];
       for (const row of arr){
         const start = pick(row, ['开始时间','start','Start']);
         const end   = pick(row, ['结束时间','end','End']);
         const content = pick(row, ['内容','content','Content']);
         const note    = pick(row, ['备注','note','Note']);
+        if (!isValidTimeStr(start) || !isValidTimeStr(end)) continue;
         const s = parseTimeToSec(start), e = parseTimeToSec(end);
-        if (s==null || e==null) continue;
         const duration = computeDuration(s,e);
         toUpsert.push({
-          user_id: session?.user?.id, // 必须登录，否则跳过
+          user_id: session?.user?.id,
           entry_date: datePicker.value,
           start_time: start,
           end_time: end,
@@ -377,7 +404,7 @@ async function loadHistory(){
   }
   const list = [...map.entries()].sort((a,b)=> b[0].localeCompare(a[0]));
   const wrap = document.getElementById('historyList');
-  wrap.innerHTML = list.map(([d,sec])=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed #1a2444">
+  wrap.innerHTML = list.map(([d,sec])=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed var(--line)">
     <div><strong>${d}</strong></div><div class="muted">合计：${secToHHMMSS(sec)}</div></div>`).join('') || '<div class="muted">暂无数据</div>';
 }
 
@@ -386,19 +413,19 @@ async function login(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   if (!email || !password) return alert('请输入邮箱和密码');
-  const { error } = await sb.auth.signInWithPassword({ email, password }); // 登录（邮箱+密码）。:contentReference[oaicite:7]{index=7}
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) return alert('登录失败：'+error.message);
 }
 async function signup(){
   const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   if (!email || !password) return alert('请输入邮箱和密码');
-  const { error } = await sb.auth.signUp({ email, password }); // 注册（默认可能需要邮件确认，后台可关闭）。:contentReference[oaicite:8]{index=8}
+  const { error } = await sb.auth.signUp({ email, password });
   if (error) return alert('注册失败：'+error.message);
   document.getElementById('authHint').textContent = '注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。';
 }
 async function logout(){
-  await sb.auth.signOut(); // 登出并清理本地会话。:contentReference[oaicite:9]{index=9}
+  await sb.auth.signOut();
 }
 
 // 监听登录状态变化
@@ -414,7 +441,7 @@ sb.auth.onAuthStateChange((_event, sess)=>{
     rows = []; render();
     document.getElementById('historyList').innerHTML = '';
   }
-}); // onAuthStateChange 用法参见文档。:contentReference[oaicite:10]{index=10}
+});
 
 /* ------------------ 事件绑定 ------------------ */
 document.getElementById('btnLogin').onclick = login;
