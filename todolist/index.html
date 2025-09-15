@@ -1,459 +1,357 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>待办事项清单 · 云端同步版</title>
-  <style>
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:linear-gradient(135deg,#74ebd5,#acb6e5);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Noto Sans SC','Microsoft Yahei',sans-serif;color:#333}
-    header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#ffffffb8;border-bottom:1px solid #e7e7e7;backdrop-filter:saturate(180%) blur(8px)}
-    .app-title{font-weight:800}
-    .auth{display:flex;gap:8px;align-items:center}
-    .auth input{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:160px}
-    .pill{padding:4px 8px;border:1px solid #e1e1e1;border-radius:999px;font-size:12px;color:#666}
-    .btn{padding:8px 12px;border-radius:8px;border:1px solid #e1e1e1;background:#fff;cursor:pointer}
-    .btn.primary{background:#4CAF50;color:#fff;border-color:#4CAF50}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Todo 清单</title>
 
-    .container{background:#fff;border-radius:15px;box-shadow:0 10px 20px rgba(0,0,0,.1);padding:20px;margin:20px auto;width:min(96%,760px)}
-    h1{margin:0 0 16px;color:#4CAF50}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
-    .topbar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
-    .topbar input[type="text"]{flex:1;padding:12px 14px;border:2px solid #ddd;border-radius:8px}
-    .topbar input[type="text"]:focus{border-color:#4CAF50;outline:none;box-shadow:0 0 0 2px rgba(76,175,80,.15)}
-    .add-btn{padding:0 18px;background:#4CAF50;border:0;border-radius:8px;color:#fff;font-weight:600}
-    .stats{display:flex;justify-content:space-between;margin:10px 0;padding:8px 0;border-top:1px solid #eee;border-bottom:1px solid #eee}
-    .count{display:flex;gap:6px;align-items:center}
-    .count span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#4CAF50;color:#fff;font-size:12px}
-    .count.done span{background:#9e9e9e}
+<!-- Supabase v2（UMD，全局 supabase 对象，createClient 用法见文档） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    .tabs{display:flex;gap:10px;border-bottom:1px solid #eee;margin:12px 0}
-    .tab{padding:8px 12px;cursor:pointer;border-bottom:3px solid transparent;font-weight:600}
-    .tab.active{color:#4CAF50;border-bottom-color:#4CAF50}
-
-    ul{list-style:none;margin:0;padding:0}
-    li{display:flex;gap:10px;align-items:center;padding:12px;margin:10px 0;background:#f9f9f9;border-radius:10px}
-    .task-content{flex:1;word-break:break-word}
-    .task-content.completed{text-decoration:line-through;color:#9e9e9e}
-    .check{width:22px;height:22px;border:2px solid #4CAF50;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
-    .check.checked{background:#4CAF50;color:#fff}
-    .check.checked::after{content:'✓';font-size:12px}
-    .edit-input{flex:1;padding:8px 10px;border:2px solid #4CAF50;border-radius:8px}
-    .btn.small{padding:6px 10px}
-    .danger{background:#dc3545;color:#fff;border:0}
-    .warn{background:#ffc107;color:#212529;border:0}
-    .info{background:#17a2b8;color:#fff;border:0}
-
-    .empty{color:#999;text-align:center;margin:24px 0}
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f7f9fc; --card:#fff; --line:#e5e7eb; --text:#0b1220; --muted:#6b7280;
+    --accent:#2563eb; --accent-weak:#eef2ff; --danger:#dc2626; --ok:#16a34a;
+    --radius:12px; --gap:12px; --pad:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
+  .container{width:100%;padding:12px 16px}
+  .nav{display:flex;align-items:center;gap:10px}
+  h1{margin:0;font-size:clamp(18px,4.5vw,22px);letter-spacing:.4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  input,button{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
+  input:focus,button:focus{border-color:var(--accent)}
+  .btn{background:var(--accent);color:#fff;border:none}
+  .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
+  .btn.ghost{background:transparent}
+  .btn.danger{background:var(--danger)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .right{margin-left:auto}
+  .muted{color:var(--muted)}
+  .tabs{display:flex;gap:8px;background:#f3f4f6;border:1px solid var(--line);border-radius:999px;padding:4px}
+  .tab{padding:6px 12px;border-radius:999px;border:0;background:transparent;cursor:pointer}
+  .tab.active{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.06);border:1px solid var(--line)}
+  .add-wrap{display:flex;gap:10px}
+  .add-wrap input{flex:1;min-width:200px}
+  /* 列表 */
+  .list{margin-top:12px;display:grid;gap:10px}
+  .item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .item.done .title{color:#94a3b8;text-decoration:line-through}
+  .title{flex:1;min-width:120px}
+  .actions{display:flex;gap:8px}
+  input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
+  /* 账号菜单 */
+  .account{margin-left:auto;position:relative}
+  .account-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent-weak);color:#1e3a8a;
+               border:1px solid #c7d2fe;padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dropdown{position:absolute;right:0;top:calc(100% + 8px);background:#fff;border:1px solid var(--line);
+            border-radius:12px;box-shadow:0 12px 24px rgba(0,0,0,.08);padding:12px;width:320px;max-width:90vw;display:none}
+  .dropdown.open{display:block}
+  .field{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+  .hint{font-size:12px;color:var(--muted)}
+  /* Toast */
+  .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:50;pointer-events:none}
+  .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
+  .toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
+  /* 手机端更紧凑 */
+  @media (max-width:640px){
+    .container{padding:12px 12px}
+    .add-wrap input{min-width:0}
+    .item{padding:10px}
+  }
+</style>
 </head>
 <body>
-  <header>
-    <div class="app-title">📝 待办事项清单</div>
-    <div class="auth">
-      <div id="signed-out">
-        <input type="email" id="email" placeholder="邮箱"/>
-        <input type="password" id="password" placeholder="密码（≥6位）"/>
-        <button class="btn" id="btnSignUp">注册</button>
-        <button class="btn primary" id="btnSignIn">登录</button>
+<header>
+  <div class="container nav">
+    <h1>Todo 清单</h1>
+    <div class="account" id="account">
+      <button id="accountBtn" class="account-btn">登录 / 注册</button>
+      <div id="accountDropdown" class="dropdown" role="menu"></div>
+    </div>
+  </div>
+</header>
+
+<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+<main class="container" id="app" style="display:none">
+  <div class="card">
+    <!-- 添加 -->
+    <div class="add-wrap">
+      <input id="newTodo" type="text" placeholder="输入新任务，如：学习 30 分钟英语">
+      <button id="addBtn" class="btn">添加</button>
+      <div class="right tabs" role="tablist" aria-label="筛选">
+        <button class="tab active" data-filter="all">全部</button>
+        <button class="tab" data-filter="active">待完成</button>
+        <button class="tab" data-filter="completed">已完成</button>
       </div>
-      <div id="signed-in" style="display:none;gap:8px;align-items:center">
-        <span class="pill" id="userEmail"></span>
-        <span class="pill" id="syncBadge">未登录</span>
-        <button class="btn" id="btnSignOut">退出</button>
+    </div>
+    <!-- 汇总/操作 -->
+    <div class="row" style="margin-top:10px">
+      <div id="summary" class="muted">—</div>
+      <div class="right">
+        <button id="clearCompleted" class="btn secondary">清空已完成</button>
       </div>
     </div>
-  </header>
-
-  <div class="container">
-    <div class="toolbar">
-      <button class="btn" onclick="location.href='https://www.molijun.com'">首页</button>
-      <input type="file" id="fileImport" hidden accept="application/json"/>
-      <button class="btn" id="btnImport">导入 JSON</button>
-      <button class="btn" id="btnExport">导出 JSON</button>
-      <button class="btn" id="btnSyncLocal">同步本地 → 云端</button>
-      <span style="color:#666;font-size:12px">（未登录时仅保存到本地）</span>
-    </div>
-
-    <div class="topbar">
-      <input type="text" id="title" placeholder="添加新任务..."/>
-      <button class="add-btn" id="add-btn">添加</button>
-    </div>
-
-    <div class="stats">
-      <div class="count">待完成：<span id="todo-count">0</span></div>
-      <div class="count done">已完成：<span id="done-count">0</span></div>
-    </div>
-
-    <div class="tabs">
-      <div class="tab active" data-tab="all">全部任务</div>
-      <div class="tab" data-tab="todo">待完成</div>
-      <div class="tab" data-tab="done">已完成</div>
-    </div>
-
-    <ul id="todo-list"></ul>
-    <div class="empty" id="emptyHint" style="display:none;">📭 没有找到任务</div>
   </div>
 
+  <!-- 列表 -->
+  <div id="list" class="list" style="margin-top:12px"></div>
+</main>
+
+<!-- 未登录提示 -->
+<div class="container" id="guestCard">
+  <div class="card">
+    <div class="row">
+      <strong>请先登录</strong>
+      <span class="muted">点击右上角「登录 / 注册」进入你的账户</span>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ================= Supabase 客户端（使用你的项目配置） ================= */
+/* ====== 你的 Supabase 配置（已替换为你之前给的） ====== */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 浏览器端用法。:contentReference[oaicite:1]{index=1}
 
-/* ================= 全局状态 ================= */
-let tasks = [];                 // [{id, title, done, created_at}]
-let activeTab = 'all';
-let currentUser = null;
-let rtChannel = null;
+/* ====== 基础状态 ====== */
+let session = null;
+let todos = [];
+let currentFilter = 'all';
 
-/* ================= DOM ================= */
 const els = {
-  title: document.getElementById('title'),
-  addBtn: document.getElementById('add-btn'),
-  list: document.getElementById('todo-list'),
-  empty: document.getElementById('emptyHint'),
-  todoCount: document.getElementById('todo-count'),
-  doneCount: document.getElementById('done-count'),
-  tabs: document.querySelectorAll('.tab'),
-  exportBtn: document.getElementById('btnExport'),
-  importBtn: document.getElementById('btnImport'),
-  importFile: document.getElementById('fileImport'),
-  syncLocalBtn: document.getElementById('btnSyncLocal'),
-  // auth
-  signedOut: document.getElementById('signed-out'),
-  signedIn: document.getElementById('signed-in'),
-  userEmail: document.getElementById('userEmail'),
-  syncBadge: document.getElementById('syncBadge'),
+  app: document.getElementById('app'),
+  guestCard: document.getElementById('guestCard'),
+  list: document.getElementById('list'),
+  newTodo: document.getElementById('newTodo'),
+  addBtn: document.getElementById('addBtn'),
+  summary: document.getElementById('summary'),
+  clearCompleted: document.getElementById('clearCompleted'),
+  tabs: Array.from(document.querySelectorAll('.tab')),
+  accountBtn: document.getElementById('accountBtn'),
+  accountDropdown: document.getElementById('accountDropdown'),
+  toastWrap: document.getElementById('toastWrap'),
 };
 
-/* ================= 启动 ================= */
-window.addEventListener('load', async () => {
-  wireUI();
-  restoreLocal();
-  render();
-  await initAuth();
+/* ====== 小工具 ====== */
+const toast = (msg, type='ok', ms=1600)=>{
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type==='error' ? 'err':'ok');
+  t.textContent = msg;
+  els.toastWrap.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .35s'; t.style.opacity='0'; }, ms);
+  setTimeout(()=> t.remove(), ms+400);
+};
+const renderSummary = ()=>{
+  const all = todos.length;
+  const done = todos.filter(t=>t.completed).length;
+  const left = all - done;
+  els.summary.textContent = `共 ${all} 项 · 待完成 ${left} · 已完成 ${done}`;
+};
+const byFilter = (t)=>{
+  if (currentFilter==='active') return !t.completed;
+  if (currentFilter==='completed') return t.completed;
+  return true;
+};
+
+/* ====== 账号下拉 ====== */
+const closeDropdown = ()=>{ els.accountDropdown.classList.remove('open'); };
+const toggleDropdown = ()=>{
+  els.accountDropdown.classList.toggle('open');
+};
+document.addEventListener('click', (e)=>{
+  const account = document.getElementById('account');
+  if (!account.contains(e.target)) closeDropdown();
 });
+els.accountBtn.addEventListener('click', (e)=>{ e.stopPropagation(); toggleDropdown(); });
 
-function wireUI(){
-  els.addBtn.onclick = addNewTask;
-  els.title.addEventListener('keydown', e => { if(e.key==='Enter'){ addNewTask(); }});
-  els.tabs.forEach(tab => tab.addEventListener('click', () => {
-    els.tabs.forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    activeTab = tab.dataset.tab;
-    render();
-  }));
-  els.exportBtn.onclick = exportJSON;
-  els.importBtn.onclick = () => els.importFile.click();
-  els.importFile.onchange = importJSON;
-  els.syncLocalBtn.onclick = syncLocalToCloud;
-
-  document.getElementById('btnSignUp').onclick = signUp;
-  document.getElementById('btnSignIn').onclick = signIn;
-  document.getElementById('btnSignOut').onclick = signOut;
-
-  window.addEventListener('online', ()=>{ updateStatusIndicator(); flushPending(); });
-  window.addEventListener('offline', updateStatusIndicator);
-}
-
-/* ================= 本地存储 ================= */
-function restoreLocal(){ try{ tasks = JSON.parse(localStorage.getItem('todoList')||'[]'); }catch{ tasks=[]; } }
-function saveLocal(){ localStorage.setItem('todoList', JSON.stringify(tasks)); }
-
-/* ================= Auth ================= */
-async function initAuth(){
-  const { data: { session } } = await sb.auth.getSession();
-  currentUser = session?.user || null;
-  updateAuthUI();
-  if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-
-  sb.auth.onAuthStateChange(async (_event, session) => {
-    currentUser = session?.user || null;
-    updateAuthUI();
-    if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-    else { unsubscribeRealtime(); restoreLocal(); render(); }
-  });
-}
-
-async function signUp(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  try{
-    toggleBtn('btnSignUp', true, '注册中…');
-    const { error } = await sb.auth.signUp({ email, password });
-    if(error) throw error;
-    alert('注册成功：若开启邮箱验证，请先到邮箱完成验证再登录。');
-  }catch(err){
-    console.error('[signUp]', err);
-    alert('注册失败：' + (err?.message || err));
-  }finally{ toggleBtn('btnSignUp', false, '注册'); }
-}
-
-async function signIn(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if(!email || !password){ alert('请输入邮箱和密码'); return; }
-
-  try{
-    toggleBtn('btnSignIn', true, '登录中…');
-    console.log('[signIn] start', { email });
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      const map = {
-        'Email not confirmed': '邮箱未验证：请到邮箱点确认链接（或在 Auth/Email 临时关闭 Confirm email）',
-        'Invalid login credentials': '邮箱或密码不正确'
-      };
-      alert('登录失败：' + (map[error.message] || error.message));
-      return;
-    }
-    // 成功：不等事件，立刻切 UI + 拉数据 + 订阅
-    currentUser = data?.user || (await sb.auth.getUser()).data?.user || null;
-    updateAuthUI();
-    await loadAllFromCloud();
-    subscribeRealtime();
-    console.log('[signIn] success', currentUser?.id);
-  }catch(err){
-    console.error('[signIn] error', err);
-    alert('网络或脚本错误：' + (err?.message || err));
-  }finally{
-    toggleBtn('btnSignIn', false, '登录');
-  }
-}
-
-async function signOut(){
-  try{
-    toggleBtn('btnSignOut', true, '退出中…');
-    await sb.auth.signOut();
-  }catch(err){
-    console.error('[signOut]', err);
-    alert('退出失败：' + (err?.message || err));
-  }finally{
-    toggleBtn('btnSignOut', false, '退出');
-  }
-}
-
-function updateAuthUI(){
-  if(currentUser){
-    els.signedOut.style.display='none';
-    els.signedIn.style.display='flex';
-    els.userEmail.textContent = currentUser.email || '已登录';
+function renderAccountMenu(user){
+  if (user){
+    els.accountBtn.textContent = `已登录：${user.email||'用户'}`;
+    els.accountDropdown.innerHTML = `
+      <div class="field"><div class="hint">邮箱：${user.email||''}</div></div>
+      <button id="btnLogout" class="btn" style="width:100%">退出登录</button>
+    `;
+    document.getElementById('btnLogout').onclick = async ()=>{
+      await sb.auth.signOut();
+      toast('您已退出登录');
+      closeDropdown();
+    };
   }else{
-    els.signedOut.style.display='block';
-    els.signedIn.style.display='none';
+    els.accountBtn.textContent = '登录 / 注册';
+    els.accountDropdown.innerHTML = `
+      <div class="field">
+        <label class="hint">邮箱</label>
+        <input id="email" type="email" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label class="hint">密码（≥6位）</label>
+        <input id="password" type="password" placeholder="******">
+      </div>
+      <div class="row" style="gap:8px">
+        <button id="btnLogin" class="btn">登录</button>
+        <button id="btnSignup" class="btn secondary">注册</button>
+      </div>
+      <div id="authHint" class="hint" style="margin-top:6px"></div>
+    `;
+    const hint = document.getElementById('authHint');
+    document.getElementById('btnLogin').onclick = async ()=>{
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) return hint.textContent='请输入邮箱和密码';
+      const { error } = await sb.auth.signInWithPassword({ email, password }); // 邮箱+密码登录。:contentReference[oaicite:2]{index=2}
+      if (error) hint.textContent = '登录失败：' + error.message;
+      else { hint.textContent=''; toast('登录成功'); closeDropdown(); }
+    };
+    document.getElementById('btnSignup').onclick = async ()=>{
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) return hint.textContent='请输入邮箱和密码';
+      const { error } = await sb.auth.signUp({ email, password });
+      if (error) hint.textContent = '注册失败：' + error.message;
+      else hint.textContent = '注册成功。如项目开启邮箱验证，请到邮箱完成确认后再登录。';
+    };
   }
-  updateStatusIndicator();
 }
 
-/* ================= 云端数据 ================= */
-async function loadAllFromCloud(){
-  if(!currentUser) return;
-  const { data, error } = await sb.from('todos')
-    .select('*')
-    .eq('user_id', currentUser.id)
-    .order('created_at', { ascending: true });
-  if(error){ console.warn('加载云端失败：', error.message); return; }
-  tasks = (data||[]).map(r=>({ id: r.id, title: r.title, done: r.done, created_at: r.created_at }));
-  saveLocal();
+/* ====== 数据层（CRUD） ====== */
+async function fetchTodos(){
+  if (!session) { todos=[]; render(); return; }
+  const { data, error } = await sb
+    .from('todos')
+    .select('*')              // 标准 select，默认最多 1000 条，可分页。:contentReference[oaicite:3]{index=3}
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending:false });
+  if (error) { toast('拉取失败：'+error.message, 'error'); return; }
+  todos = data || [];
   render();
 }
-
-async function addNewTask(){
-  const title = els.title.value.trim();
-  if(!title){ alert('请输入任务内容'); return; }
-
-  if(currentUser){
-    const { data, error } = await sb.from('todos')
-      .insert({ user_id: currentUser.id, title, done: false })
-      .select('*').single();
-    if(error){ console.warn('云端新增失败：', error.message); queuePending({type:'insert', row:{ title, done:false, created_at:new Date().toISOString() }}); }
-    else { tasks.push({ id:data.id, title:data.title, done:data.done, created_at:data.created_at }); }
-  }else{
-    tasks.push({ id: 'local-'+Date.now(), title, done:false, created_at: new Date().toISOString() });
-  }
-  els.title.value='';
-  saveLocal();
+async function addTodo(title){
+  if (!session) return toast('请先登录','error');
+  title = (title||'').trim();
+  if (!title) return;
+  const { data, error } = await sb
+    .from('todos')
+    .insert({ user_id: session.user.id, title, completed:false })
+    .select()
+    .single();
+  if (error) return toast('添加失败：'+error.message, 'error');
+  todos.unshift(data);
+  els.newTodo.value = '';
+  render();
+  toast('已添加');
+}
+async function toggleTodo(todo){
+  const { error } = await sb.from('todos')
+    .update({ completed: !todo.completed })
+    .eq('id', todo.id);
+  if (error) return toast('更新失败：'+error.message, 'error');
+  todo.completed = !todo.completed;
   render();
 }
-
-async function toggleTask(id){
-  const idx = tasks.findIndex(t=>t.id===id);
-  if(idx===-1) return;
-  const newDone = !tasks[idx].done;
-  tasks[idx].done = newDone; // 乐观更新
-  saveLocal(); render();
-
-  if(currentUser && !String(id).startsWith('local-')){
-    const { error } = await sb.from('todos').update({ done:newDone }).eq('id', id);
-    if(error){ console.warn('云端更新失败：', error.message); queuePending({type:'update', id, payload:{ done:newDone }}); }
-  }
+async function renameTodo(todo, newTitle){
+  newTitle = newTitle.trim();
+  if (!newTitle) return;
+  const { error } = await sb.from('todos')
+    .update({ title: newTitle })
+    .eq('id', todo.id);
+  if (error) return toast('重命名失败：'+error.message, 'error');
+  todo.title = newTitle;
+  render();
+}
+async function removeTodo(todo){
+  const { error } = await sb.from('todos').delete().eq('id', todo.id);
+  if (error) return toast('删除失败：'+error.message, 'error');
+  todos = todos.filter(t=>t.id!==todo.id);
+  render();
+  toast('已删除');
+}
+async function clearCompleted(){
+  const { error } = await sb.from('todos')
+    .delete()
+    .eq('user_id', session.user.id)
+    .eq('completed', true);
+  if (error) return toast('清空失败：'+error.message, 'error');
+  todos = todos.filter(t=>!t.completed);
+  render();
+  toast('已清空');
 }
 
-function editTask(id){
-  const li = document.querySelector(`li[data-id="${id}"]`);
-  const t = tasks.find(x=>x.id===id); if(!t || !li) return;
-  li.innerHTML = `
-    <div class="check ${t.done?'checked':''}" onclick="toggleTask('${id}')"></div>
-    <input type="text" class="edit-input" value="${escapeHtml(t.title)}"/>
-    <div style="margin-left:auto;display:flex;gap:8px">
-      <button class="btn small info" onclick="saveTask('${id}')">保存</button>
-      <button class="btn small danger" onclick="deleteTask('${id}')">删除</button>
-    </div>`;
-  li.querySelector('.edit-input').focus();
-}
-
-async function saveTask(id){
-  const li = document.querySelector(`li[data-id="${id}"]`);
-  const input = li?.querySelector('.edit-input'); if(!input) return;
-  const newTitle = input.value.trim(); if(!newTitle){ alert('任务内容不能为空'); return; }
-  const idx = tasks.findIndex(t=>t.id===id); if(idx===-1) return;
-  tasks[idx].title = newTitle; saveLocal(); render();
-
-  if(currentUser && !String(id).startsWith('local-')){
-    const { error } = await sb.from('todos').update({ title:newTitle }).eq('id', id);
-    if(error){ console.warn('云端更新失败：', error.message); queuePending({type:'update', id, payload:{ title:newTitle }}); }
-  }
-}
-
-async function deleteTask(id){
-  tasks = tasks.filter(t=>t.id!==id); saveLocal(); render();
-  if(currentUser && !String(id).startsWith('local-')){
-    const { error } = await sb.from('todos').delete().eq('id', id);
-    if(error){ console.warn('云端删除失败：', error.message); queuePending({type:'delete', id}); }
-  }
-}
-
-/* ================= 渲染 ================= */
+/* ====== 渲染列表 ====== */
 function render(){
-  const filtered = tasks.filter(t => activeTab==='all' ? true : activeTab==='todo' ? !t.done : t.done);
+  // 顶部卡片显隐
+  document.getElementById('app').style.display = session ? '' : 'none';
+  document.getElementById('guestCard').style.display = session ? 'none' : '';
+  if (!session){ return; }
+
+  renderSummary();
+
+  // 标签激活态
+  els.tabs.forEach(btn=> btn.classList.toggle('active', btn.dataset.filter===currentFilter));
+
+  // 列表
   els.list.innerHTML = '';
-  if(filtered.length===0){ els.empty.style.display='block'; }
-  else {
-    els.empty.style.display='none';
-    for(const t of filtered){
-      const li = document.createElement('li'); li.dataset.id = t.id;
-      li.innerHTML = `
-        <div class="check ${t.done?'checked':''}" onclick="toggleTask('${t.id}')"></div>
-        <div class="task-content ${t.done?'completed':''}">${escapeHtml(t.title)}</div>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="btn small warn" onclick="editTask('${t.id}')">编辑</button>
-          <button class="btn small danger" onclick="deleteTask('${t.id}')">删除</button>
-        </div>`;
-      els.list.appendChild(li);
-    }
+  const frag = document.createDocumentFragment();
+  for (const t of todos.filter(byFilter)){
+    const row = document.createElement('div');
+    row.className = 'item' + (t.completed ? ' done':'');
+    row.innerHTML = `
+      <input type="checkbox" ${t.completed?'checked':''} aria-label="完成">
+      <div class="title" title="双击可重命名">${t.title.replace(/</g,'&lt;')}</div>
+      <div class="actions">
+        <button class="btn danger">删除</button>
+      </div>
+    `;
+    const chk = row.querySelector('input[type="checkbox"]');
+    chk.onchange = ()=> toggleTodo(t);
+
+    const titleEl = row.querySelector('.title');
+    titleEl.ondblclick = ()=>{
+      const input = document.createElement('input');
+      input.type = 'text'; input.value = t.title; input.style.width='100%';
+      const save = async ()=>{
+        if (input.value.trim()!==t.title) await renameTodo(t, input.value);
+      };
+      input.onblur = save;
+      input.onkeydown = (e)=>{ if (e.key==='Enter'){ input.blur(); } };
+      row.replaceChild(input, titleEl);
+      input.focus(); input.select();
+    };
+
+    row.querySelector('.btn.danger').onclick = ()=> removeTodo(t);
+    frag.appendChild(row);
   }
-  const todoN = tasks.filter(t=>!t.done).length;
-  const doneN = tasks.filter(t=> t.done).length;
-  els.todoCount.textContent = todoN;
-  els.doneCount.textContent = doneN;
+  els.list.appendChild(frag);
 }
 
-/* ================= 导入 / 导出 / 同步 ================= */
-async function exportJSON(){
-  if(currentUser){
-    const { data, error } = await sb.from('todos').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:true});
-    if(error){ alert('导出失败：'+error.message); return; }
-    downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),'todos-export.json');
-  }else{
-    downloadBlob(new Blob([JSON.stringify(tasks,null,2)],{type:'application/json'}),'todos-export-local.json');
-  }
-}
-
-async function importJSON(e){
-  const file = e.target.files?.[0]; if(!file) return; const text = await file.text(); e.target.value='';
-  try{
-    const arr = JSON.parse(text);
-    if(!Array.isArray(arr)) throw new Error('JSON 须为数组：如 [{\"title\":\"任务\",\"done\":false}]');
-
-    if(currentUser){
-      const rows = arr.map(x=>({ user_id: currentUser.id, title: x.title||'', done: !!x.done, created_at: x.created_at || new Date().toISOString() }));
-      const { error } = await sb.from('todos').insert(rows); if(error) throw error;
-      await loadAllFromCloud();
-    }else{
-      const mapped = arr.map(x=>({ id:'local-'+Date.now()+Math.random(), title:x.title||'', done:!!x.done, created_at:x.created_at || new Date().toISOString() }));
-      tasks.push(...mapped); saveLocal(); render();
-    }
-    alert('导入完成');
-  }catch(err){ alert('导入失败：'+err.message); }
-}
-
-async function syncLocalToCloud(){
-  if(!currentUser){ alert('请先登录'); return; }
-  const locals = tasks.filter(t=> String(t.id).startsWith('local-'));
-  if(locals.length===0){ alert('没有需要同步的本地任务'); return; }
-  const rows = locals.map(t=>({ user_id: currentUser.id, title:t.title, done:t.done, created_at:t.created_at }));
-  const { error } = await sb.from('todos').insert(rows);
-  if(error){ alert('同步失败：'+error.message); return; }
-  await loadAllFromCloud();
-  alert('本地任务已同步至云端');
-}
-
-function downloadBlob(blob, filename){ const a=document.createElement('a'); a.download=filename; a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href); }
-
-/* ================= Realtime ================= */
-function subscribeRealtime(){
-  if(rtChannel) sb.removeChannel(rtChannel);
-  rtChannel = sb.channel('todos-ch');
-  rtChannel.on('postgres_changes', { event:'*', schema:'public', table:'todos', filter:`user_id=eq.${currentUser.id}` }, async ()=>{ await loadAllFromCloud(); }).subscribe();
-}
-function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
-
-/* ================= 待同步队列（失败兜底） ================= */
-function queuePending(item){
-  const q = JSON.parse(localStorage.getItem('todos_pending')||'[]');
-  q.push(item);
-  localStorage.setItem('todos_pending', JSON.stringify(q));
-  updateStatusIndicator();
-}
-async function flushPending(){
-  if(!currentUser) return;
-  let q = JSON.parse(localStorage.getItem('todos_pending')||'[]');
-  if(q.length===0){ updateStatusIndicator(); return; }
-  for(const it of q){
-    if(it.type==='insert'){
-      const { error } = await sb.from('todos').insert({ user_id: currentUser.id, title: it.row.title, done: it.row.done, created_at: it.row.created_at });
-      if(error){ console.warn('flush insert 失败', error.message); return; }
-    }else if(it.type==='update'){
-      const { error } = await sb.from('todos').update(it.payload).eq('id', it.id);
-      if(error){ console.warn('flush update 失败', error.message); return; }
-    }else if(it.type==='delete'){
-      const { error } = await sb.from('todos').delete().eq('id', it.id);
-      if(error){ console.warn('flush delete 失败', error.message); return; }
-    }
-  }
-  localStorage.removeItem('todos_pending');
-  updateStatusIndicator();
-}
-
-/* ================= 工具 & 指示灯 ================= */
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
-function toggleBtn(id, disabled, text){ const btn=document.getElementById(id); if(!btn) return; btn.disabled=!!disabled; if(text) btn.textContent=text; }
-
-function updateStatusIndicator(){
-  const online = navigator.onLine;
-  const pending = JSON.parse(localStorage.getItem('todos_pending')||'[]').length;
-  const parts = [];
-  parts.push(online ? '🟢 在线' : '🔴 离线');
-  parts.push(currentUser ? '已登录' : '未登录');
-  if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-  els.syncBadge.textContent = parts.join(' · ');
-}
-
-window.addEventListener('unhandledrejection', e=>{
-  console.error('[unhandledrejection]', e.reason);
-  alert('出错了：' + (e.reason?.message || e.reason));
+/* ====== 事件绑定 ====== */
+els.addBtn.onclick = ()=> addTodo(els.newTodo.value);
+els.newTodo.addEventListener('keydown', (e)=>{ if (e.key==='Enter') addTodo(els.newTodo.value); });
+els.clearCompleted.onclick = clearCompleted;
+els.tabs.forEach(btn=>{
+  btn.onclick = ()=>{ currentFilter = btn.dataset.filter; render(); };
 });
 
-// 暴露给内联事件
-window.toggleTask = toggleTask;
-window.deleteTask = deleteTask;
-window.editTask = editTask;
-window.saveTask = saveTask;
+/* ====== 认证监听与初始化 ====== */
+sb.auth.onAuthStateChange((_evt, sess)=>{
+  session = sess;
+  renderAccountMenu(sess?.user || null);
+  fetchTodos();
+}); // 监听登录状态变化。:contentReference[oaicite:4]{index=4}
 
+(async function init(){
+  const { data } = await sb.auth.getSession(); // 取持久化会话
+  session = data.session || null;
+  renderAccountMenu(session?.user || null);
+  await fetchTodos();
+})();
 </script>
 </body>
 </html>
