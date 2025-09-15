@@ -6,51 +6,106 @@
 <title>时间记录（Excel风格）</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-  :root{--bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;--accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px}
+  :root{
+    --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
+    --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px;
+    --col-actions:180px; /* 操作列宽 */
+    --col-duration:100px; /* 时长列宽 */
+  }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
+
+  /* 顶部 */
   header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
   .container{padding:12px 16px}
   .nav{display:flex;align-items:center;gap:10px}
   h1{margin:0;font-size:clamp(18px,4.5vw,22px)}
   .account{margin-left:auto}
-  .account-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06)}
+  .account-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;
+    padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+
+  /* 卡片 */
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+        padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06)}
+
   .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  input,button{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
+  .muted{color:var(--muted)}
+  input,button{border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;outline:none}
   input:focus,button:focus{border-color:var(--accent)}
   .btn{background:var(--accent);color:#fff;border:none}
   .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
   .btn.ghost{background:transparent}
   .btn.danger{background:var(--danger)}
   .btn:disabled{opacity:.6;cursor:not-allowed}
-  .muted{color:var(--muted)}
   .right{margin-left:auto}
+
+  /* 工具条 */
   .toolbar{display:flex;gap:10px;flex-wrap:wrap}
-  .grid{margin-top:12px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
-  .thead,.trow{display:grid;grid-template-columns:130px 130px 1fr 1fr 120px 180px;border-bottom:1px solid var(--line)}
-  .cell{padding:10px 12px;display:flex;align-items:center}
+  .toolbar .btn{height:40px}
+
+  /* 表格主体 —— 关键：允许横向滚动 + 冻结右侧两列 */
+  .grid{
+    margin-top:12px;border:1px solid var(--line);border-radius:14px;
+    position:relative;overflow-x:auto; /* 允许横向滚动 */
+    -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
+    background:#fff;
+  }
+  /* 为了不挤爆列，整行设置最小宽度（可横向滚动） */
+  .thead,.trow{
+    display:grid;
+    /* 左2列固定宽，中间内容/备注更宽，右2列固定：时长+操作 */
+    grid-template-columns:
+      110px 110px
+      minmax(240px,1.5fr) minmax(180px,1.2fr)
+      var(--col-duration) var(--col-actions);
+    min-width: 930px;
+    border-bottom:1px solid var(--line)
+  }
+  .cell{padding:10px 12px;display:flex;align-items:center;min-width:0}
   .thead .cell{background:#f3f4f6;font-weight:600}
-  .trow input[type="text"]{width:100%;height:36px}
+
+  /* 输入：移动端 16px，避免 iOS 自动放大；给足高度易点按 */
+  .trow input[type="text"]{
+    width:100%;min-width:0;height:46px;font-size:16px;background:#fff
+  }
+
   .duration{font-variant-numeric:tabular-nums}
+
+  /* 操作按钮区域 */
   .actions{display:flex;gap:8px;justify-content:flex-end}
-  .tfoot{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fafafa}
+
+  /* 合计 */
+  .tfoot{display:flex;justify-content:space-between;align-items:center;
+         padding:10px 12px;background:#fafafa}
   .tip{font-size:12px;color:var(--muted)}
+
+  /* 右侧冻结列：时长 + 操作 */
+  .thead .cell:nth-child(6), .trow .cell:nth-child(6){
+    position:sticky; right:0; z-index:2; background:#fff;
+    box-shadow: -6px 0 12px rgba(0,0,0,.05);
+  }
+  .thead .cell:nth-child(5), .trow .cell:nth-child(5){
+    position:sticky; right:var(--col-actions); z-index:1; background:#fff;
+    box-shadow: -6px 0 12px rgba(0,0,0,.03);
+  }
+
+  /* 历史 */
+  .history{margin-top:14px}
+
+  /* Toast */
   .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:20000;pointer-events:none}
   .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
   .toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
-  .sync{display:inline-flex;align-items:center;gap:8px}
-  .spinner{width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10000}
-  .modal.show{display:flex}
-  .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35);backdrop-filter:saturate(1.2) blur(1.5px)}
-  .dialog{position:relative;width:520px;max-width:92vw;background:#fff;border-radius:16px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.25);padding:16px}
-  .dialog h3{margin:0 0 12px}.field{display:flex;flex-direction:column;gap:6px;margin:10px 0}.hint{font-size:12px;color:var(--muted)}
-  .close-x{position:absolute;right:10px;top:8px;background:transparent;border:0;font-size:18px;cursor:pointer}
-  @media (max-width:900px){.thead,.trow{grid-template-columns:110px 110px 1fr 1fr 110px 170px}}
-  @media (max-width:680px){.thead,.trow{grid-template-columns:92px 92px 1fr 1fr 90px 160px}.trow input{height:44px;font-size:16px}}
-  @media (max-width:420px){.thead,.trow{grid-template-columns:86px 86px 1fr 1fr 84px 140px}}
+
+  /* 更紧凑的断点（保持 16px 字号不变） */
+  @media (max-width:680px){
+    .toolbar .btn{height:44px}
+  }
 </style>
 </head>
 <body>
@@ -61,31 +116,40 @@
   </div>
 </header>
 
+<!-- Toast -->
 <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
+<!-- 未登录提示 -->
 <div class="container" id="guestCard">
   <div class="card"><div class="row"><strong>请先登录</strong><span class="muted">点击右上角「登录 / 注册」进入你的账户</span></div></div>
 </div>
 
+<!-- 主体 -->
 <main class="container" id="app" style="display:none">
   <div class="card">
     <div class="toolbar">
-      <div class="row" style="gap:8px"><span class="muted">选择日期</span><input id="dateInput" type="date" /></div>
+      <div class="row" style="gap:8px">
+        <span class="muted">选择日期</span>
+        <input id="dateInput" type="date" />
+      </div>
       <button id="addRow" class="btn">+ 新增一行</button>
       <button id="exportCsv" class="btn secondary">导出 CSV</button>
       <input id="csvFile" type="file" accept=".csv" style="display:none">
       <button id="importCsv" class="btn secondary">导入 CSV</button>
-      <div class="right sync">
-        <div id="syncState" class="muted" style="display:none"><span class="spinner"></span> 正在同步…</div>
+      <div class="right" style="display:flex;gap:10px;align-items:center">
+        <div id="syncState" class="muted" style="display:none"><span style="display:inline-block;width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span> 正在同步…</div>
         <button id="refreshBtn" class="btn secondary">刷新</button>
       </div>
     </div>
 
     <div class="grid" id="grid">
       <div class="thead">
-        <div class="cell">开始时间</div><div class="cell">结束时间</div>
-        <div class="cell">内容</div><div class="cell">备注</div>
-        <div class="cell">时长</div><div class="cell">操作</div>
+        <div class="cell">开始时间</div>
+        <div class="cell">结束时间</div>
+        <div class="cell">内容</div>
+        <div class="cell">备注</div>
+        <div class="cell">时长</div>
+        <div class="cell">操作</div>
       </div>
       <div id="tbody"></div>
       <div class="tfoot">
@@ -95,8 +159,11 @@
     </div>
   </div>
 
-  <div class="card" style="margin-top:14px">
-    <div class="row"><strong>最近 30 天历史</strong><button id="reloadHistory" class="btn secondary">刷新</button></div>
+  <div class="card history">
+    <div class="row">
+      <strong>最近 30 天历史</strong>
+      <button id="reloadHistory" class="btn secondary">刷新</button>
+    </div>
     <div id="historyList" style="margin-top:8px" class="muted">—</div>
   </div>
 </main>
@@ -116,24 +183,24 @@
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
-/* 🔁 与你的 SQL 完全一致的表名/字段 */
-const TABLE = 'time_entries';           // ✅ 你建的是 time_entries
-const COL_DATE = 'entry_date';          // ✅ 你建的是 entry_date(date)
-const COL_START = 'start_time';         // time
-const COL_END = 'end_time';             // time
-const COL_DUR = 'duration_seconds';     // integer not null
+/* 与数据库一致 */
+const TABLE = 'time_entries';
+const COL_DATE = 'entry_date';
+const COL_START = 'start_time';
+const COL_END = 'end_time';
+const COL_DUR = 'duration_seconds';
 const COL_CONTENT = 'content';
 const COL_NOTE = 'note';
 
 const { createClient } = supabase;
 
-/* 安全存储：localStorage 不可用时回退 Cookie，保证会话持久化 */
+/* 安全会话持久化（localStorage 不可用时回退 Cookie） */
 const cookieStorage = {
-  getItem: (k)=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
-  setItem: (k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
-  removeItem: (k)=>{document.cookie=`${encodeURIComponent(k)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`}
+  getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
+  setItem:(k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
+  removeItem:k=>{document.cookie=`${encodeURIComponent(k)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`}
 };
-function safeStorage(){try{const t='__sb__'+Math.random();localStorage.setItem(t,'1');localStorage.removeItem(t);return localStorage}catch(e){return cookieStorage}}
+function safeStorage(){try{const t='__sb__'+Math.random();localStorage.setItem(t,'1');localStorage.removeItem(t);return localStorage}catch{return cookieStorage}}
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storage:safeStorage(),storageKey:'sb-time-auth'}
 });
@@ -163,17 +230,17 @@ els.backdrop.onclick=closeModal;els.close.onclick=closeModal;document.addEventLi
 
 function showAuth(){
   openModal('登录 / 注册', `
-    <div class="field"><label class="hint">邮箱</label><input id="em" type="email" placeholder="you@example.com" style="font-size:16px"></div>
-    <div class="field"><label class="hint">密码（≥6位）</label><input id="pw" type="password" placeholder="******" style="font-size:16px"></div>
+    <div class="field"><label class="muted">邮箱</label><input id="em" type="email" placeholder="you@example.com" style="font-size:16px"></div>
+    <div class="field"><label class="muted">密码（≥6位）</label><input id="pw" type="password" placeholder="******" style="font-size:16px"></div>
     <div class="row" style="gap:8px;justify-content:flex-end"><button id="lg" class="btn">登录</button><button id="sg" class="btn secondary">注册</button></div>
-    <div id="hint" class="hint" style="margin-top:6px"></div>
+    <div id="hint" class="muted" style="margin-top:6px"></div>
   `);
   const hint=$('hint');
   $('lg').onclick=async()=>{const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return hint.textContent='请输入邮箱和密码';const {error}=await sb.auth.signInWithPassword({email,password}); if(error)hint.textContent='登录失败：'+error.message; else{hint.textContent='';toast('登录成功');closeModal()}};
   $('sg').onclick=async()=>{const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return hint.textContent='请输入邮箱和密码';const {error}=await sb.auth.signUp({email,password});hint.textContent=error?('注册失败：'+error.message):'注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。'};
 }
 function showAccount(u){
-  openModal('账户', `<div class="field"><div class="hint">邮箱：${u.email||''}</div></div><div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="btn">退出登录</button></div>`);
+  openModal('账户', `<div class="field"><div class="muted">邮箱：${u.email||''}</div></div><div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="btn">退出登录</button></div>`);
   $('lo').onclick=async()=>{await sb.auth.signOut();toast('您已退出登录');closeModal()};
 }
 els.account.onclick=()=>{session?.user?showAccount(session.user):showAuth()};
@@ -181,12 +248,13 @@ els.account.onclick=()=>{session?.user?showAccount(session.user):showAuth()};
 /* ========= UI渲染 ========= */
 function applySessionUI(){els.account.textContent=session?.user?`已登录：${session.user.email||'用户'}`:'登录 / 注册';els.app.style.display=session?'':'none';els.guest.style.display=session?'none':''}
 function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);els.total.textContent='合计：'+fmt(sum)}
+
 function rowDOM(item){
   const tr=document.createElement('div');tr.className='trow';
   tr.innerHTML=`<div class="cell"><input type="text" value="${item.start||''}" placeholder="07:30"></div>
                 <div class="cell"><input type="text" value="${item.end||''}" placeholder="08:45"></div>
-                <div class="cell"><input type="text" value="${item.content||''}"></div>
-                <div class="cell"><input type="text" value="${item.note||''}"></div>
+                <div class="cell"><input type="text" value="${item.content||''}" placeholder="内容"></div>
+                <div class="cell"><input type="text" value="${item.note||''}" placeholder="备注"></div>
                 <div class="cell duration">${fmt(item.duration||0)}</div>
                 <div class="cell actions"><button class="btn secondary save">保存</button><button class="btn ghost copy">复制</button><button class="btn danger del">删除</button></div>`;
   const [sEl,eEl,cEl,nEl]=tr.querySelectorAll('input');const dEl=tr.querySelector('.duration');
@@ -199,7 +267,7 @@ function rowDOM(item){
 }
 function renderBody(){els.tbody.innerHTML='';const f=document.createDocumentFragment();for(const it of rows)f.appendChild(rowDOM(it));els.tbody.appendChild(f);renderTotal()}
 
-/* ========= CRUD（对齐你的表结构） ========= */
+/* ========= CRUD ========= */
 async function fetchRowsByDate(dateStr, tip=false){
   if(!session){rows=[];renderBody();return}
   setSync(true);
@@ -284,10 +352,10 @@ $('reloadHistory').onclick=loadHistory;
 sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate(els.date.value);loadHistory()}});
 
 (async function init(){
-  const today=new Date(); els.date.value=today.toISOString().slice(0,10);
+  const today=new Date(); $('dateInput').value=today.toISOString().slice(0,10);
   const {data} = await sb.auth.getSession(); session=data.session||null; applySessionUI();
-  if(session){fetchRowsByDate(els.date.value);loadHistory()}
-  els.date.onchange=()=>{if(session){fetchRowsByDate(els.date.value)} renderBody(); loadHistory()}
+  if(session){fetchRowsByDate($('dateInput').value);loadHistory()}
+  $('dateInput').onchange=()=>{if(session){fetchRowsByDate($('dateInput').value)} renderBody(); loadHistory()}
 })();
 </script>
 </body>
