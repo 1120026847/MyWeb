@@ -212,7 +212,7 @@ const COL_NOTE = 'note';
 
 const { createClient } = supabase;
 
-/* 安全会话存储 */
+/* 安全会话存储（localStorage 不可用时回退到 Cookie） */
 const cookieStorage = {
   getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
   setItem:(k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
@@ -243,7 +243,6 @@ function setSync(v){
   syncing += v ? 1 : -1;
   if (syncing < 0) syncing = 0;
   els.sync.style.display = syncing > 0 ? '' : 'none';
-  // 15 秒兜底
   if (v) setTimeout(() => { if (syncing > 0) { syncing = 0; els.sync.style.display = 'none'; } }, 15000);
 }
 
@@ -252,7 +251,6 @@ const parseTime=s=>{s=(s||'').trim();if(!s)return null;const a=s.split(':');if(a
 const fmt=sec=>{sec=Math.max(0,sec|0);const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`};
 const dur=(s,e)=>{if(s==null||e==null)return 0;let d=e-s; if(d<0)d+=86400; return d};
 
-// Safari 友好：把 'YYYY-MM-DD' 解析为当天 00:00:00
 function parseDay(yyyy_mm_dd){ return new Date(`${yyyy_mm_dd}T00:00:00`); }
 function toDayString(d){ return d.toISOString().slice(0,10); }
 
@@ -260,6 +258,37 @@ function toDayString(d){ return d.toISOString().slice(0,10); }
 function genCid(){ try{ return (self.crypto && self.crypto.randomUUID) ? self.crypto.randomUUID() : 'cid-'+Date.now()+'-'+Math.random().toString(36).slice(2); }catch{ return 'cid-'+Date.now()+'-'+Math.random().toString(36).slice(2); } }
 function ensureCid(it){ if(!it.cid){ it.cid = it.id ? ('id:'+it.id) : genCid(); } return it; }
 function isSameUnsaved(a,b){ return !a.id && !b.id && (a.start||'')===(b.start||'') && (a.end||'')===(b.end||'') && (a.content||'')===(b.content||'') && (a.note||'')===(b.note||''); }
+
+/* ========= 合并：把 server 行合进 local，保护未保存 ========= */
+function mergeRows(localRows, serverRows){
+  const byId = new Map(serverRows.filter(r=>r.id).map(r=>[r.id, r]));
+  const used = new Set();
+  const out = [];
+
+  for(const lr of localRows){
+    if(lr.id){
+      const sr = byId.get(lr.id);
+      if(sr){
+        used.add(lr.id);
+        out.push( ensureCid(lr._dirty ? lr : sr) ); // 未保存保护
+      }else{
+        out.push( ensureCid(lr) ); // 云端没有（可能被删），先保留本地显示
+      }
+    }else{
+      out.push( ensureCid(lr) );   // 未保存草稿
+    }
+  }
+  for(const sr of serverRows){
+    if(sr.id && used.has(sr.id)) continue;
+    // 如果本地有一条未保存、内容完全一致的草稿，用云端替换那条，避免“影分身”
+    const dupDraftIdx = out.findIndex(r => !r.id && (r.start||'')===sr.start && (r.end||'')===sr.end && (r.content||'')===sr.content && (r.note||'')===sr.note);
+    if(dupDraftIdx>=0) out[dupDraftIdx] = ensureCid(sr);
+    else out.push( ensureCid(sr) );
+  }
+  // 排序（按开始时间）
+  out.sort((a,b)=> (parseTime(a.start)||0) - (parseTime(b.start)||0) );
+  return out;
+}
 
 /* ========= 模态（登录 / 注册 / 账户） ========= */
 let lastFocus=null;
@@ -347,11 +376,8 @@ function restoreDraft(){
       for(const d of list){
         ensureCid(d);
         const idx = rows.findIndex(r => r.cid===d.cid || isSameUnsaved(r,d));
-        if(idx>=0){
-          rows[idx] = {...rows[idx], ...d, _dirty:true};
-        }else{
-          rows.push({...d, _dirty:true});
-        }
+        if(idx>=0){ rows[idx] = {...rows[idx], ...d, _dirty:true}; }
+        else{ rows.push({...d, _dirty:true}); }
         merged++;
       }
       renderBody();
@@ -391,11 +417,17 @@ function renderBody(){
 }
 
 /* ========= CRUD ========= */
-async function fetchRowsByDate(dateStr, tip=false){
+/**
+ * 拉取某日数据
+ * @param {string} dateStr YYYY-MM-DD
+ * @param {{mode?: 'auto'|'merge'|'overwrite', tip?: boolean}} opts
+ */
+async function fetchRowsByDate(dateStr, opts={}){
+  const { mode='auto', tip=false } = opts;
   if(!session){ rows=[]; renderBody(); return; }
 
-  // A. 有脏数据或本地草稿：跳过自动刷新，避免覆盖
-  if (dirty || hasDraft()) {
+  // auto 模式：有草稿/脏数据就跳过（防覆盖）
+  if (mode==='auto' && (dirty || hasDraft())) {
     if (tip) toast('有未保存内容，已跳过自动刷新');
     return;
   }
@@ -408,7 +440,17 @@ async function fetchRowsByDate(dateStr, tip=false){
       .eq(COL_DATE, dateStr)
       .order(COL_START,{ascending:true});
     if(error){ toast('拉取失败：' + error.message,'error'); return; }
-    rows=(data||[]).map(r=>ensureCid({ id:r.id,start:r[COL_START],end:r[COL_END],content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',duration:r[COL_DUR]||0 }));
+    const serverRows = (data||[]).map(r=>ensureCid({
+      id:r.id,start:r[COL_START],end:r[COL_END],
+      content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',
+      duration:r[COL_DUR]||0
+    }));
+
+    if(mode==='merge'){
+      rows = mergeRows(rows, serverRows);
+    }else{ // auto / overwrite -> 直接用云端
+      rows = serverRows;
+    }
     renderBody(); if(tip) toast('已从云端同步');
   }catch(err){ toast('同步异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); }
@@ -431,8 +473,7 @@ async function saveRow(item, btn){
       item.id=data.id; item.cid = 'id:'+data.id;
     }
     item._dirty=false;
-    dirty = rows.some(r=>r._dirty);  // 重新计算整体脏状态
-    // 保存成功就清空草稿（当前日期）
+    dirty = rows.some(r=>r._dirty);
     try{ localStorage.removeItem(draftKey()); }catch{}
     toast('✅ 已保存并同步到云端');
   }catch(err){ toast('保存异常：' + (err?.message||err),'error'); }
@@ -533,17 +574,16 @@ $('csvFile').onchange=async e=>{
   rows.push(...list.map(it=>({...ensureCid(it),_dirty:true}))); renderBody(); saveDraft();
   toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
 };
-$('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,true);
+$('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,{mode:'merge', tip:true});
 els.rehist.onclick=loadHistory;
 $('toggleCols').onclick=()=>applyCompactUI(!$('grid').classList.contains('compact'));
 
 /* ========= 认证监听 & 初始化 ========= */
-// 仅在“无未保存内容”时才自动同步，避免覆盖
+// 自动刷新：仅无草稿时才拉，避免覆盖
 sb.auth.onAuthStateChange((event,sess)=>{
   session=sess;applySessionUI();
   if(!session){ rows=[]; renderBody(); return; }
-  if(dirty || hasDraft()){ /* 跳过自动刷新，等用户手动保存/刷新 */ return; }
-  fetchRowsByDate($('dateInput').value, true);
+  fetchRowsByDate($('dateInput').value, {mode:'auto', tip:true});
 });
 
 (async function init(){
@@ -552,32 +592,29 @@ sb.auth.onAuthStateChange((event,sess)=>{
   session=data.session||null; applySessionUI();
 
   // 手机默认紧凑；桌面记忆上次
-  const remembered = (()=>{
-    try{ return localStorage.getItem('hideNoteDur'); }catch{ return null; }
-  })();
+  const remembered = (()=>{ try{ return localStorage.getItem('hideNoteDur'); }catch{ return null; }})();
   const isSmall = window.matchMedia('(max-width: 480px)').matches;
   applyCompactUI(remembered ? remembered==='1' : isSmall);
 
-  $('dateInput').onchange=()=>{
-    // 切日期前，先把当前草稿存起来
-    saveDraft();
-    if(session){ fetchRowsByDate($('dateInput').value); }
-    rows = []; dirty=false; // 新日期先清空，随后可能恢复草稿
-    renderBody(); loadHistory(); restoreDraft();
+  // 切日期：先覆盖拉云端，再恢复草稿
+  $('dateInput').onchange=async ()=>{
+    saveDraft();            // 先存走当前日期草稿
+    rows = []; dirty=false; renderBody();
+    if(session){ await fetchRowsByDate($('dateInput').value, {mode:'overwrite'}); }
+    loadHistory(); restoreDraft();
   };
 
-  if(session){ await fetchRowsByDate($('dateInput').value); loadHistory(); }
+  // 初始：覆盖拉云端，然后恢复草稿（浏览器刷新后就能云端+草稿同时出现）
+  if(session){ await fetchRowsByDate($('dateInput').value, {mode:'overwrite'}); loadHistory(); }
+  restoreDraft();
 
-  // 可见性与页面生命周期：隐藏时立即写草稿；显示时尝试恢复
+  // 页面隐藏/显示：隐藏立即存草稿；显示只恢复（不强制拉），避免误覆盖
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden) saveDraft();
     else restoreDraft();
   });
-  window.addEventListener('pagehide', saveDraft);   // iOS/Safari 更可靠
+  window.addEventListener('pagehide', saveDraft);
   window.addEventListener('pageshow', ()=>{ restoreDraft(); });
-
-  // 首次进入也尝试恢复草稿
-  restoreDraft();
 })();
 </script>
 </body>
