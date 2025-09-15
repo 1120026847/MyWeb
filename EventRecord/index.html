@@ -28,7 +28,10 @@
     }
     .nav{display:flex; align-items:center; gap:12px}
     h1{margin:0; font-size:18px; letter-spacing:.5px}
-    .container{max-width:1100px; margin:14px auto; padding:0 12px}
+
+    /* ★ 全屏宽度：取消最大宽度，改为 100% */
+    .container{width:100%; max-width:none; margin:14px 0; padding:0 16px}
+
     .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 4px 24px rgba(0,0,0,.06)}
     .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
     .row > *{flex:none}
@@ -99,9 +102,7 @@
       <!-- 顶部右上角账号菜单 -->
       <div class="account" id="account">
         <button id="accountBtn" class="account-btn" aria-haspopup="true" aria-expanded="false">登录 / 注册</button>
-        <div class="dropdown" id="accountDropdown" role="menu" aria-label="账户">
-          <!-- 未登录/已登录的内容由 JS 动态填充 -->
-        </div>
+        <div class="dropdown" id="accountDropdown" role="menu" aria-label="账户"></div>
       </div>
     </div>
   </header>
@@ -109,7 +110,7 @@
   <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 
   <div class="container">
-    <!-- 应用卡片 -->
+    <!-- 主操作条 -->
     <div class="card" id="appCard" style="margin-top:14px; display:none">
       <div class="row">
         <div class="btn secondary" style="cursor:default">📅 选择日期</div>
@@ -118,6 +119,9 @@
         <button class="btn secondary" id="btnExport">导出 CSV</button>
         <label class="btn ghost" for="csvImport">导入 CSV</label>
         <input id="csvImport" type="file" accept=".csv" style="display:none" />
+        <!-- ★ 新增：刷新按钮放在导入 CSV 后面 -->
+        <button class="btn secondary" id="btnRefresh">刷新</button>
+
         <div class="right muted" id="summary"></div>
       </div>
 
@@ -149,12 +153,11 @@
       </div>
     </div>
 
-    <!-- 历史卡片 -->
+    <!-- 历史卡片（移除了旧的“刷新”按钮） -->
     <div class="card" id="historyCard" style="margin-top:14px; display:none">
       <div class="row">
         <strong>最近 30 天历史</strong>
         <div class="muted">按日期汇总</div>
-        <div class="right"><button class="btn secondary" id="btnReloadHistory">刷新</button></div>
       </div>
       <div id="historyList" style="margin-top:10px"></div>
     </div>
@@ -224,19 +227,15 @@ function toast(msg, type='ok', ms=1800){
   setTimeout(()=>{ t.remove(); }, ms+400);
 }
 
-/* ------------------ 顶部账号菜单渲染 ------------------ */
+/* ------------------ 顶部账号菜单 ------------------ */
 function closeDropdown(){ accountDropdown.classList.remove('open'); accountBtn.setAttribute('aria-expanded','false'); }
 function toggleDropdown(){
   const isOpen = accountDropdown.classList.toggle('open');
   accountBtn.setAttribute('aria-expanded', isOpen ? 'true':'false');
 }
-
 function renderAccountMenu(user){
   if (user){
-    // 顶部按钮文案
     accountBtn.textContent = `已登录：${user.email||'用户'}`;
-
-    // 下拉内容（退出）
     accountDropdown.innerHTML = `
       <div class="title">账户</div>
       <div class="field"><div class="muted">邮箱：${user.email||''}</div></div>
@@ -249,10 +248,7 @@ function renderAccountMenu(user){
       toast('您已退出登录');
     };
   }else{
-    // 顶部按钮文案
     accountBtn.textContent = '登录 / 注册';
-
-    // 下拉内容（登录 / 注册）
     accountDropdown.innerHTML = `
       <div class="title">登录 / 注册</div>
       <div class="field">
@@ -269,7 +265,6 @@ function renderAccountMenu(user){
       </div>
       <div class="hint" id="ddHint" style="margin-top:8px"></div>
     `;
-
     const hint = document.getElementById('ddHint');
     document.getElementById('ddLogin').onclick = async ()=>{
       const email = document.getElementById('ddEmail').value.trim();
@@ -289,8 +284,6 @@ function renderAccountMenu(user){
     };
   }
 }
-
-/* 点击外部收起下拉 */
 document.addEventListener('click', (e)=>{
   const wrap = document.getElementById('account');
   if (!wrap.contains(e.target)) closeDropdown();
@@ -300,7 +293,7 @@ accountBtn.addEventListener('click', (e)=>{
   toggleDropdown();
 });
 
-/* ------------------ 主表格渲染（手动文本输入） ------------------ */
+/* ------------------ 表格渲染 ------------------ */
 function render(){
   tbody.innerHTML = '';
   let total = 0;
@@ -367,7 +360,7 @@ function updateSummary(){
   totalCell.textContent = secToHHMMSS(total);
 }
 
-/* ------------------ CRUD（与 Supabase 交互） ------------------ */
+/* ------------------ 与云端交互 ------------------ */
 async function loadRows(dateStr){
   if (!session){ rows = []; render(); return; }
   const { data, error } = await sb
@@ -386,7 +379,6 @@ async function loadRows(dateStr){
   }));
   render();
 }
-
 async function saveRow(r, tr, btn){
   if (!session){ toast('请先登录', 'error'); return; }
   if (!isValidTimeStr(r.start) || !isValidTimeStr(r.end)){
@@ -406,7 +398,6 @@ async function saveRow(r, tr, btn){
     note: r.note || null
   };
 
-  // 反馈：按钮 loading
   const oldText = btn.textContent;
   btn.textContent = '保存中…';
   btn.disabled = true;
@@ -423,7 +414,6 @@ async function saveRow(r, tr, btn){
   updateSummary();
   toast('✅ 已保存', 'ok');
 }
-
 async function deleteRow(r, idx){
   if (!r.id){ rows.splice(idx,1); render(); return; }
   const ok = confirm('确定删除该行吗？');
@@ -509,7 +499,7 @@ async function loadHistory(){
 /* ------------------ 认证状态监听 ------------------ */
 sb.auth.onAuthStateChange((_event, sess)=>{
   session = sess;
-  renderAccountMenu(sess?.user || null);           // 刷新右上角菜单
+  renderAccountMenu(sess?.user || null);
   show(document.getElementById('appCard'), !!session);
   show(document.getElementById('historyCard'), !!session);
   if (session){
@@ -531,7 +521,11 @@ document.getElementById('csvImport').addEventListener('change', (e)=>{
   if (e.target.files?.[0]) importCSV(e.target.files[0]);
   e.target.value = '';
 });
-document.getElementById('btnReloadHistory').onclick = loadHistory;
+document.getElementById('btnRefresh').onclick = async ()=>{
+  await loadRows(datePicker.value);
+  await loadHistory();
+  toast('已从云端同步');
+};
 
 // 日期选择
 datePicker.value = todayStr(currentDate);
