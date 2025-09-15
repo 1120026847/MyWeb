@@ -10,13 +10,13 @@
     --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
     --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px;
 
-    /* 统一列宽（移动端用它来计算 sticky 偏移；桌面端可更宽） */
-    --w-start:128px;
-    --w-end:128px;
-    --w-content:260px;
-    --w-note:220px;
-    --w-duration:100px;
-    --w-actions:140px;
+    /* 列宽（桌面） */
+    --w-start:120px;   /* 开始时间（已缩小） */
+    --w-end:120px;     /* 结束时间（已缩小） */
+    --w-content:360px; /* 内容 */
+    --w-note:280px;    /* 备注 */
+    --w-duration:100px;/* 时长 */
+    --w-actions:140px; /* 操作 */
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
@@ -39,7 +39,7 @@
   .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .muted{color:var(--muted)}
 
-  input,button{border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;outline:none}
+  input,button{border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;outline:none;background:#fff}
   input:focus,button:focus{border-color:var(--accent)}
   .btn{background:var(--accent);color:#fff;border:none}
   .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
@@ -51,61 +51,49 @@
   .toolbar{display:flex;gap:10px;flex-wrap:wrap}
   .toolbar .btn{height:40px}
 
-  /* 表格容器：可横向滚动，sticky 需要非 hidden 的 overflow */
+  /* 表格容器：不再使用 sticky，统一纯白背景避免色差；可横向滚动以防万一 */
   .grid{
     margin-top:12px;border:1px solid var(--line);border-radius:14px;
-    background:#fff; /* 统一白底，消除色差 */
-    position:relative;overflow-x:auto; /* 允许横向拖动 */
-    -webkit-overflow-scrolling:touch; /* iOS 惯性滚动 */
-    touch-action:pan-x pan-y;
+    background:#fff; position:relative; overflow-x:auto;
+    -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y;
   }
 
-  /* 基础列布局（桌面端更宽） */
+  /* 完整模式（显示备注与时长） */
   .thead,.trow{
     display:grid;
     grid-template-columns:
-      140px 140px
-      minmax(360px,2fr) minmax(280px,1.6fr)
+      var(--w-start) var(--w-end)
+      minmax(var(--w-content),2fr) minmax(var(--w-note),1.4fr)
       var(--w-duration) var(--w-actions);
-    min-width: 1100px;
+    min-width: 1100px;                /* 桌面更宽 */
     border-bottom:1px solid var(--line)
   }
   .cell{padding:10px 12px;display:flex;align-items:center;min-width:0;background:#fff}
   .thead .cell{background:#f3f4f6;font-weight:600}
-
-  /* 输入更易点按；移动端≥16px 防止 iOS 放大 */
-  .trow input[type="text"]{width:100%;min-width:0;height:46px;font-size:16px;background:#fff}
-
+  .trow input[type="text"]{width:100%;min-width:0;height:46px;font-size:16px}
   .duration{font-variant-numeric:tabular-nums}
-  .actions{display:flex;gap:8px;justify-content:flex-end} /* 仅保留保存+删除，两者紧挨即可 */
+  .actions{display:flex;gap:8px;justify-content:flex-end} /* 仅保留 保存 + 删除 紧挨排列 */
 
   .tfoot{display:flex;justify-content:space-between;align-items:center;
          padding:10px 12px;background:#fafafa}
   .tip{font-size:12px;color:var(--muted)}
 
-  /* 右侧冻结：时长 + 操作（桌面&移动端通用） */
-  .thead .cell:nth-child(6), .trow .cell:nth-child(6){
-    position:sticky; right:0; z-index:4; background:#fff; /* 去掉阴影避免色差 */
+  /* 紧凑模式（隐藏备注 + 时长），用于手机适配 */
+  .grid.compact .thead,.grid.compact .trow{
+    grid-template-columns: 92px 92px minmax(120px,1fr) 130px; /* 开始 结束 内容 操作 */
+    min-width: 0; /* 让它尽量填满屏，不强制横向滚动 */
   }
-  .thead .cell:nth-child(5), .trow .cell:nth-child(5){
-    position:sticky; right:var(--w-actions); z-index:3; background:#fff;
-  }
+  .grid.compact .thead .cell:nth-child(4),
+  .grid.compact .thead .cell:nth-child(5),
+  .grid.compact .trow  .cell:nth-child(4),
+  .grid.compact .trow  .cell:nth-child(5){ display:none; }
 
-  /* —— 移动端：左侧也冻结（开始/结束/内容/备注固定），中间可拖动 —— */
-  @media (max-width:680px){
-    .toolbar .btn{height:44px}
-    .thead,.trow{
-      grid-template-columns:
-        var(--w-start) var(--w-end) var(--w-content) var(--w-note) var(--w-duration) var(--w-actions);
-      min-width: calc(var(--w-start) + var(--w-end) + var(--w-content) + var(--w-note) + var(--w-duration) + var(--w-actions));
-    }
-    /* 左 4 列固定 */
-    .thead .cell:nth-child(1), .trow .cell:nth-child(1){position:sticky; left:0;                                 z-index:5; background:#fff}
-    .thead .cell:nth-child(2), .trow .cell:nth-child(2){position:sticky; left:var(--w-start);                    z-index:5; background:#fff}
-    .thead .cell:nth-child(3), .trow .cell:nth-child(3){position:sticky; left:calc(var(--w-start)+var(--w-end));  z-index:4; background:#fff}
-    .thead .cell:nth-child(4), .trow .cell:nth-child(4){position:sticky; left:calc(var(--w-start)+var(--w-end)+var(--w-content)); z-index:4; background:#fff}
-
-    /* 右 2 列固定（沿用通用规则），取消阴影避免色块差异（已上） */
+  /* 手机端按钮和间距更紧凑 */
+  @media (max-width:480px){
+    .trow input[type="text"]{height:42px;font-size:16px}
+    .cell{padding:8px}
+    .btn{padding:8px 10px;font-size:14px}
+    .btn.danger{padding:8px 10px}
   }
 
   /* Toast */
@@ -123,12 +111,15 @@
   </div>
 </header>
 
+<!-- Toast -->
 <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
+<!-- 未登录提示 -->
 <div class="container" id="guestCard">
   <div class="card"><div class="row"><strong>请先登录</strong><span class="muted">点击右上角「登录 / 注册」进入你的账户</span></div></div>
 </div>
 
+<!-- 主体 -->
 <main class="container" id="app" style="display:none">
   <div class="card">
     <div class="toolbar">
@@ -140,8 +131,15 @@
       <button id="exportCsv" class="btn secondary">导出 CSV</button>
       <input id="csvFile" type="file" accept=".csv" style="display:none">
       <button id="importCsv" class="btn secondary">导入 CSV</button>
+
+      <!-- 新增：隐藏/显示 备注 + 时长 -->
+      <button id="toggleCols" class="btn secondary">隐藏备注与时长</button>
+
       <div class="right" style="display:flex;gap:10px;align-items:center">
-        <div id="syncState" class="muted" style="display:none"><span style="display:inline-block;width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span> 正在同步…</div>
+        <div id="syncState" class="muted" style="display:none">
+          <span style="display:inline-block;width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
+          正在同步…
+        </div>
         <button id="refreshBtn" class="btn secondary">刷新</button>
       </div>
     </div>
@@ -169,7 +167,7 @@
   </div>
 </main>
 
-<!-- 模态：登录/注册/账户（与你现有的一致） -->
+<!-- 模态：登录/注册/账户 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="dialog" role="document">
@@ -212,7 +210,7 @@ const els={app:$('app'),guest:$('guestCard'),date:$('dateInput'),tbody:$('tbody'
   add:$('addRow'),exp:$('exportCsv'),imp:$('importCsv'),file:$('csvFile'),refresh:$('refreshBtn'),
   hist:$('historyList'),rehist:$('reloadHistory'),sync:$('syncState'),account:$('accountBtn'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody'),
-  toast:document.getElementById('toastWrap'), grid:document.getElementById('grid') };
+  toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols') };
 
 const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
 const setSync=v=>{syncing+=v?1:-1; if(syncing<0)syncing=0; els.sync.style.display=syncing>0?'':'none'};
@@ -247,6 +245,7 @@ $('accountBtn').onclick=()=>{session?.user?showAccount(session.user):showAuth()}
 /* ========= UI渲染 ========= */
 function applySessionUI(){ $('accountBtn').textContent = session?.user?`已登录：${session.user.email||'用户'}`:'登录 / 注册'; $('app').style.display=session?'':'none'; $('guestCard').style.display=session?'none':'' }
 function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);$('total').textContent='合计：'+fmt(sum)}
+
 function rowDOM(item){
   const tr=document.createElement('div');tr.className='trow';
   tr.innerHTML=`<div class="cell"><input type="text" value="${item.start||''}" placeholder="07:30"></div>
@@ -265,8 +264,6 @@ function rowDOM(item){
 function renderBody(){
   $('tbody').innerHTML='';const f=document.createDocumentFragment();for(const it of rows)f.appendChild(rowDOM(it));
   $('tbody').appendChild(f);renderTotal();
-  // 保证加载后从最左侧开始，避免一进来就只看到右边按钮
-  $('grid').scrollLeft = 0;
 }
 
 /* ========= CRUD ========= */
@@ -342,6 +339,16 @@ async function loadHistory(){
   $('historyList').innerHTML = items.length ? items.map(([d,s])=>`<div class="row"><div>${d}</div><div class="muted">合计：${fmt(s)}</div></div>`).join('') : '—';
 }
 
+/* ========= 视图切换：隐藏/显示 备注 + 时长 ========= */
+function applyCompactUI(on){
+  if(on){ els.grid.classList.add('compact'); els.toggle.textContent='显示备注与时长'; }
+  else { els.grid.classList.remove('compact'); els.toggle.textContent='隐藏备注与时长'; }
+  // 每次切换之后，确保不会残留横向滚动位置
+  els.grid.scrollLeft = 0;
+  // 记忆状态
+  localStorage.setItem('hideNoteDur', on ? '1' : '0');
+}
+
 /* ========= 事件 ========= */
 $('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0});renderBody()};
 $('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
@@ -349,6 +356,7 @@ $('importCsv').onclick=()=>$('csvFile').click();
 $('csvFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;const text=await f.text();const list=parseCSV(text);if(list.length===0)return toast('CSV 没有可导入的当前日期数据','error');rows.push(...list);renderBody();toast(`已加入 ${list.length} 行，记得点“保存”写入云端`)};
 $('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,true);
 $('reloadHistory').onclick=loadHistory;
+$('toggleCols').onclick=()=>applyCompactUI(!els.grid.classList.contains('compact'));
 
 /* ========= 认证监听 & 初始化 ========= */
 sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate($('dateInput').value);loadHistory()}});
@@ -356,6 +364,11 @@ sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session
 (async function init(){
   const today=new Date(); $('dateInput').value=today.toISOString().slice(0,10);
   const {data} = await sb.auth.getSession(); session=data.session||null; applySessionUI();
+  // 默认：手机端开启紧凑模式，桌面端记忆上次选择
+  const remembered = localStorage.getItem('hideNoteDur');
+  const isSmall = window.matchMedia('(max-width: 480px)').matches;
+  applyCompactUI(remembered ? remembered==='1' : isSmall);
+
   if(session){fetchRowsByDate($('dateInput').value);loadHistory()}
   $('dateInput').onchange=()=>{if(session){fetchRowsByDate($('dateInput').value)} renderBody(); loadHistory()}
 })();
