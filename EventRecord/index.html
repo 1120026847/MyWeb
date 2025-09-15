@@ -237,6 +237,49 @@ const els={
   toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols')
 };
 
+
+/* ========= 本地草稿（防丢失） ========= */
+// 说明：在编辑（开始/结束/内容/备注）时，将当前日期的未保存行和本地修改标记为 _dirty 并存入 localStorage。
+// 在页面恢复/重新加载/切换回来时，会自动把草稿与云端数据合并，确保未保存内容不会“消失”。
+const debounce = (fn, wait = 300) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; };
+const draftKey = () => (session ? `time-draft:${session.user.id}:${els.date.value}` : null);
+
+function saveDraft(force=false){
+  try{
+    const key = draftKey(); if(!key) return;
+    // 仅保存未保存的新行或被修改过的行，减小体积并避免覆盖纯云端数据
+    const draftRows = rows.filter(r => !r.id || r._dirty);
+    localStorage.setItem(key, JSON.stringify(draftRows));
+  }catch(e){ /* 忽略本地存储异常 */ }
+}
+const saveDraftDebounced = debounce(() => saveDraft(false), 400);
+
+function loadDraft(){
+  try{
+    const key = draftKey(); if(!key) return [];
+    const t = localStorage.getItem(key); return t ? JSON.parse(t) : [];
+  }catch(e){ return []; }
+}
+
+function mergeDraft(){
+  const draft = loadDraft(); if(!draft || !draft.length) return;
+  const byId = new Map(rows.filter(r => r.id).map(r => [r.id, r]));
+  for(const d of draft){
+    if(d.id && byId.has(d.id)){
+      // 有 id：用草稿覆盖云端同 id 记录（以用户本地编辑为准）
+      Object.assign(byId.get(d.id), d);
+      byId.get(d.id)._dirty = true;
+    }else{
+      // 无 id：这是一条本地新建但尚未保存到云端的记录
+      rows.push(d);
+    }
+  }
+}
+
+// 失焦/最小化/系统回收时尝试落盘；返回时不强制刷新，避免把草稿覆盖
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveDraft(true); });
+window.addEventListener('pagehide', () => saveDraft(true));   // iOS/Safari 更可靠
+window.addEventListener('beforeunload', () => saveDraft(true));
 const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
 function setSync(v){
   syncing += v ? 1 : -1;
@@ -327,7 +370,11 @@ function rowDOM(item){
                 <div class="cell actions"><button class="btn secondary save">保存</button><button class="btn danger del">删除</button></div>`;
   const [sEl,eEl,cEl,nEl]=tr.querySelectorAll('input');const dEl=tr.querySelector('.duration');
   const recalc=()=>{const s=parseTime(sEl.value),e=parseTime(eEl.value);const d=dur(s,e);item.duration=d;item.start=sEl.value;item.end=eEl.value;dEl.textContent=fmt(d);renderTotal()};
-  sEl.oninput=eEl.oninput=recalc;cEl.oninput=()=>item.content=cEl.value;nEl.oninput=()=>item.note=nEl.value;
+    const markDirty=()=>{ item._dirty = true; saveDraftDebounced(); };
+  sEl.oninput = eEl.oninput = () => { recalc(); markDirty(); };
+  cEl.oninput = () => { item.content = cEl.value; markDirty(); };
+  nEl.oninput = () => { item.note = nEl.value; markDirty(); };
+
   tr.querySelector('.del').onclick=()=>removeRow(item);
   tr.querySelector('.save').onclick=()=>saveRow(item,tr.querySelector('.save'));
   return tr;
@@ -342,7 +389,7 @@ function renderBody(){
 
 /* ========= CRUD ========= */
 async function fetchRowsByDate(dateStr, tip=false){
-  if(!session){ rows=[]; renderBody(); return; }
+  if(!session){ rows=[]; mergeDraft(); renderBody(); return; }
   setSync(true);
   try{
     const { data, error } = await sb.from(TABLE)
@@ -373,7 +420,7 @@ async function saveRow(item, btn){
       if(error) return toast('保存失败：' + error.message,'error');
       item.id=data.id;
     }
-    toast('✅ 已保存并同步到云端');
+    item._dirty=false; saveDraft(true); toast('✅ 已保存并同步到云端');
   }catch(err){ toast('保存异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); btn.disabled=false; }
 }
@@ -385,7 +432,7 @@ async function removeRow(item){
   try{
     const { error } = await sb.from(TABLE).delete().eq('id',item.id);
     if(error) return toast('删除失败：' + error.message,'error');
-    rows.splice(idx,1); renderBody(); toast('🗑️ 已删除');
+    rows.splice(idx,1); renderBody(); saveDraft(true); toast('🗑️ 已删除');
   }catch(err){ toast('删除异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); }
 }
@@ -488,7 +535,7 @@ sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session
   const remembered = localStorage.getItem('hideNoteDur');
   const isSmall = window.matchMedia('(max-width: 480px)').matches;
   applyCompactUI(remembered ? remembered==='1' : isSmall);
-  $('dateInput').onchange=()=>{ if(session){ fetchRowsByDate($('dateInput').value) } renderBody(); loadHistory(); };
+  $('dateInput').onchange=()=>{ saveDraft(true); if(session){ fetchRowsByDate($('dateInput').value) } renderBody(); loadHistory(); };
 })();
 </script>
 </body>
