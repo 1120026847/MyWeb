@@ -15,7 +15,20 @@
       --bg:#f7f9fc; --card:#ffffff; --muted:#6b7280; --text:#0b1220;
       --accent:#2563eb; --danger:#dc2626; --line:#e5e7eb; --thead:#f3f4f6;
       --ok:#16a34a;
+
+      /* 桌面默认尺寸 */
+      --radius: 10px;
+      --gap: 10px;
+      --ctrl-py: 10px;
+      --ctrl-px: 12px;
+      --ctrl-font: 14px;
+      --thtd-py: 10px;
+      --time-w: 140px;
+      --note-min: 180px;
+      --content-min: 200px;
+      --table-min: 820px;
     }
+
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
@@ -27,22 +40,24 @@
       border-bottom:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.04)
     }
     .nav{display:flex; align-items:center; gap:12px}
-    h1{margin:0; font-size:18px; letter-spacing:.5px}
+    /* 标题使用流式字号：小屏自动变小 */
+    h1{margin:0; font-size:clamp(18px, 4.5vw, 22px); letter-spacing:.5px}
 
-    /* ★ 全屏宽度：取消最大宽度，改为 100% */
+    /* ★ 全屏宽度 */
     .container{width:100%; max-width:none; margin:14px 0; padding:0 16px}
 
     .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 4px 24px rgba(0,0,0,.06)}
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .row{display:flex; gap:var(--gap); flex-wrap:wrap; align-items:center}
     .row > *{flex:none}
     input,button,select,textarea{
-      background:#fff; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 12px; outline:none
+      background:#fff; color:var(--text); border:1px solid var(--line); border-radius:var(--radius);
+      padding:var(--ctrl-py) var(--ctrl-px); outline:none; font-size:var(--ctrl-font);
     }
     input::placeholder{color:#9aa4b2}
     input:focus,select:focus,textarea:focus{border-color:var(--accent)}
     input:invalid{border-color:var(--danger)}
     button{cursor:pointer}
-    .btn{background:var(--accent); border:0; padding:10px 14px; border-radius:10px; color:white; font-weight:600}
+    .btn{background:var(--accent); border:0; padding:var(--ctrl-py) var(--ctrl-px); border-radius:var(--radius); color:white; font-weight:600}
     .btn.secondary{background:#eef2ff; color:#1e3a8a}
     .btn.ghost{background:transparent; border:1px dashed var(--line); color:#334155}
     .btn.danger{background:var(--danger)}
@@ -53,28 +68,22 @@
 
     /* 表格 */
     .table-wrap{overflow:auto; border:1px solid var(--line); border-radius:12px}
-    table{border-collapse:separate; border-spacing:0; width:100%; min-width:820px}
+    table{border-collapse:separate; border-spacing:0; width:100%; min-width:var(--table-min)}
     thead th{position:sticky; top:0; background:var(--thead); z-index:2}
-    th, td{border-bottom:1px solid var(--line); padding:10px}
+    th, td{border-bottom:1px solid var(--line); padding:var(--thtd-py)}
     th{font-weight:700; color:#0f172a; text-align:left}
     td input, td textarea{width:100%}
-    td .time{width:140px}
-    td .note{min-width:180px}
-    td .content{min-width:200px}
+    td .time{width:var(--time-w)}
+    td .note{min-width:var(--note-min)}
+    td .content{min-width:var(--content-min)}
     .total{font-weight:700; color:#0f172a}
-
-    /* 小屏适配 */
-    @media (max-width: 640px){
-      .row{gap:8px}
-      td .time{width:120px}
-      table{min-width:700px}
-    }
 
     /* 顶部账号菜单 */
     .account{margin-left:auto; position:relative}
     .account-btn{
       display:inline-flex; align-items:center; gap:8px; background:#eef2ff; color:#1e3a8a;
-      border:1px solid #c7d2fe; padding:8px 12px; border-radius:999px; font-weight:600
+      border:1px solid #c7d2fe; padding:8px 12px; border-radius:999px; font-weight:600;
+      max-width:70vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .dropdown{
       position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:90vw;
@@ -92,6 +101,36 @@
     .toast{pointer-events:auto; background:#111827; color:#fff; border-radius:10px; padding:10px 14px; box-shadow:0 8px 28px rgba(0,0,0,.25); opacity:.98}
     .toast.ok{background:#065f46}
     .toast.err{background:#7f1d1d}
+
+    /* ======= 手机端紧凑模式（≤640px） ======= */
+    @media (max-width: 640px){
+      :root{
+        --radius: 8px;
+        --gap: 8px;
+        --ctrl-py: 8px;
+        --ctrl-px: 10px;
+        --ctrl-font: 13px;
+        --thtd-py: 8px;
+        --time-w: 100px;         /* 时间列更窄 */
+        --note-min: 140px;       /* 备注/内容列更小 */
+        --content-min: 160px;
+        --table-min: 640px;      /* 表格最小宽度降低，横向滚动更短 */
+      }
+      .container{padding:0 10px}
+      .account-btn{padding:6px 10px; font-size:13px}
+    }
+
+    /* 超小屏（≤400px）进一步压缩 */
+    @media (max-width: 400px){
+      :root{
+        --ctrl-font: 12.5px;
+        --time-w: 96px;
+        --note-min: 128px;
+        --content-min: 140px;
+        --table-min: 590px;
+      }
+      .container{padding:0 8px}
+    }
   </style>
 </head>
 <body>
@@ -119,9 +158,7 @@
         <button class="btn secondary" id="btnExport">导出 CSV</button>
         <label class="btn ghost" for="csvImport">导入 CSV</label>
         <input id="csvImport" type="file" accept=".csv" style="display:none" />
-        <!-- ★ 新增：刷新按钮放在导入 CSV 后面 -->
         <button class="btn secondary" id="btnRefresh">刷新</button>
-
         <div class="right muted" id="summary"></div>
       </div>
 
@@ -153,7 +190,7 @@
       </div>
     </div>
 
-    <!-- 历史卡片（移除了旧的“刷新”按钮） -->
+    <!-- 历史卡片 -->
     <div class="card" id="historyCard" style="margin-top:14px; display:none">
       <div class="row">
         <strong>最近 30 天历史</strong>
@@ -169,12 +206,12 @@ const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 浏览器端 createClient（默认持久化会话）
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ------------------ 简单状态与元素 ------------------ */
+/* ------------------ 状态 & 元素 ------------------ */
 let session = null;
 let currentDate = new Date();
-let rows = []; // 当前日期的行数据
+let rows = [];
 const tbody = document.getElementById('tbody');
 const datePicker = document.getElementById('datePicker');
 const totalCell = document.getElementById('totalCell');
@@ -185,131 +222,70 @@ const toastWrap = document.getElementById('toastWrap');
 
 /* ------------------ 工具函数 ------------------ */
 const two = n => String(n).padStart(2,'0');
-
-function parseTimeToSec(t) {
-  // 接受 "H:mm" 或 "H:mm:ss"
-  if (!t) return null;
-  const parts = t.split(':').map(x=>parseInt(x,10));
-  if (parts.length < 2) return null;
-  const h = parts[0]||0, m = parts[1]||0, s = parts[2]||0;
-  if (Number.isNaN(h) || Number.isNaN(m) || Number.isNaN(s)) return null;
-  return h*3600 + m*60 + s;
-}
-function secToHHMMSS(s) {
-  if (s == null) return '00:00:00';
-  const sign = s<0?'-':'';
-  s = Math.abs(s|0);
-  const h = Math.floor(s/3600);
-  const m = Math.floor((s%3600)/60);
-  const sec = s%60;
-  return `${sign}${two(h)}:${two(m)}:${two(sec)}`;
-}
-function todayStr(d=new Date()){
-  const y=d.getFullYear(),m=two(d.getMonth()+1),da=two(d.getDate());
-  return `${y}-${m}-${da}`;
-}
-function computeDuration(start, end){
-  if (start==null || end==null) return 0;
-  if (end < start) end += 24*3600; // 跨午夜
-  return end - start;
-}
-function isValidTimeStr(str){
-  if (!str) return false;
-  return /^(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(str);
-}
-function show(el, v){ el.style.display = v ? '' : 'none'; }
-function toast(msg, type='ok', ms=1800){
-  const t = document.createElement('div');
-  t.className = `toast ${type==='error'?'err':'ok'} toast-item`;
-  t.textContent = msg;
-  toastWrap.appendChild(t);
-  setTimeout(()=>{ t.style.transition='opacity .35s'; t.style.opacity='0'; }, ms);
-  setTimeout(()=>{ t.remove(); }, ms+400);
-}
+function parseTimeToSec(t){ if(!t) return null; const p=t.split(':').map(x=>parseInt(x,10)); if(p.length<2) return null; const h=p[0]||0,m=p[1]||0,s=p[2]||0; if([h,m,s].some(Number.isNaN)) return null; return h*3600+m*60+s;}
+function secToHHMMSS(s){ if(s==null) return '00:00:00'; const sign=s<0?'-':''; s=Math.abs(s|0); const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60; return `${sign}${two(h)}:${two(m)}:${two(sec)}`;}
+function todayStr(d=new Date()){ const y=d.getFullYear(),m=two(d.getMonth()+1),da=two(d.getDate()); return `${y}-${m}-${da}`;}
+function computeDuration(start,end){ if(start==null||end==null) return 0; if(end<start) end+=24*3600; return end-start;}
+function isValidTimeStr(str){ return /^(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(str||''); }
+function show(el,v){ el.style.display=v?'':'none'; }
+function toast(msg,type='ok',ms=1800){ const t=document.createElement('div'); t.className=`toast ${type==='error'?'err':'ok'} toast-item`; t.textContent=msg; toastWrap.appendChild(t); setTimeout(()=>{ t.style.transition='opacity .35s'; t.style.opacity='0'; }, ms); setTimeout(()=>{ t.remove(); }, ms+400); }
 
 /* ------------------ 顶部账号菜单 ------------------ */
 function closeDropdown(){ accountDropdown.classList.remove('open'); accountBtn.setAttribute('aria-expanded','false'); }
-function toggleDropdown(){
-  const isOpen = accountDropdown.classList.toggle('open');
-  accountBtn.setAttribute('aria-expanded', isOpen ? 'true':'false');
-}
+function toggleDropdown(){ const isOpen=accountDropdown.classList.toggle('open'); accountBtn.setAttribute('aria-expanded',isOpen?'true':'false'); }
 function renderAccountMenu(user){
-  if (user){
-    accountBtn.textContent = `已登录：${user.email||'用户'}`;
+  if(user){
+    accountBtn.textContent=`已登录：${user.email||'用户'}`;
     accountDropdown.innerHTML = `
       <div class="title">账户</div>
       <div class="field"><div class="muted">邮箱：${user.email||''}</div></div>
       <div class="sep"></div>
       <button class="btn" id="ddLogout">退出登录</button>
     `;
-    document.getElementById('ddLogout').onclick = async ()=>{
-      await sb.auth.signOut();
-      closeDropdown();
-      toast('您已退出登录');
-    };
+    document.getElementById('ddLogout').onclick = async ()=>{ await sb.auth.signOut(); closeDropdown(); toast('您已退出登录'); };
   }else{
-    accountBtn.textContent = '登录 / 注册';
+    accountBtn.textContent='登录 / 注册';
     accountDropdown.innerHTML = `
       <div class="title">登录 / 注册</div>
-      <div class="field">
-        <label class="hint">邮箱</label>
-        <input id="ddEmail" type="email" placeholder="you@example.com">
-      </div>
-      <div class="field">
-        <label class="hint">密码（≥6位）</label>
-        <input id="ddPassword" type="password" placeholder="******">
-      </div>
+      <div class="field"><label class="hint">邮箱</label><input id="ddEmail" type="email" placeholder="you@example.com"></div>
+      <div class="field"><label class="hint">密码（≥6位）</label><input id="ddPassword" type="password" placeholder="******"></div>
       <div class="row" style="gap:8px">
         <button class="btn" id="ddLogin">登录</button>
         <button class="btn secondary" id="ddSignup">注册</button>
       </div>
       <div class="hint" id="ddHint" style="margin-top:8px"></div>
     `;
-    const hint = document.getElementById('ddHint');
+    const hint=document.getElementById('ddHint');
     document.getElementById('ddLogin').onclick = async ()=>{
-      const email = document.getElementById('ddEmail').value.trim();
-      const password = document.getElementById('ddPassword').value;
-      if (!email || !password) return hint.textContent = '请输入邮箱和密码';
+      const email=document.getElementById('ddEmail').value.trim();
+      const password=document.getElementById('ddPassword').value;
+      if(!email||!password) return hint.textContent='请输入邮箱和密码';
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error){ hint.textContent = '登录失败：' + error.message; }
-      else { hint.textContent = ''; closeDropdown(); toast('登录成功'); }
+      if(error){ hint.textContent='登录失败：'+error.message; } else { hint.textContent=''; closeDropdown(); toast('登录成功'); }
     };
     document.getElementById('ddSignup').onclick = async ()=>{
-      const email = document.getElementById('ddEmail').value.trim();
-      const password = document.getElementById('ddPassword').value;
-      if (!email || !password) return hint.textContent = '请输入邮箱和密码';
+      const email=document.getElementById('ddEmail').value.trim();
+      const password=document.getElementById('ddPassword').value;
+      if(!email||!password) return hint.textContent='请输入邮箱和密码';
       const { error } = await sb.auth.signUp({ email, password });
-      if (error){ hint.textContent = '注册失败：' + error.message; }
-      else { hint.textContent = '注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。'; }
+      if(error){ hint.textContent='注册失败：'+error.message; } else { hint.textContent='注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。'; }
     };
   }
 }
-document.addEventListener('click', (e)=>{
-  const wrap = document.getElementById('account');
-  if (!wrap.contains(e.target)) closeDropdown();
-});
-accountBtn.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  toggleDropdown();
-});
+document.addEventListener('click',(e)=>{ const wrap=document.getElementById('account'); if(!wrap.contains(e.target)) closeDropdown(); });
+accountBtn.addEventListener('click',(e)=>{ e.stopPropagation(); toggleDropdown(); });
 
 /* ------------------ 表格渲染 ------------------ */
 function render(){
-  tbody.innerHTML = '';
-  let total = 0;
+  tbody.innerHTML='';
+  let total=0;
   rows.forEach((r, idx)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input class="time" type="text"
-            placeholder="HH:mm 或 HH:mm:ss"
-            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"
-            title="24小时制，示例：08:05 或 17:18:17"
-            value="${r.start||''}" /></td>
-      <td><input class="time" type="text"
-            placeholder="HH:mm 或 HH:mm:ss"
-            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"
-            title="24小时制，示例：08:05 或 17:18:17"
-            value="${r.end||''}" /></td>
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input class="time" type="text" placeholder="HH:mm 或 HH:mm:ss"
+            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" title="24小时制，示例：08:05 或 17:18:17" value="${r.start||''}" /></td>
+      <td><input class="time" type="text" placeholder="HH:mm 或 HH:mm:ss"
+            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" title="24小时制，示例：08:05 或 17:18:17" value="${r.end||''}" /></td>
       <td><input class="content" type="text" value="${r.content||''}" placeholder="内容" /></td>
       <td><input class="note" type="text" value="${r.note||''}" placeholder="备注" /></td>
       <td class="muted">${secToHHMMSS(r.duration)}</td>
@@ -321,227 +297,118 @@ function render(){
     tbody.appendChild(tr);
 
     const [startI, endI, contentI, noteI] = tr.querySelectorAll('input');
-
-    const update = ()=>{
-      r.start = startI.value.trim();
-      r.end = endI.value.trim();
-      r.content = contentI.value;
-      r.note = noteI.value;
-      const s = parseTimeToSec(r.start);
-      const e = parseTimeToSec(r.end);
-      if (isValidTimeStr(r.start) && isValidTimeStr(r.end)){
-        r.duration = computeDuration(s,e);
-      }else{
-        r.duration = 0;
-      }
-      tr.children[4].textContent = secToHHMMSS(r.duration);
-      updateSummary();
+    const update=()=>{
+      r.start=startI.value.trim(); r.end=endI.value.trim(); r.content=contentI.value; r.note=noteI.value;
+      const s=parseTimeToSec(r.start), e=parseTimeToSec(r.end);
+      r.duration=(isValidTimeStr(r.start)&&isValidTimeStr(r.end))?computeDuration(s,e):0;
+      tr.children[4].textContent=secToHHMMSS(r.duration); updateSummary();
     };
+    startI.addEventListener('input',update);
+    endI.addEventListener('input',update);
+    contentI.addEventListener('input',()=>{ r.content=contentI.value; });
+    noteI.addEventListener('input',()=>{ r.note=noteI.value; });
 
-    startI.addEventListener('input', update);
-    endI.addEventListener('input', update);
-    contentI.addEventListener('input', ()=>{ r.content = contentI.value; });
-    noteI.addEventListener('input', ()=>{ r.note = noteI.value; });
-
-    tr.querySelector('[data-act="save"]').onclick = (e)=> saveRow(r, tr, e.currentTarget);
-    tr.querySelector('[data-act="dup"]').onclick = ()=>{
-      const copy = {...r, id:null};
-      rows.splice(idx+1,0,copy);
-      render();
-    };
-    tr.querySelector('[data-act="del"]').onclick = ()=> deleteRow(r, idx);
+    tr.querySelector('[data-act="save"]').onclick=(e)=>saveRow(r,tr,e.currentTarget);
+    tr.querySelector('[data-act="dup"]').onclick=()=>{ const copy={...r,id:null}; rows.splice(idx+1,0,copy); render(); };
+    tr.querySelector('[data-act="del"]').onclick=()=>deleteRow(r,idx);
     total += (r.duration||0);
   });
-  totalCell.textContent = secToHHMMSS(total);
+  totalCell.textContent=secToHHMMSS(total);
 }
 function updateSummary(){
-  const total = rows.reduce((a,b)=> a + (b.duration||0), 0);
-  summary.textContent = `当前日期共 ${rows.length} 条，合计 ${secToHHMMSS(total)}`;
-  totalCell.textContent = secToHHMMSS(total);
+  const total=rows.reduce((a,b)=>a+(b.duration||0),0);
+  summary.textContent=`当前日期共 ${rows.length} 条，合计 ${secToHHMMSS(total)}`;
+  totalCell.textContent=secToHHMMSS(total);
 }
 
 /* ------------------ 与云端交互 ------------------ */
 async function loadRows(dateStr){
-  if (!session){ rows = []; render(); return; }
-  const { data, error } = await sb
-    .from('time_entries')
-    .select('*')
-    .eq('entry_date', dateStr)
-    .order('start_time', { ascending: true });
-  if (error){ console.error(error); alert('加载失败：'+error.message); return; }
-  rows = (data||[]).map(rec => ({
-    id: rec.id,
-    start: rec.start_time,
-    end: rec.end_time,
-    content: rec.content,
-    note: rec.note,
-    duration: rec.duration_seconds
-  }));
+  if(!session){ rows=[]; render(); return; }
+  const { data, error } = await sb.from('time_entries').select('*').eq('entry_date', dateStr).order('start_time', {ascending:true});
+  if(error){ console.error(error); alert('加载失败：'+error.message); return; }
+  rows=(data||[]).map(rec=>({ id:rec.id, start:rec.start_time, end:rec.end_time, content:rec.content, note:rec.note, duration:rec.duration_seconds }));
   render();
 }
-async function saveRow(r, tr, btn){
-  if (!session){ toast('请先登录', 'error'); return; }
-  if (!isValidTimeStr(r.start) || !isValidTimeStr(r.end)){
-    toast('请按 24 小时制填写时间，如 08:05 或 17:18:17', 'error'); return;
-  }
-  const s = parseTimeToSec(r.start);
-  const e = parseTimeToSec(r.end);
-  const duration = computeDuration(s,e);
-  const payload = {
-    id: r.id || undefined,
-    user_id: session.user.id,
-    entry_date: datePicker.value,
-    start_time: r.start,
-    end_time: r.end,
-    duration_seconds: duration,
-    content: r.content || null,
-    note: r.note || null
-  };
+async function saveRow(r,tr,btn){
+  if(!session){ toast('请先登录','error'); return; }
+  if(!isValidTimeStr(r.start)||!isValidTimeStr(r.end)){ toast('请按 24 小时制填写时间，如 08:05 或 17:18:17','error'); return; }
+  const s=parseTimeToSec(r.start), e=parseTimeToSec(r.end); const duration=computeDuration(s,e);
+  const payload={ id:r.id||undefined, user_id:session.user.id, entry_date:datePicker.value, start_time:r.start, end_time:r.end, duration_seconds:duration, content:r.content||null, note:r.note||null };
 
-  const oldText = btn.textContent;
-  btn.textContent = '保存中…';
-  btn.disabled = true;
-
+  const old=btn.textContent; btn.textContent='保存中…'; btn.disabled=true;
   const { data, error } = await sb.from('time_entries').upsert(payload).select().single();
+  btn.textContent=old; btn.disabled=false;
 
-  btn.textContent = oldText;
-  btn.disabled = false;
-
-  if (error){ console.error(error); toast('保存失败：'+error.message, 'error'); return; }
-  r.id = data.id;
-  r.duration = data.duration_seconds;
-  tr.children[4].textContent = secToHHMMSS(r.duration);
-  updateSummary();
-  toast('✅ 已保存', 'ok');
+  if(error){ console.error(error); toast('保存失败：'+error.message,'error'); return; }
+  r.id=data.id; r.duration=data.duration_seconds; tr.children[4].textContent=secToHHMMSS(r.duration); updateSummary(); toast('✅ 已保存','ok');
 }
-async function deleteRow(r, idx){
-  if (!r.id){ rows.splice(idx,1); render(); return; }
-  const ok = confirm('确定删除该行吗？');
-  if (!ok) return;
+async function deleteRow(r,idx){
+  if(!r.id){ rows.splice(idx,1); render(); return; }
+  const ok=confirm('确定删除该行吗？'); if(!ok) return;
   const { error } = await sb.from('time_entries').delete().eq('id', r.id);
-  if (error){ toast('删除失败：'+error.message, 'error'); return; }
-  rows.splice(idx,1);
-  render();
+  if(error){ toast('删除失败：'+error.message,'error'); return; }
+  rows.splice(idx,1); render();
 }
 
 /* ------------------ CSV 导入/导出 ------------------ */
 function exportCSV(){
-  const data = rows.map(r=>({
-    '开始时间': r.start||'',
-    '结束时间': r.end||'',
-    '内容': r.content||'',
-    '备注': r.note||'',
-    '时长': secToHHMMSS(r.duration||0),
-  }));
-  const csv = Papa.unparse(data);
-  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `时间记录_${datePicker.value}.csv`;
-  document.body.appendChild(a); a.click(); a.remove();
+  const data=rows.map(r=>({'开始时间':r.start||'','结束时间':r.end||'','内容':r.content||'','备注':r.note||'','时长':secToHHMMSS(r.duration||0)}));
+  const csv=Papa.unparse(data); const blob=new Blob(["\uFEFF"+csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`时间记录_${datePicker.value}.csv`; document.body.appendChild(a); a.click(); a.remove();
 }
 function importCSV(file){
-  Papa.parse(file, {
-    header: true, skipEmptyLines: true,
-    complete: async (res)=>{
-      const arr = res.data || [];
-      function pick(o, keys){ for(const k of keys){ if (o[k]!=null && o[k]!=='') return o[k]; } return ''; }
-      const toUpsert = [];
-      for (const row of arr){
-        const start = pick(row, ['开始时间','start','Start']);
-        const end   = pick(row, ['结束时间','end','End']);
-        const content = pick(row, ['内容','content','Content']);
-        const note    = pick(row, ['备注','note','Note']);
-        if (!isValidTimeStr(start) || !isValidTimeStr(end)) continue;
-        const s = parseTimeToSec(start), e = parseTimeToSec(end);
-        const duration = computeDuration(s,e);
-        toUpsert.push({
-          user_id: session?.user?.id,
-          entry_date: datePicker.value,
-          start_time: start,
-          end_time: end,
-          duration_seconds: duration,
-          content, note
-        });
-      }
-      if (!session){ toast('导入需要先登录','error'); return; }
-      if (!toUpsert.length){ toast('没有可导入的数据','error'); return; }
-      const { error } = await sb.from('time_entries').upsert(toUpsert);
-      if (error){ toast('导入失败：'+error.message,'error'); return; }
-      await loadRows(datePicker.value);
-      toast(`已导入 ${toUpsert.length} 条`);
+  Papa.parse(file,{ header:true, skipEmptyLines:true, complete:async (res)=>{
+    const arr=res.data||[]; function pick(o,ks){ for(const k of ks){ if(o[k]!=null && o[k]!=='') return o[k]; } return ''; }
+    const toUpsert=[]; for(const row of arr){
+      const start=pick(row,['开始时间','start','Start']); const end=pick(row,['结束时间','end','End']); const content=pick(row,['内容','content','Content']); const note=pick(row,['备注','note','Note']);
+      if(!isValidTimeStr(start)||!isValidTimeStr(end)) continue; const s=parseTimeToSec(start), e=parseTimeToSec(end); const duration=computeDuration(s,e);
+      toUpsert.push({ user_id:session?.user?.id, entry_date:datePicker.value, start_time:start, end_time:end, duration_seconds:duration, content, note });
     }
-  });
+    if(!session){ toast('导入需要先登录','error'); return; }
+    if(!toUpsert.length){ toast('没有可导入的数据','error'); return; }
+    const { error } = await sb.from('time_entries').upsert(toUpsert);
+    if(error){ toast('导入失败：'+error.message,'error'); return; }
+    await loadRows(datePicker.value); toast(`已导入 ${toUpsert.length} 条`);
+  }});
 }
 
 /* ------------------ 历史（最近 30 天汇总） ------------------ */
 async function loadHistory(){
-  if (!session){ document.getElementById('historyList').innerHTML='请先登录'; return; }
-  const end = new Date();
-  const start = new Date(); start.setDate(end.getDate()-29);
-  const { data, error } = await sb.from('time_entries')
-    .select('entry_date,duration_seconds')
-    .gte('entry_date', todayStr(start))
-    .lte('entry_date', todayStr(end))
-    .order('entry_date', { ascending: false });
-  if (error){ console.error(error); return; }
-  const map = new Map();
-  for (const r of data){
-    const d = r.entry_date;
-    map.set(d, (map.get(d)||0) + (r.duration_seconds||0));
-  }
-  const list = [...map.entries()].sort((a,b)=> b[0].localeCompare(a[0]));
-  const wrap = document.getElementById('historyList');
-  wrap.innerHTML = list.map(([d,sec])=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed var(--line)">
-    <div><strong>${d}</strong></div><div class="muted">合计：${secToHHMMSS(sec)}</div></div>`).join('') || '<div class="muted">暂无数据</div>';
+  if(!session){ document.getElementById('historyList').innerHTML='请先登录'; return; }
+  const end=new Date(); const start=new Date(); start.setDate(end.getDate()-29);
+  const { data, error } = await sb.from('time_entries').select('entry_date,duration_seconds').gte('entry_date', todayStr(start)).lte('entry_date', todayStr(end)).order('entry_date',{ascending:false});
+  if(error){ console.error(error); return; }
+  const map=new Map(); for(const r of data){ const d=r.entry_date; map.set(d,(map.get(d)||0)+(r.duration_seconds||0)); }
+  const list=[...map.entries()].sort((a,b)=>b[0].localeCompare(a[0])); const wrap=document.getElementById('historyList');
+  wrap.innerHTML = list.map(([d,sec])=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed var(--line)"><div><strong>${d}</strong></div><div class="muted">合计：${secToHHMMSS(sec)}</div></div>`).join('') || '<div class="muted">暂无数据</div>';
 }
 
 /* ------------------ 认证状态监听 ------------------ */
 sb.auth.onAuthStateChange((_event, sess)=>{
-  session = sess;
-  renderAccountMenu(sess?.user || null);
+  session=sess;
+  renderAccountMenu(sess?.user||null);
   show(document.getElementById('appCard'), !!session);
   show(document.getElementById('historyCard'), !!session);
-  if (session){
-    loadRows(datePicker.value);
-    loadHistory();
-  }else{
-    rows = []; render();
-    document.getElementById('historyList').innerHTML = '';
-  }
+  if(session){ loadRows(datePicker.value); loadHistory(); } else { rows=[]; render(); document.getElementById('historyList').innerHTML=''; }
 });
 
 /* ------------------ 事件绑定 ------------------ */
-document.getElementById('btnAddRow').onclick = ()=>{
-  rows.push({ id:null, start:'', end:'', content:'', note:'', duration:0 });
-  render();
-};
-document.getElementById('btnExport').onclick = exportCSV;
-document.getElementById('csvImport').addEventListener('change', (e)=>{
-  if (e.target.files?.[0]) importCSV(e.target.files[0]);
-  e.target.value = '';
-});
-document.getElementById('btnRefresh').onclick = async ()=>{
-  await loadRows(datePicker.value);
-  await loadHistory();
-  toast('已从云端同步');
-};
+document.getElementById('btnAddRow').onclick=()=>{ rows.push({id:null,start:'',end:'',content:'',note:'',duration:0}); render(); };
+document.getElementById('btnExport').onclick=exportCSV;
+document.getElementById('csvImport').addEventListener('change',(e)=>{ if(e.target.files?.[0]) importCSV(e.target.files[0]); e.target.value=''; });
+document.getElementById('btnRefresh').onclick=async ()=>{ await loadRows(datePicker.value); await loadHistory(); toast('已从云端同步'); };
 
-// 日期选择
-datePicker.value = todayStr(currentDate);
-datePicker.addEventListener('change', ()=> loadRows(datePicker.value));
+datePicker.value=todayStr(currentDate);
+datePicker.addEventListener('change',()=> loadRows(datePicker.value));
 
-/* 初始化：获取现有会话，触发界面 */
+/* 初始化 */
 (async function init(){
   const { data } = await sb.auth.getSession();
-  session = data.session || null;
-  renderAccountMenu(session?.user || null);
+  session=data.session||null;
+  renderAccountMenu(session?.user||null);
   show(document.getElementById('appCard'), !!session);
   show(document.getElementById('historyCard'), !!session);
-  if (session){
-    await loadRows(datePicker.value);
-    await loadHistory();
-  }
+  if(session){ await loadRows(datePicker.value); await loadHistory(); }
 })();
 </script>
 </body>
