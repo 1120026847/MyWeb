@@ -3,46 +3,56 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>智能单词记忆系统 · 云端同步版</title>
+  <title>待办事项清单 · 云端同步版</title>
   <style>
-    :root{--primary:#4CAF50;--blue:#2196F3;--red:#f44336}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Noto Sans SC','Microsoft Yahei',sans-serif;color:#222}
-    header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid #eee;position:sticky;top:0;z-index:5}
+    body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:linear-gradient(135deg,#74ebd5,#acb6e5);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Noto Sans SC','Microsoft Yahei',sans-serif;color:#333}
+    header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#ffffffb8;backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid #e7e7e7}
     .app-title{font-weight:800}
     .auth{display:flex;gap:8px;align-items:center}
     .auth input{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:160px}
-    .btn{padding:10px 16px;border-radius:8px;border:1px solid #e1e1e1;background:#fff;cursor:pointer}
-    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btn{padding:8px 12px;border-radius:8px;border:1px solid #e1e1e1;background:#fff;cursor:pointer}
+    .btn.primary{background:#4CAF50;color:#fff;border-color:#4CAF50}
     .pill{padding:4px 8px;border:1px solid #e1e1e1;border-radius:999px;font-size:12px;color:#666}
 
-    .main{flex:1;max-width:880px;margin:20px auto;padding:20px;background:#fff;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,.06)}
-    .control-group{display:flex;gap:10px;justify-content:center;margin:10px 0;flex-wrap:wrap}
-    .word-display{text-align:center;font-size:5em;margin:40px 0;min-height:120px;line-height:1.2}
-    .meaning-display{text-align:center;font-size:3.2em;color:var(--blue);margin:30px 0;min-height:80px;display:none;line-height:1.3}
-    .action-buttons{display:flex;justify-content:center;gap:12px;margin:40px 0}
-    #knowBtn,#dontKnowBtn,#showMeaningBtn,#restartBtn{padding:18px 36px;font-size:22px;min-width:160px}
-    #restartBtn{display:none;background:var(--blue);color:#fff;border:0}
-    #knowBtn{background:var(--primary);color:#fff;border:0}
-    #dontKnowBtn{background:var(--red);color:#fff;border:0}
-    #showMeaningBtn{background:var(--blue);color:#fff;border:0}
+    .container{background:#fff;border-radius:15px;box-shadow:0 10px 20px rgba(0,0,0,.1);padding:20px;margin:20px auto;width:min(96%,760px)}
+    h1{margin:0 0 16px;color:#4CAF50}
 
-    #progressBar{width:80%;height:12px;background:#ddd;border-radius:6px;margin:30px auto 20px}
-    #progress{height:100%;background:var(--primary);transition:width .3s;border-radius:6px}
+    .topbar{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+    .topbar input[type="text"]{flex:1;padding:12px 14px;border:2px solid #ddd;border-radius:8px}
+    .topbar input[type="text"]:focus{border-color:#4CAF50;outline:none;box-shadow:0 0 0 2px rgba(76,175,80,.15)}
+    .add-btn{padding:0 18px;background:#4CAF50;border:0;border-radius:8px;color:#fff;font-weight:600}
 
-    .modal{display:none;position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:50}
-    .dialog{background:#fff;padding:24px;border-radius:12px;min-width:420px;max-width:92vw}
-    .dialog textarea{width:100%;height:180px;margin:12px 0;padding:12px;font-size:15px;border:2px solid #ddd;border-radius:10px;resize:vertical;line-height:1.6}
-    .dialog-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
+    .stats{display:flex;justify-content:space-between;margin:10px 0;padding:8px 0;border-top:1px solid #eee;border-bottom:1px solid #eee}
+    .count{display:flex;gap:6px;align-items:center}
+    .count span{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#4CAF50;color:#fff;font-size:12px}
+    .count.done span{background:#9e9e9e}
 
-    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+    .tabs{display:flex;gap:10px;border-bottom:1px solid #eee;margin:12px 0}
+    .tab{padding:8px 12px;cursor:pointer;border-bottom:3px solid transparent;font-weight:600}
+    .tab.active{color:#4CAF50;border-bottom-color:#4CAF50}
+
+    ul{list-style:none;margin:0;padding:0}
+    li{display:flex;gap:10px;align-items:center;padding:12px;margin:10px 0;background:#f9f9f9;border-radius:10px}
+    .task-content{flex:1;word-break:break-word}
+    .task-content.completed{text-decoration:line-through;color:#9e9e9e}
+    .check{width:22px;height:22px;border:2px solid #4CAF50;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    .check.checked{background:#4CAF50;color:#fff}
+    .check.checked::after{content:'✓';font-size:12px}
+    .edit-input{flex:1;padding:8px 10px;border:2px solid #4CAF50;border-radius:8px}
+    .btn.small{padding:6px 10px}
+    .danger{background:#dc3545;color:#fff;border:0}
+    .warn{background:#ffc107;color:#212529;border:0}
+    .info{background:#17a2b8;color:#fff;border:0}
+
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
     .muted{color:#666;font-size:12px}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <header>
-    <div class="app-title">📚 智能单词记忆系统</div>
+    <div class="app-title">📝 待办事项清单</div>
     <div class="auth">
       <div id="signed-out">
         <input type="email" id="email" placeholder="邮箱" />
@@ -58,163 +68,118 @@
     </div>
   </header>
 
-  <main class="main">
+  <div class="container">
     <div class="toolbar">
-      <button class="btn" onclick="location.href='https://www.molijun.com'">首页</button>
-      <input type="file" id="fileInput" hidden accept="application/json"/>
-      <button class="btn" id="btnImport">导入数据</button>
-      <button class="btn" id="addDataBtn">添加数据</button>
-      <button class="btn" id="exportBtn">导出数据</button>
-      <button class="btn" id="syncLocalBtn">同步本地 → 云端</button>
-      <span class="muted">（未登录则只保存在本地）</span>
+      <button class="btn small info" id="btnExport">导出 JSON</button>
+      <input type="file" id="fileImport" accept="application/json" style="display:none"/>
+      <button class="btn small" id="btnImport">导入 JSON</button>
+      <button class="btn small" id="btnSyncLocal">立即同步本地 → 云端</button>
+      <span class="muted">（未登录时仅保存到本地）</span>
     </div>
 
-    <div class="control-group">
-      <button class="btn" id="deleteWordBtn">删除单词</button>
-      <button class="btn" id="helpBtn">说明</button>
+    <div class="topbar">
+      <input type="text" id="title" placeholder="添加新任务..."/>
+      <button class="add-btn" id="add-btn">添加</button>
     </div>
 
-    <div id="progressBar"><div id="progress"></div></div>
-    <div id="emptyMsg" style="display:none;text-align:center;margin:30px 0;font-size:1.6em;">数据为空，请添加数据</div>
-
-    <div class="word-display" id="wordDisplay"></div>
-    <div class="meaning-display" id="meaningDisplay"></div>
-
-    <div class="action-buttons">
-      <button class="btn" id="knowBtn" style="display:none;">认识</button>
-      <button class="btn" id="restartBtn">重新开始</button>
-      <button class="btn" id="showMeaningBtn">显示释义</button>
-      <button class="btn" id="dontKnowBtn" style="display:none;">不认识</button>
+    <div class="stats">
+      <div class="count">待完成：<span id="todo-count">0</span></div>
+      <div class="count done">已完成：<span id="done-count">0</span></div>
     </div>
-  </main>
 
-  <!-- 添加数据弹窗 -->
-  <div class="modal" id="addDataModal">
-    <div class="dialog">
-      <h3 style="margin:0 0 10px">添加新单词</h3>
-      <textarea id="newDataInput" placeholder="每行：单词 释义（空格分隔）\n示例：\napple 苹果\nbanana 香蕉"></textarea>
-      <div class="dialog-actions">
-        <button class="btn" id="confirmAdd">确定</button>
-        <button class="btn" id="cancelAdd">取消</button>
-      </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="all">全部任务</div>
+      <div class="tab" data-tab="todo">待完成</div>
+      <div class="tab" data-tab="done">已完成</div>
     </div>
-  </div>
 
-  <!-- 删除阈值弹窗 -->
-  <div class="modal" id="deleteModal">
-    <div class="dialog">
-      <h4 style="margin:0 0 6px">删除记忆次数较多的单词</h4>
-      <p style="margin:10px 0">请输入要删除的记忆次数阈值（不低于 5）</p>
-      <input type="number" id="deleteThreshold" placeholder="请输入数字" min="5" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"/>
-      <div class="dialog-actions">
-        <button class="btn" id="confirmDelete">确定</button>
-        <button class="btn" id="cancelDelete">取消</button>
-      </div>
-    </div>
+    <ul id="todo-list"></ul>
   </div>
 
   <script>
-    // ================= Supabase 配置（使用你提供的项目） =================
-    const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // =============== Supabase 客户端（替换为你的项目配置） ===============
+    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co';
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
 
-    // ================= 状态 =================
+    // =============== 全局状态 ===============
+    let tasks = []; // 始终代表当前页面展示的数据
+    let activeTab = 'all';
+    let currentUser = null;
+    let rtChannel = null;
+
+    // =============== DOM ===============
     const els = {
-      fileInput: document.getElementById('fileInput'),
-      btnImport: document.getElementById('btnImport'),
-      addDataBtn: document.getElementById('addDataBtn'),
-      exportBtn: document.getElementById('exportBtn'),
-      syncLocalBtn: document.getElementById('syncLocalBtn'),
-      addDataModal: document.getElementById('addDataModal'),
-      newDataInput: document.getElementById('newDataInput'),
-      deleteModal: document.getElementById('deleteModal'),
-      deleteThreshold: document.getElementById('deleteThreshold'),
-      wordDisplay: document.getElementById('wordDisplay'),
-      meaningDisplay: document.getElementById('meaningDisplay'),
-      progress: document.getElementById('progress'),
-      emptyMsg: document.getElementById('emptyMsg'),
-      knowBtn: document.getElementById('knowBtn'),
-      showMeaningBtn: document.getElementById('showMeaningBtn'),
-      dontKnowBtn: document.getElementById('dontKnowBtn'),
-      restartBtn: document.getElementById('restartBtn'),
-      // auth
+      title: document.getElementById('title'),
+      addBtn: document.getElementById('add-btn'),
+      list: document.getElementById('todo-list'),
+      todoCount: document.getElementById('todo-count'),
+      doneCount: document.getElementById('done-count'),
+      tabs: document.querySelectorAll('.tab'),
+      exportBtn: document.getElementById('btnExport'),
+      importBtn: document.getElementById('btnImport'),
+      importFile: document.getElementById('fileImport'),
+      syncLocalBtn: document.getElementById('btnSyncLocal'),
       signedOut: document.getElementById('signed-out'),
       signedIn: document.getElementById('signed-in'),
       userEmail: document.getElementById('userEmail'),
       syncBadge: document.getElementById('syncBadge'),
     };
 
-    let wordData = { original: {}, backup: [] };
-    let currentWord = null;
-    let currentUser = null;
-    let rtChannel = null;
-
-    // ================= 初始化 =================
-    window.addEventListener('DOMContentLoaded', async () => {
+    // =============== 启动 ===============
+    window.addEventListener('load', async () => {
       wireUI();
       restoreLocal();
-      resetLearning();
+      render();
       await initAuth();
     });
 
     function wireUI(){
-      els.btnImport.onclick = ()=> els.fileInput.click();
-      els.fileInput.onchange = onImportFile;
-      els.addDataBtn.onclick = ()=> showModal(els.addDataModal, true);
-      document.getElementById('confirmAdd').onclick = onConfirmAdd;
-      document.getElementById('cancelAdd').onclick = ()=> showModal(els.addDataModal, false);
-
-      document.getElementById('deleteWordBtn').onclick = ()=> showModal(els.deleteModal, true);
-      document.getElementById('confirmDelete').onclick = onConfirmDelete;
-      document.getElementById('cancelDelete').onclick = ()=> showModal(els.deleteModal, false);
-
-      els.exportBtn.onclick = exportData;
+      els.addBtn.onclick = addNewTask;
+      els.title.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addNewTask(); }});
+      els.tabs.forEach(tab=> tab.addEventListener('click', ()=>{ els.tabs.forEach(t=>t.classList.remove('active')); tab.classList.add('active'); activeTab = tab.dataset.tab; render(); }));
+      els.exportBtn.onclick = exportJSON;
+      els.importBtn.onclick = ()=> els.importFile.click();
+      els.importFile.onchange = importJSON;
       els.syncLocalBtn.onclick = syncLocalToCloud;
-
-      document.getElementById('helpBtn').onclick = showHelp;
-
-      els.showMeaningBtn.onclick = showMeaning;
-      els.knowBtn.onclick = () => handleKnow(true);
-      els.dontKnowBtn.onclick = () => handleKnow(false);
-      els.restartBtn.onclick = resetLearning;
 
       document.getElementById('btnSignUp').onclick = signUp;
       document.getElementById('btnSignIn').onclick = signIn;
       document.getElementById('btnSignOut').onclick = signOut;
-
-      window.addEventListener('online', flushPending);
     }
 
-    function showModal(el, on){ el.style.display = on? 'flex':'none'; el.style.alignItems='center'; el.style.justifyContent='center'; }
+    // =============== 本地存储 ===============
+    function restoreLocal(){ const raw = localStorage.getItem('todoList'); tasks = raw? JSON.parse(raw) : []; }
+    function saveLocal(){ localStorage.setItem('todoList', JSON.stringify(tasks)); }
 
-    // ================= 本地存储 =================
-    function restoreLocal(){
-      try {
-        const saved = localStorage.getItem('wordData');
-        if(saved){ const parsed = JSON.parse(saved); wordData.original = parsed.original || {}; }
-      } catch(e){ console.warn('读取本地失败', e); }
-    }
-    function saveLocal(){ localStorage.setItem('wordData', JSON.stringify(wordData)); }
-
-    // ================= Auth =================
+    // =============== Auth ===============
     async function initAuth(){
       const { data: { session } } = await sb.auth.getSession();
       currentUser = session?.user || null; updateAuthUI();
-      if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-      sb.auth.onAuthStateChange(async (_e, session)=>{
+      if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); }
+      sb.auth.onAuthStateChange(async (_event, session)=>{
         currentUser = session?.user || null; updateAuthUI();
-        if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-        else { unsubscribeRealtime(); restoreLocal(); resetLearning(); }
+        if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); }
+        else { unsubscribeRealtime(); restoreLocal(); render(); }
       });
     }
     function updateAuthUI(){
       if(currentUser){
         els.signedOut.style.display='none';
         els.signedIn.style.display='flex';
-        els.userEmail.textContent = currentUser.email||'已登录';
-        els.syncBadge.textContent = '已登录';
+        els.userEmail.textContent = currentUser.email || '已登录';
       } else {
+        els.signedOut.style.display='block';
+        els.signedIn.style.display='none';
+      }
+      updateStatusIndicator();
+    } else {
         els.signedOut.style.display='block';
         els.signedIn.style.display='none';
         els.syncBadge.textContent = '未登录';
@@ -223,206 +188,230 @@
     async function signUp(){
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
-      const { error } = await sb.auth.signUp({ email, password });
-      if(error) alert('注册失败：'+error.message); else alert('注册成功，请继续登录。');
+      try{
+        toggleBtn('btnSignUp', true, '注册中…');
+        const { error } = await sb.auth.signUp({ email, password });
+        if(error) throw error;
+        alert('注册成功：如果开启了邮件验证，请先到邮箱完成验证再登录。');
+      }catch(err){
+        console.error('[signUp]', err);
+        alert('注册失败：' + (err?.message || err));
+      }finally{
+        toggleBtn('btnSignUp', false, '注册');
+      }
     }
     async function signIn(){
       const email = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(error) alert('登录失败：'+error.message);
+      if(!email || !password){ alert('请输入邮箱和密码'); return; }
+      try{
+        toggleBtn('btnSignIn', true, '登录中…');
+        console.log('[signIn] start', { email });
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if(error){
+          const map = {
+            'Email not confirmed': '邮箱未验证：请到邮箱点确认链接（或在 Auth/Email 临时关闭 Confirm email）',
+            'Invalid login credentials': '邮箱或密码不正确'
+          };
+          alert('登录失败：' + (map[error.message] || error.message));
+          return;
+        }
+        // 关键：不等事件，立刻切换到已登录并拉数据/订阅
+        currentUser = data?.user || (await sb.auth.getUser()).data?.user || null;
+        updateAuthUI();
+        await loadAllFromCloud();
+        subscribeRealtime();
+        console.log('[signIn] success', currentUser?.id);
+      }catch(err){
+        console.error('[signIn] error', err);
+        alert('网络或脚本错误：' + (err?.message || err));
+      }finally{
+        toggleBtn('btnSignIn', false, '登录');
+      }
     }
-    async function signOut(){ await sb.auth.signOut(); }
-
-    // ================= 云端交互 =================
-    async function loadAllFromCloud(){
-      if(!currentUser) return;
-      const { data, error } = await sb
-        .from('words')
-        .select('word, meaning, memory_level')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: true });
-      if(error){ console.warn('加载云端失败：', error.message); return; }
-      const map = {}; (data||[]).forEach(r=>{ map[r.word] = { meaning: r.meaning, memoryLevel: r.memory_level||0 }; });
-      wordData.original = map; saveLocal(); resetLearning();
+    async function signOut(){
+      try{
+        toggleBtn('btnSignOut', true, '退出中…');
+        await sb.auth.signOut();
+      }catch(err){
+        console.error('[signOut]', err);
+        alert('退出失败：' + (err?.message || err));
+      }finally{
+        toggleBtn('btnSignOut', false, '退出');
+      }
     }
 
-    async function upsertMany(obj){
-      if(!currentUser) return;
-      const rows = Object.entries(obj).map(([w,v])=>({ user_id: currentUser.id, word: w, meaning: v.meaning||'', memory_level: v.memoryLevel||0 }));
-      if(rows.length===0) return;
-      const { error } = await sb.from('words').upsert(rows, { onConflict: 'user_id,word' });
-      if(error){ console.warn('云端 upsert 失败，加入待同步：', error.message); queuePending({ type:'upsertMany', rows }); }
+    async function addNewTask(){
+      const title = els.title.value.trim();
+      if(!title){ alert('请输入任务内容'); return; }
+
+      if(currentUser){
+        const { data, error } = await sb
+          .from('todos')
+          .insert({ user_id: currentUser.id, title, done: false })
+          .select('*')
+          .single();
+        if(error){ alert('云端新增失败：'+error.message); return; }
+        tasks.push({ id: data.id, title: data.title, done: data.done, created_at: data.created_at });
+      } else {
+        const localId = 'local-'+Date.now();
+        tasks.push({ id: localId, title, done: false, created_at: new Date().toISOString() });
+      }
+      els.title.value='';
+      saveLocal();
+      render();
     }
 
-    async function updateOne(word){
-      if(!currentUser) return;
-      const v = wordData.original[word]; if(!v) return;
-      const { error } = await sb.from('words').update({ meaning: v.meaning||'', memory_level: v.memoryLevel||0 }).match({ user_id: currentUser.id, word });
-      if(error){ console.warn('云端更新失败，加入待同步：', error.message); queuePending({ type:'updateOne', word, payload:{ meaning:v.meaning||'', memory_level:v.memoryLevel||0 } }); }
+    async function toggleTask(id){
+      const idx = tasks.findIndex(t=>t.id===id);
+      if(idx===-1) return;
+      const newDone = !tasks[idx].done;
+      tasks[idx].done = newDone; // 先本地更新
+      render(); saveLocal();
+
+      if(currentUser && !String(id).startsWith('local-')){
+        const { error } = await sb.from('todos').update({ done: newDone }).eq('id', id);
+        if(error){ console.warn('云端更新失败：', error.message); }
+      }
     }
 
-    async function deleteByThreshold(th){
-      if(!currentUser) return;
-      const { error } = await sb.from('words').delete().eq('user_id', currentUser.id).gte('memory_level', th);
-      if(error){ alert('云端删除失败：'+error.message); }
+    function editTask(id){
+      const li = document.querySelector(`li[data-id="${id}"]`);
+      const task = tasks.find(t=>t.id===id); if(!task || !li) return;
+      li.innerHTML = `
+        <div class="check ${task.done?'checked':''}" onclick="toggleTask('${id}')"></div>
+        <input type="text" class="edit-input" value="${escapeHtml(task.title)}"/>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn small info" onclick="saveTask('${id}')">保存</button>
+          <button class="btn small danger" onclick="deleteTask('${id}')">删除</button>
+        </div>`;
+      li.querySelector('.edit-input').focus();
     }
 
+    async function saveTask(id){
+      const li = document.querySelector(`li[data-id="${id}"]`);
+      const input = li?.querySelector('.edit-input');
+      if(!input) return; const newTitle = input.value.trim();
+      if(!newTitle){ alert('任务内容不能为空'); return; }
+      const idx = tasks.findIndex(t=>t.id===id); if(idx===-1) return;
+      tasks[idx].title = newTitle; render(); saveLocal();
+
+      if(currentUser && !String(id).startsWith('local-')){
+        const { error } = await sb.from('todos').update({ title: newTitle }).eq('id', id);
+        if(error){ console.warn('云端更新失败：', error.message); }
+      }
+    }
+
+    async function deleteTask(id){
+      tasks = tasks.filter(t=>t.id!==id); render(); saveLocal();
+      if(currentUser && !String(id).startsWith('local-')){
+        const { error } = await sb.from('todos').delete().eq('id', id);
+        if(error){ console.warn('云端删除失败：', error.message); }
+      }
+    }
+
+    // =============== 渲染 ===============
+    function render(){
+      const filtered = tasks.filter(t=> activeTab==='all' ? true : activeTab==='todo' ? !t.done : t.done);
+      els.list.innerHTML = '';
+      if(filtered.length===0){
+        els.list.innerHTML = `<li style="justify-content:center;color:#999;">📭 没有找到任务</li>`;
+      } else {
+        for(const task of filtered){
+          const li = document.createElement('li'); li.dataset.id = task.id;
+          li.innerHTML = `
+            <div class="check ${task.done?'checked':''}" onclick="toggleTask('${task.id}')"></div>
+            <div class="task-content ${task.done?'completed':''}">${escapeHtml(task.title)}</div>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn small warn" onclick="editTask('${task.id}')">编辑</button>
+              <button class="btn small danger" onclick="deleteTask('${task.id}')">删除</button>
+            </div>`;
+          els.list.appendChild(li);
+        }
+      }
+      const todoN = tasks.filter(t=>!t.done).length;
+      const doneN = tasks.filter(t=> t.done).length;
+      els.todoCount.textContent = todoN; els.doneCount.textContent = doneN;
+    }
+
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+    // =============== 导入 / 导出 / 同步 ===============
+    async function exportJSON(){
+      if(currentUser){
+        const { data, error } = await sb.from('todos').select('*').eq('user_id', currentUser.id).order('created_at',{ascending:true});
+        if(error){ alert('导出失败：'+error.message); return; }
+        downloadBlob(new Blob([JSON.stringify(data, null, 2)],{type:'application/json'}), 'todos-export.json');
+      } else {
+        downloadBlob(new Blob([JSON.stringify(tasks, null, 2)],{type:'application/json'}), 'todos-export-local.json');
+      }
+    }
+    async function importJSON(e){
+      const file = e.target.files?.[0]; if(!file) return; const text = await file.text(); e.target.value='';
+      try{
+        const arr = JSON.parse(text); if(!Array.isArray(arr)) throw new Error('JSON 须为数组');
+        if(currentUser){
+          const rows = arr.map(x=>({ user_id: currentUser.id, title: x.title||'', done: !!x.done, created_at: x.created_at || new Date().toISOString() }));
+          const { error } = await sb.from('todos').insert(rows); if(error) throw error; await loadAllFromCloud();
+        } else {
+          const mapped = arr.map(x=>({ id: 'local-'+Date.now()+Math.random(), title: x.title||'', done: !!x.done, created_at: x.created_at || new Date().toISOString() }));
+          tasks.push(...mapped); saveLocal(); render();
+        }
+        alert('导入完成');
+      }catch(err){ alert('导入失败：'+err.message); }
+    }
+    async function syncLocalToCloud(){
+      if(!currentUser){ alert('请先登录'); return; }
+      const locals = tasks.filter(t=> String(t.id).startsWith('local-'));
+      if(locals.length===0){ alert('没有需要同步的本地任务'); return; }
+      const rows = locals.map(t=>({ user_id: currentUser.id, title: t.title, done: t.done, created_at: t.created_at }));
+      const { error } = await sb.from('todos').insert(rows);
+      if(error){ alert('同步失败：'+error.message); return; }
+      await loadAllFromCloud();
+      alert('本地任务已同步至云端');
+    }
+    function downloadBlob(blob, filename){ const a=document.createElement('a'); a.download=filename; a.href=URL.createObjectURL(blob); a.click(); URL.revokeObjectURL(a.href); }
+
+    // =============== Realtime ===============
     function subscribeRealtime(){
       if(rtChannel) sb.removeChannel(rtChannel);
-      rtChannel = sb.channel('words-ch');
-      rtChannel.on('postgres_changes', { event:'*', schema:'public', table:'words', filter:`user_id=eq.${currentUser.id}` }, async ()=>{ await loadAllFromCloud(); }).subscribe();
+      rtChannel = sb.channel('todos-ch');
+      rtChannel.on('postgres_changes', { event:'*', schema:'public', table:'todos', filter:`user_id=eq.${currentUser.id}` }, async ()=>{ await loadAllFromCloud(); }).subscribe();
     }
     function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
 
-    // 离线待同步
-    function queuePending(item){ const q = JSON.parse(localStorage.getItem('words_pending')||'[]'); q.push(item); localStorage.setItem('words_pending', JSON.stringify(q)); els.syncBadge.textContent='待同步'; }
-    async function flushPending(){
-      if(!currentUser) return;
-      let q = JSON.parse(localStorage.getItem('words_pending')||'[]'); if(q.length===0){ els.syncBadge.textContent='已同步'; return; }
-      for(const it of q){
-        if(it.type==='upsertMany'){
-          const { error } = await sb.from('words').upsert(it.rows, { onConflict:'user_id,word' });
-          if(error){ console.warn('flush upsert 失败', error.message); return; }
-        } else if(it.type==='updateOne'){
-          const { error } = await sb.from('words').update(it.payload).match({ user_id: currentUser.id, word: it.word });
-          if(error){ console.warn('flush update 失败', error.message); return; }
-        }
-      }
-      localStorage.removeItem('words_pending'); els.syncBadge.textContent='已同步';
-    }
+    // 暴露给 HTML 内联事件
+    window.toggleTask = toggleTask;
+    window.deleteTask = deleteTask;
+    window.editTask = editTask;
+    window.saveTask = saveTask;
+  </script>
 
-    // ================= 业务逻辑（与你原逻辑一致） =================
-    function resetLearning(){
-      wordData.backup = shuffle(Object.entries(wordData.original));
-      els.progress.style.width = '0%';
-      els.restartBtn.style.display = 'none';
-      els.showMeaningBtn.style.display = 'inline-block';
-      els.knowBtn.style.display = 'none';
-      els.dontKnowBtn.style.display = 'none';
-      checkEmptyData();
-      showNextWord();
-    }
-
-    function showNextWord(){
-      if(wordData.backup.length===0){
-        els.showMeaningBtn.style.display='none';
-        els.restartBtn.style.display='inline-block';
-        els.knowBtn.style.display='none';
-        els.dontKnowBtn.style.display='none';
-        return;
-      }
-      els.meaningDisplay.style.display='none';
-      els.showMeaningBtn.style.display='inline-block';
-      els.knowBtn.style.display='none';
-      els.dontKnowBtn.style.display='none';
-      els.restartBtn.style.display='none';
-
-      currentWord = wordData.backup.pop(); // [word, {meaning, memoryLevel}]
-      els.wordDisplay.textContent = currentWord[0];
-      els.meaningDisplay.textContent = currentWord[1].meaning || '';
-      updateProgress();
-    }
-
-    function updateProgress(){
-      const total = Object.keys(wordData.original).length || 1;
-      const remaining = wordData.backup.length;
-      const p = ((total - remaining) / total * 100).toFixed(1);
-      els.progress.style.width = `${p}%`;
-    }
-
-    function showMeaning(){
-      els.meaningDisplay.style.display='block';
-      els.showMeaningBtn.style.display='none';
-      els.knowBtn.style.display='inline-block';
-      els.dontKnowBtn.style.display='inline-block';
-    }
-
-    function handleKnow(know){
-      if(!currentWord) return;
-      const [w, v] = currentWord;
-      v.memoryLevel = (v.memoryLevel||0) + (know? 1 : -1);
-      if(!know){ wordData.backup.unshift([w, v]); } // 不认识 → 放回队列前端
-      wordData.original[w] = v;
-      saveLocal();
-      if(currentUser) updateOne(w);
-      showNextWord();
-    }
-
-    function checkEmptyData(){ els.emptyMsg.style.display = Object.keys(wordData.original).length? 'none':'block'; }
-
-    // ================= 导入 / 导出 =================
-    async function onImportFile(e){
-      const file = e.target.files?.[0]; if(!file) return; const text = await file.text(); e.target.value='';
-      try{
-        const obj = JSON.parse(text); // 期望：{ word: { meaning, memoryLevel } }
-        if(currentUser){ await upsertMany(obj); await loadAllFromCloud(); }
-        else { wordData.original = { ...(wordData.original||{}), ...obj }; saveLocal(); resetLearning(); }
-        alert('导入完成');
-      }catch(err){ alert('文件解析失败：'+err.message); }
-    }
-
-    async function exportData(){
+  <script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"70f3b625243c456f9ab4034f8b8b3974","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous">// —— 状态指示灯 & 工具 ——
+    function updateStatusIndicator(){
+      const online = navigator.onLine;
+      const pending = JSON.parse(localStorage.getItem('words_pending')||'[]').length;
+      let parts = [];
+      parts.push(online ? '🟢 在线' : '🔴 离线');
+      parts.push(currentUser ? '已登录' : '未登录');
       if(currentUser){
-        const { data, error } = await sb.from('words').select('word, meaning, memory_level').eq('user_id', currentUser.id).order('created_at', { ascending:true });
-        if(error){ alert('导出失败：'+error.message); return; }
-        const map = {}; (data||[]).forEach(r=>{ map[r.word] = { meaning: r.meaning, memoryLevel: r.memory_level||0 }; });
-        downloadJSON(map, 'word-data_cloud.json');
-      } else {
-        downloadJSON(wordData.original||{}, 'word-data_local.json');
+        parts.push(pending>0 ? `待同步(${pending})` : '已同步');
       }
+      els.syncBadge.textContent = parts.join(' · ');
     }
+    window.addEventListener('online', ()=>{ updateStatusIndicator(); try{ flushPending(); }catch(e){} });
+    window.addEventListener('offline', updateStatusIndicator);
 
-    async function syncLocalToCloud(){
-      if(!currentUser){ alert('请先登录'); return; }
-      await upsertMany(wordData.original||{});
-      await loadAllFromCloud();
-      alert('本地数据已同步至云端');
+    function toggleBtn(id, disabled, text){
+      const btn = document.getElementById(id);
+      if(!btn) return;
+      btn.disabled = !!disabled;
+      if(text) btn.textContent = text;
     }
-
-    function downloadJSON(obj, filename){
-      const blob = new Blob([JSON.stringify(obj, null, 2)], { type:'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); URL.revokeObjectURL(a.href);
-    }
-
-    // ================= 添加 / 删除批量逻辑 =================
-    function onConfirmAdd(){
-      const text = els.newDataInput.value||''; if(!text.trim()){ showModal(els.addDataModal,false); return; }
-      const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
-      const obj = {};
-      for(const line of lines){ const [word, ...rest] = line.split(/\s+/); if(!word||rest.length===0) continue; const meaning = rest.join(' '); obj[word] = { meaning, memoryLevel: wordData.original?.[word]?.memoryLevel || 0 }; }
-      // 合并到本地内存
-      wordData.original = { ...(wordData.original||{}), ...obj };
-      saveLocal();
-      if(currentUser) upsertMany(obj);
-      els.newDataInput.value='';
-      showModal(els.addDataModal,false);
-      resetLearning();
-    }
-
-    async function onConfirmDelete(){
-      const th = parseInt(els.deleteThreshold.value,10);
-      if(!(th>=5)){ alert('请输入不小于 5 的数字'); return; }
-      // 本地
-      const obj = wordData.original || {};
-      for(const k of Object.keys(obj)){ if((obj[k].memoryLevel||0) >= th) delete obj[k]; }
-      saveLocal(); resetLearning();
-      // 云端
-      if(currentUser){ await deleteByThreshold(th); await loadAllFromCloud(); }
-      alert(`已删除记忆次数 ≥ ${th} 的单词`);
-      showModal(els.deleteModal,false);
-    }
-
-    // ================= 工具函数 =================
-    function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
-
-    function showHelp(){
-      const help = document.createElement('div'); help.className='modal'; help.style.display='flex'; help.style.alignItems='center'; help.style.justifyContent='center';
-      help.innerHTML = `<div class="dialog"><h3 style="margin:0 0 10px">系统说明</h3>
-      <div style="line-height:1.7">点击“显示释义”查看中文意思；支持导入 JSON 数据；“添加数据”支持按行添加；可“导出数据”。<br>登录后数据会保存到 Supabase 云端并在多端实时同步；未登录仅保存在本地缓存。</div>
-      <div class="dialog-actions"><button class="btn" onclick="this.closest('.modal').remove()">关闭</button></div></div>`;
-      document.body.appendChild(help);
-    }
+    window.addEventListener('unhandledrejection', (e)=>{
+      console.error('[unhandledrejection]', e.reason);
+      alert('出错了：' + (e.reason?.message || e.reason));
+    });
   </script>
 </body>
 </html>
