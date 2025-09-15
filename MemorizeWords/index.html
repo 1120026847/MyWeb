@@ -52,4 +52,447 @@
         <button class="btn primary" id="btnSignIn">登录</button>
       </div>
       <div id="signed-in" style="display:none;gap:8px;align-items:center">
-        <span cl
+        <span class="pill" id="userEmail"></span>
+        <span class="pill" id="syncBadge">未登录</span>
+        <button class="btn" id="btnSignOut">退出</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="toolbar">
+      <button class="btn" onclick="location.href='https://www.molijun.com'">首页</button>
+      <input type="file" id="fileInput" hidden accept="application/json"/>
+      <button class="btn" id="btnImport">导入 JSON</button>
+      <button class="btn" id="btnAdd">添加数据</button>
+      <button class="btn" id="btnExport">导出 JSON</button>
+      <button class="btn" id="btnSyncLocal">同步本地 → 云端</button>
+      <span style="color:#666;font-size:12px">（未登录仅保存在本地）</span>
+    </div>
+
+    <div class="control-group">
+      <button class="btn" id="btnDeleteWords">删除单词</button>
+      <button class="btn" id="btnHelp">说明</button>
+    </div>
+
+    <div id="progressBar"><div id="progress"></div></div>
+    <div id="emptyMsg" style="display:none;">数据为空，请添加数据</div>
+
+    <div class="word-display" id="wordDisplay"></div>
+    <div class="meaning-display" id="meaningDisplay"></div>
+
+    <div class="action-buttons">
+      <button class="btn" id="knowBtn" style="display:none;background:var(--primary);">认识</button>
+      <button class="btn" id="restartBtn">重新开始</button>
+      <button class="btn" id="showMeaningBtn" style="background:var(--blue);">显示释义</button>
+      <button class="btn" id="dontKnowBtn" style="display:none;background:var(--red);">不认识</button>
+    </div>
+  </main>
+
+  <!-- 添加数据 -->
+  <div id="addDataModal" class="modal">
+    <div class="dialog">
+      <h3 style="margin:0 0 8px">添加新单词</h3>
+      <textarea id="newDataInput" placeholder="每行：单词 释义（空格分隔）&#10;示例：&#10;apple 苹果&#10;banana 香蕉"></textarea>
+      <div class="dialog-actions">
+        <button class="btn" id="confirmAdd">确定</button>
+        <button class="btn" id="cancelAdd">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 删除阈值 -->
+  <div id="deleteModal" class="modal">
+    <div class="dialog">
+      <h4 style="margin:0 0 8px">删除记忆次数较多的单词</h4>
+      <p>请输入要删除的记忆次数阈值（不低于 5）</p>
+      <input type="number" id="deleteThreshold" min="5" placeholder="请输入数字" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"/>
+      <div class="dialog-actions">
+        <button class="btn" id="confirmDelete">确定</button>
+        <button class="btn" id="cancelDelete">取消</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/** ================= Supabase（你的项目配置） ================= */
+const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
+
+/** ================= 状态 ================= */
+const els = {
+  wordDisplay: document.getElementById('wordDisplay'),
+  meaningDisplay: document.getElementById('meaningDisplay'),
+  progress: document.getElementById('progress'),
+  emptyMsg: document.getElementById('emptyMsg'),
+  knowBtn: document.getElementById('knowBtn'),
+  dontKnowBtn: document.getElementById('dontKnowBtn'),
+  showMeaningBtn: document.getElementById('showMeaningBtn'),
+  restartBtn: document.getElementById('restartBtn'),
+  // toolbar
+  fileInput: document.getElementById('fileInput'),
+  btnImport: document.getElementById('btnImport'),
+  btnAdd: document.getElementById('btnAdd'),
+  btnExport: document.getElementById('btnExport'),
+  btnSyncLocal: document.getElementById('btnSyncLocal'),
+  btnDeleteWords: document.getElementById('btnDeleteWords'),
+  btnHelp: document.getElementById('btnHelp'),
+  addDataModal: document.getElementById('addDataModal'),
+  deleteModal: document.getElementById('deleteModal'),
+  newDataInput: document.getElementById('newDataInput'),
+  deleteThreshold: document.getElementById('deleteThreshold'),
+  // auth
+  signedOut: document.getElementById('signed-out'),
+  signedIn: document.getElementById('signed-in'),
+  userEmail: document.getElementById('userEmail'),
+  syncBadge: document.getElementById('syncBadge'),
+};
+
+let wordData = { original: {}, backup: [] }; // original: { word: { meaning, memoryLevel } }
+let currentWord = null;                       // [word, obj]
+let currentUser = null;
+let rtChannel = null;
+
+/** ================= 启动 ================= */
+window.addEventListener('DOMContentLoaded', async () => {
+  wireUI();
+  restoreLocal();
+  resetLearning();
+  await initAuth();
+});
+
+function wireUI(){
+  els.btnImport.onclick = ()=> els.fileInput.click();
+  els.fileInput.onchange = onImportFile;
+  els.btnAdd.onclick = ()=> showModal(els.addDataModal, true);
+  document.getElementById('confirmAdd').onclick = onConfirmAdd;
+  document.getElementById('cancelAdd').onclick = ()=> showModal(els.addDataModal, false);
+
+  els.btnDeleteWords.onclick = ()=> showModal(els.deleteModal, true);
+  document.getElementById('confirmDelete').onclick = onConfirmDelete;
+  document.getElementById('cancelDelete').onclick = ()=> showModal(els.deleteModal, false);
+
+  els.btnExport.onclick = exportData;
+  els.btnSyncLocal.onclick = syncLocalToCloud;
+  els.btnHelp.onclick = showHelp;
+
+  els.showMeaningBtn.onclick = showMeaning;
+  els.knowBtn.onclick = () => handleKnow(true);
+  els.dontKnowBtn.onclick = () => handleKnow(false);
+  els.restartBtn.onclick = resetLearning;
+
+  document.getElementById('btnSignUp').onclick = signUp;
+  document.getElementById('btnSignIn').onclick = signIn;
+  document.getElementById('btnSignOut').onclick = signOut;
+
+  window.addEventListener('online', ()=>{ updateStatusIndicator(); flushPending(); });
+  window.addEventListener('offline', updateStatusIndicator);
+}
+
+function showModal(el, on){ el.style.display = on? 'flex':'none'; }
+
+/** ================= 本地存储 ================= */
+function restoreLocal(){ try{ const saved=JSON.parse(localStorage.getItem('wordData')||'{}'); wordData.original = saved.original || {}; }catch{} }
+function saveLocal(){ localStorage.setItem('wordData', JSON.stringify(wordData)); }
+
+/** ================= Auth ================= */
+async function initAuth(){
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session?.user || null; updateAuthUI();
+  if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
+  sb.auth.onAuthStateChange(async (_e, session) => {
+    currentUser = session?.user || null; updateAuthUI();
+    if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
+    else { unsubscribeRealtime(); restoreLocal(); resetLearning(); }
+  });
+}
+
+async function signUp(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  try{
+    toggleBtn('btnSignUp', true, '注册中…');
+    const { error } = await sb.auth.signUp({ email, password });
+    if(error) throw error;
+    alert('注册成功：若开启邮箱验证，请先到邮箱完成验证再登录。');
+  }catch(err){
+    console.error('[signUp]', err);
+    alert('注册失败：' + (err?.message || err));
+  }finally{ toggleBtn('btnSignUp', false, '注册'); }
+}
+
+async function signIn(){
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  if(!email || !password){ alert('请输入邮箱和密码'); return; }
+
+  try{
+    toggleBtn('btnSignIn', true, '登录中…');
+    console.log('[signIn] start', { email });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){
+      const map = {
+        'Email not confirmed': '邮箱未验证：请到邮箱点确认链接（或在 Auth/Email 临时关闭 Confirm email）',
+        'Invalid login credentials': '邮箱或密码不正确',
+      };
+      alert('登录失败：' + (map[error.message] || error.message));
+      return;
+    }
+    currentUser = data?.user || (await sb.auth.getUser()).data?.user || null;
+    updateAuthUI();
+    await loadAllFromCloud();
+    subscribeRealtime();
+    console.log('[signIn] success', currentUser?.id);
+  }catch(err){
+    console.error('[signIn] error', err);
+    alert('网络或脚本错误：' + (err?.message || err));
+  }finally{
+    toggleBtn('btnSignIn', false, '登录');
+  }
+}
+
+async function signOut(){
+  try{
+    toggleBtn('btnSignOut', true, '退出中…');
+    await sb.auth.signOut();
+  }catch(err){
+    console.error('[signOut]', err);
+    alert('退出失败：' + (err?.message || err));
+  }finally{ toggleBtn('btnSignOut', false, '退出'); }
+}
+
+function updateAuthUI(){
+  if(currentUser){
+    els.signedOut.style.display='none';
+    els.signedIn.style.display='flex';
+    els.userEmail.textContent = currentUser.email || '已登录';
+  }else{
+    els.signedOut.style.display='block';
+    els.signedIn.style.display='none';
+  }
+  updateStatusIndicator();
+}
+
+/** ================= 云端交互 ================= */
+async function loadAllFromCloud(){
+  if(!currentUser) return;
+  const { data, error } = await sb.from('words')
+    .select('word, meaning, memory_level')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: true });
+  if(error){ console.warn('加载云端失败：', error.message); return; }
+  const map = {};
+  (data||[]).forEach(r => { map[r.word] = { meaning: r.meaning, memoryLevel: r.memory_level || 0 }; });
+  wordData.original = map; saveLocal(); resetLearning();
+}
+
+async function upsertMany(obj){
+  if(!currentUser) return;
+  const rows = Object.entries(obj).map(([w,v])=>({ user_id: currentUser.id, word:w, meaning:v.meaning||'', memory_level: v.memoryLevel||0 }));
+  if(rows.length===0) return;
+  const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
+  if(error){ console.warn('云端 upsert 失败：', error.message); queuePending({ type:'upsertMany', rows }); }
+}
+
+async function updateOne(word){
+  if(!currentUser) return;
+  const v = wordData.original[word]; if(!v) return;
+  const { error } = await sb.from('words').update({ meaning:v.meaning||'', memory_level:v.memoryLevel||0 }).match({ user_id: currentUser.id, word });
+  if(error){ console.warn('云端更新失败：', error.message); queuePending({ type:'updateOne', word, payload:{ meaning:v.meaning||'', memory_level:v.memoryLevel||0 } }); }
+}
+
+async function deleteByThreshold(th){
+  if(!currentUser) return;
+  const { error } = await sb.from('words').delete().eq('user_id', currentUser.id).gte('memory_level', th);
+  if(error){ alert('云端删除失败：'+error.message); }
+}
+
+function subscribeRealtime(){
+  if(rtChannel) sb.removeChannel(rtChannel);
+  rtChannel = sb.channel('words-ch');
+  rtChannel.on('postgres_changes', { event:'*', schema:'public', table:'words', filter:`user_id=eq.${currentUser.id}` }, async ()=>{ await loadAllFromCloud(); }).subscribe();
+}
+function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
+
+/** ================= 离线待同步 ================= */
+function queuePending(item){
+  const q = JSON.parse(localStorage.getItem('words_pending')||'[]');
+  q.push(item);
+  localStorage.setItem('words_pending', JSON.stringify(q));
+  updateStatusIndicator();
+}
+async function flushPending(){
+  if(!currentUser) return;
+  let q = JSON.parse(localStorage.getItem('words_pending')||'[]');
+  if(q.length===0){ updateStatusIndicator(); return; }
+  for(const it of q){
+    if(it.type==='upsertMany'){
+      const { error } = await sb.from('words').upsert(it.rows, { onConflict:'user_id,word' });
+      if(error){ console.warn('flush upsert 失败', error.message); return; }
+    }else if(it.type==='updateOne'){
+      const { error } = await sb.from('words').update(it.payload).match({ user_id: currentUser.id, word: it.word });
+      if(error){ console.warn('flush update 失败', error.message); return; }
+    }
+  }
+  localStorage.removeItem('words_pending');
+  updateStatusIndicator();
+}
+
+/** ================= 业务逻辑 ================= */
+function resetLearning(){
+  wordData.backup = shuffle(Object.entries(wordData.original));
+  els.progress.style.width='0%';
+  els.restartBtn.style.display='none';
+  els.showMeaningBtn.style.display='inline-block';
+  els.knowBtn.style.display='none';
+  els.dontKnowBtn.style.display='none';
+  checkEmptyData();
+  showNextWord();
+}
+
+function showNextWord(){
+  if(wordData.backup.length===0){
+    els.showMeaningBtn.style.display='none';
+    els.restartBtn.style.display='inline-block';
+    els.knowBtn.style.display='none';
+    els.dontKnowBtn.style.display='none';
+    return;
+  }
+  els.meaningDisplay.style.display='none';
+  els.showMeaningBtn.style.display='inline-block';
+  els.knowBtn.style.display='none';
+  els.dontKnowBtn.style.display='none';
+  els.restartBtn.style.display='none';
+
+  currentWord = wordData.backup.pop(); // [word, {meaning, memoryLevel}]
+  els.wordDisplay.textContent = currentWord[0];
+  els.meaningDisplay.textContent = currentWord[1].meaning || '';
+  updateProgress();
+}
+
+function updateProgress(){
+  const total = Object.keys(wordData.original).length || 1;
+  const remaining = wordData.backup.length;
+  els.progress.style.width = (((total-remaining)/total*100).toFixed(1)) + '%';
+}
+
+function showMeaning(){
+  els.meaningDisplay.style.display='block';
+  els.showMeaningBtn.style.display='none';
+  els.knowBtn.style.display='inline-block';
+  els.dontKnowBtn.style.display='inline-block';
+}
+
+function handleKnow(know){
+  if(!currentWord) return;
+  const [w, v] = currentWord;
+  v.memoryLevel = (v.memoryLevel||0) + (know?1:-1);
+  if(!know) wordData.backup.unshift([w, v]); // 不认识 → 放回队列前端再测
+  wordData.original[w] = v;
+  saveLocal();
+  if(currentUser) updateOne(w);
+  showNextWord();
+}
+
+function checkEmptyData(){ els.emptyMsg.style.display = Object.keys(wordData.original).length? 'none':'block'; }
+
+/** ================= 导入 / 导出 / 同步 ================= */
+async function onImportFile(e){
+  const file = e.target.files?.[0]; if(!file) return; const text = await file.text(); e.target.value='';
+  try{
+    const obj = JSON.parse(text); // { word: { meaning, memoryLevel } }
+    if(currentUser){ await upsertMany(obj); await loadAllFromCloud(); }
+    else { wordData.original = { ...(wordData.original||{}), ...obj }; saveLocal(); resetLearning(); }
+    alert('导入完成');
+  }catch(err){ alert('文件解析失败：' + err.message); }
+}
+
+async function exportData(){
+  if(currentUser){
+    const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id', currentUser.id).order('created_at',{ascending:true});
+    if(error){ alert('导出失败：'+error.message); return; }
+    const map = {}; (data||[]).forEach(r=>{ map[r.word]={meaning:r.meaning, memoryLevel:r.memory_level||0}; });
+    downloadJSON(map, 'word-data_cloud.json');
+  }else{
+    downloadJSON(wordData.original||{}, 'word-data_local.json');
+  }
+}
+
+async function syncLocalToCloud(){
+  if(!currentUser){ alert('请先登录'); return; }
+  await upsertMany(wordData.original||{});
+  await loadAllFromCloud();
+  alert('本地数据已同步至云端');
+}
+
+function downloadJSON(obj, name){
+  const blob = new Blob([JSON.stringify(obj,null,2)], { type:'application/json' });
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/** ================= 添加 / 删除 ================= */
+function onConfirmAdd(){
+  const text = els.newDataInput.value||''; if(!text.trim()){ showModal(els.addDataModal,false); return; }
+  const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
+  const obj = {};
+  for(const line of lines){
+    const [word, ...rest] = line.split(/\s+/);
+    if(!word || rest.length===0) continue;
+    const meaning = rest.join(' ');
+    obj[word] = { meaning, memoryLevel: wordData.original?.[word]?.memoryLevel || 0 };
+  }
+  wordData.original = { ...(wordData.original||{}), ...obj };
+  saveLocal();
+  if(currentUser) upsertMany(obj);
+  els.newDataInput.value=''; showModal(els.addDataModal,false); resetLearning();
+}
+
+async function onConfirmDelete(){
+  const th = parseInt(els.deleteThreshold.value,10);
+  if(!(th>=5)){ alert('请输入不小于 5 的数字'); return; }
+  for(const k of Object.keys(wordData.original)){ if((wordData.original[k].memoryLevel||0) >= th) delete wordData.original[k]; }
+  saveLocal(); resetLearning();
+  if(currentUser){ await deleteByThreshold(th); await loadAllFromCloud(); }
+  alert(`已删除记忆次数 ≥ ${th} 的单词`);
+  showModal(els.deleteModal,false);
+}
+
+/** ================= 工具 & 指示灯 ================= */
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+function toggleBtn(id, disabled, text){ const btn=document.getElementById(id); if(!btn) return; btn.disabled=!!disabled; if(text) btn.textContent=text; }
+
+function updateStatusIndicator(){
+  const online = navigator.onLine;
+  const pending = JSON.parse(localStorage.getItem('words_pending')||'[]').length;
+  const parts = [];
+  parts.push(online ? '🟢 在线' : '🔴 离线');
+  parts.push(currentUser ? '已登录' : '未登录');
+  if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
+  els.syncBadge.textContent = parts.join(' · ');
+}
+
+function showHelp(){
+  const help = document.createElement('div'); help.className='modal'; help.style.display='flex'; help.style.alignItems='center'; help.style.justifyContent='center';
+  help.innerHTML = `<div class="dialog">
+    <h3 style="margin:0 0 10px">系统说明</h3>
+    <div style="line-height:1.7">
+      点击“显示释义”查看中文；“添加数据”每行按<span class="warning-text">单词 空格 释义</span>；<br/>
+      支持导入/导出 JSON（登录时导入/导出云端；未登录导入/导出本地）。<br/>
+      登录后所有操作会自动保存到 Supabase，并在多端<span class="warning-text">实时同步</span>；离线时写入本地，恢复联网后自动补推。
+    </div>
+    <div class="dialog-actions"><button class="btn" onclick="this.closest('.modal').remove()">关闭</button></div>
+  </div>`;
+  document.body.appendChild(help);
+}
+
+window.addEventListener('unhandledrejection', e=>{
+  console.error('[unhandledrejection]', e.reason);
+  alert('出错了：' + (e.reason?.message || e.reason));
+});
+</script>
+</body>
+</html>
