@@ -123,7 +123,6 @@
   }
   .modal .title{margin:0 40px 10px 0;font-size:18px}
   .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
-  .field label{font-size:12px;color:var(--muted)}
   .panel .btn{height:42px}
 </style>
 </head>
@@ -200,8 +199,8 @@
 
 <script>
 /* ========= Supabase ========= */
-const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';   // ← 替换为你的
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY'; // ← 替换为你的
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';   // ← 替换为你的
+const SUPABASE_ANON_KEY = 'YOUR_PUBLIC_ANON_KEY'; // ← 替换为你的
 
 const TABLE = 'time_entries';
 const COL_DATE = 'entry_date';
@@ -226,7 +225,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 /* ========= 状态 & DOM ========= */
 let session=null, rows=[], syncing=0;
-/* 草稿 & 脏数据保护 */
+/* 草稿 & 脏数据保护 + 客户端行ID */
 let dirty=false;
 const $=id=>document.getElementById(id);
 const els={
@@ -256,6 +255,11 @@ const dur=(s,e)=>{if(s==null||e==null)return 0;let d=e-s; if(d<0)d+=86400; retur
 // Safari 友好：把 'YYYY-MM-DD' 解析为当天 00:00:00
 function parseDay(yyyy_mm_dd){ return new Date(`${yyyy_mm_dd}T00:00:00`); }
 function toDayString(d){ return d.toISOString().slice(0,10); }
+
+/* ========= 稳定的客户端行ID（用于去重合并） ========= */
+function genCid(){ try{ return (self.crypto && self.crypto.randomUUID) ? self.crypto.randomUUID() : 'cid-'+Date.now()+'-'+Math.random().toString(36).slice(2); }catch{ return 'cid-'+Date.now()+'-'+Math.random().toString(36).slice(2); } }
+function ensureCid(it){ if(!it.cid){ it.cid = it.id ? ('id:'+it.id) : genCid(); } return it; }
+function isSameUnsaved(a,b){ return !a.id && !b.id && (a.start||'')===(b.start||'') && (a.end||'')===(b.end||'') && (a.content||'')===(b.content||'') && (a.note||'')===(b.note||''); }
 
 /* ========= 模态（登录 / 注册 / 账户） ========= */
 let lastFocus=null;
@@ -329,7 +333,7 @@ function hasDraft(){
 }
 function saveDraft(){
   try{
-    const drafts = rows.filter(r => !r.id || r._dirty);
+    const drafts = rows.filter(r => !r.id || r._dirty).map(r => ensureCid({...r}));
     if (drafts.length) localStorage.setItem(draftKey(), JSON.stringify(drafts));
   }catch{}
 }
@@ -339,18 +343,28 @@ function restoreDraft(){
     if(!txt) return false;
     const list = JSON.parse(txt)||[];
     if(list.length){
-      // 合并（不覆盖已有已保存 id 的行）
-      rows.push(...list.map(it=>({...it, _dirty:true})));
+      let merged=0;
+      for(const d of list){
+        ensureCid(d);
+        const idx = rows.findIndex(r => r.cid===d.cid || isSameUnsaved(r,d));
+        if(idx>=0){
+          rows[idx] = {...rows[idx], ...d, _dirty:true};
+        }else{
+          rows.push({...d, _dirty:true});
+        }
+        merged++;
+      }
       renderBody();
-      toast(`已恢复 ${list.length} 条未保存项`);
+      toast(`已恢复 ${merged} 条未保存项`);
       dirty = true;
     }
     localStorage.removeItem(draftKey());
-    return list.length>0;
+    return true;
   }catch{ return false; }
 }
 
 function rowDOM(item){
+  ensureCid(item);
   const tr=document.createElement('div');tr.className='trow';
   tr.innerHTML=`<div class="cell"><input type="text" value="${item.start||''}" placeholder="07:30"></div>
                 <div class="cell"><input type="text" value="${item.end||''}" placeholder="08:45"></div>
@@ -394,7 +408,7 @@ async function fetchRowsByDate(dateStr, tip=false){
       .eq(COL_DATE, dateStr)
       .order(COL_START,{ascending:true});
     if(error){ toast('拉取失败：' + error.message,'error'); return; }
-    rows=(data||[]).map(r=>({ id:r.id,start:r[COL_START],end:r[COL_END],content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',duration:r[COL_DUR]||0 }));
+    rows=(data||[]).map(r=>ensureCid({ id:r.id,start:r[COL_START],end:r[COL_END],content:r[COL_CONTENT]||'',note:r[COL_NOTE]||'',duration:r[COL_DUR]||0 }));
     renderBody(); if(tip) toast('已从云端同步');
   }catch(err){ toast('同步异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); }
@@ -414,7 +428,7 @@ async function saveRow(item, btn){
     }else{
       const { data, error } = await sb.from(TABLE).insert(payload).select('id').single();
       if(error) return toast('保存失败：' + error.message,'error');
-      item.id=data.id;
+      item.id=data.id; item.cid = 'id:'+data.id;
     }
     item._dirty=false;
     dirty = rows.some(r=>r._dirty);  // 重新计算整体脏状态
@@ -463,7 +477,7 @@ function parseCSV(text){
     const c=lines[i].split(',');
     const d=c[idx.date]||cur; if(d!==cur) continue;
     const s=c[idx.start]||'', e=c[idx.end]||'';
-    out.push({id:null,start:s,end:e,content:(c[idx.content]||'').replace(/，/g,','),note:(c[idx.note]||'').replace(/，/g,','),duration:dur(parseTime(s),parseTime(e))});
+    out.push(ensureCid({id:null,start:s,end:e,content:(c[idx.content]||'').replace(/，/g,','),note:(c[idx.note]||'').replace(/，/g,','),duration:dur(parseTime(s),parseTime(e))}));
   }
   return out;
 }
@@ -509,14 +523,14 @@ function applyCompactUI(on){
 }
 
 /* ========= 事件 ========= */
-$('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0,_dirty:true}); dirty=true; renderBody(); saveDraft();};
+$('addRow').onclick=()=>{rows.push(ensureCid({id:null,start:'',end:'',content:'',note:'',duration:0,_dirty:true})); dirty=true; renderBody(); saveDraft();};
 $('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
-$('importCsv').addEventListener('click', () => $('csvFile').click());
+$('importCsv').onclick = () => $('csvFile').click();
 $('csvFile').onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   const text=await f.text(); const list=parseCSV(text);
   if(list.length===0) return toast('CSV 没有可导入的当前日期数据','error');
-  rows.push(...list.map(it=>({...it,_dirty:true}))); renderBody(); saveDraft();
+  rows.push(...list.map(it=>({...ensureCid(it),_dirty:true}))); renderBody(); saveDraft();
   toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
 };
 $('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,true);
