@@ -1,414 +1,488 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>时间记录（Excel风格）</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>时间记录（Excel风格）</title>
 
-  <!-- Supabase JS（UMD，全局 supabase 变量） -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Papa Parse（CSV 导入/导出） -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<!-- Supabase v2 UMD -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <style>
-    :root {
-      --bg:#f7f9fc; --card:#ffffff; --muted:#6b7280; --text:#0b1220;
-      --accent:#2563eb; --danger:#dc2626; --line:#e5e7eb; --thead:#f3f4f6;
-      --ok:#16a34a;
+<style>
+  :root{
+    --bg:#f7f9fc; --card:#fff; --line:#e5e7eb; --text:#0b1220; --muted:#6b7280;
+    --accent:#2563eb; --accent-weak:#eef2ff; --danger:#dc2626;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
 
-      /* 桌面默认尺寸 */
-      --radius: 10px;
-      --gap: 10px;
-      --ctrl-py: 10px;
-      --ctrl-px: 12px;
-      --ctrl-font: 14px;
-      --thtd-py: 10px;
-      --time-w: 140px;
-      --note-min: 180px;
-      --content-min: 200px;
-      --table-min: 820px;
-    }
+  /* 顶部 */
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
+  .container{padding:12px 16px}
+  .nav{display:flex;align-items:center;gap:10px}
+  h1{margin:0;font-size:clamp(18px,4.5vw,22px)}
+  .account{margin-left:auto}
+  .account-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent-weak);color:#1e3a8a;
+               border:1px solid #c7d2fe;padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:var(--bg); color:var(--text);
-      font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
-    }
-    header{
-      padding:14px 16px; position:sticky; top:0; z-index:5; background:#fff;
-      border-bottom:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.04)
-    }
-    .nav{display:flex; align-items:center; gap:12px}
-    /* 标题使用流式字号：小屏自动变小 */
-    h1{margin:0; font-size:clamp(18px, 4.5vw, 22px); letter-spacing:.5px}
+  /* 主卡片 */
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06)}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 
-    /* ★ 全屏宽度 */
-    .container{width:100%; max-width:none; margin:14px 0; padding:0 16px}
+  input,button{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
+  input:focus,button:focus{border-color:var(--accent)}
+  .btn{background:var(--accent);color:#fff;border:none}
+  .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
+  .btn.ghost{background:transparent}
+  .btn.danger{background:var(--danger)}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .muted{color:var(--muted)}
+  .right{margin-left:auto}
 
-    .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 4px 24px rgba(0,0,0,.06)}
-    .row{display:flex; gap:var(--gap); flex-wrap:wrap; align-items:center}
-    .row > *{flex:none}
-    input,button,select,textarea{
-      background:#fff; color:var(--text); border:1px solid var(--line); border-radius:var(--radius);
-      padding:var(--ctrl-py) var(--ctrl-px); outline:none; font-size:var(--ctrl-font);
-    }
-    input::placeholder{color:#9aa4b2}
-    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-    input:invalid{border-color:var(--danger)}
-    button{cursor:pointer}
-    .btn{background:var(--accent); border:0; padding:var(--ctrl-py) var(--ctrl-px); border-radius:var(--radius); color:white; font-weight:600}
-    .btn.secondary{background:#eef2ff; color:#1e3a8a}
-    .btn.ghost{background:transparent; border:1px dashed var(--line); color:#334155}
-    .btn.danger{background:var(--danger)}
-    .btn:disabled{opacity:.6; cursor:not-allowed}
-    .muted{color:var(--muted)}
-    .right{margin-left:auto}
-    .grid{display:grid; gap:8px}
+  /* 顶部工具条 */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+  .toolbar .btn{height:38px}
 
-    /* 表格 */
-    .table-wrap{overflow:auto; border:1px solid var(--line); border-radius:12px}
-    table{border-collapse:separate; border-spacing:0; width:100%; min-width:var(--table-min)}
-    thead th{position:sticky; top:0; background:var(--thead); z-index:2}
-    th, td{border-bottom:1px solid var(--line); padding:var(--thtd-py)}
-    th{font-weight:700; color:#0f172a; text-align:left}
-    td input, td textarea{width:100%}
-    td .time{width:var(--time-w)}
-    td .note{min-width:var(--note-min)}
-    td .content{min-width:var(--content-min)}
-    .total{font-weight:700; color:#0f172a}
+  /* 表格（Excel风） */
+  .grid{margin-top:12px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .thead,.trow{display:grid;grid-template-columns:130px 130px 1fr 1fr 120px 180px;gap:0;border-bottom:1px solid var(--line)}
+  .cell{padding:10px 12px;display:flex;align-items:center}
+  .thead .cell{background:#f3f4f6;font-weight:600}
+  .trow input[type="text"]{width:100%;height:36px}
+  .trow .duration{font-variant-numeric:tabular-nums}
+  .trow .actions{display:flex;gap:8px;justify-content:flex-end}
+  .tfoot{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fafafa}
+  .tip{font-size:12px;color:var(--muted)}
 
-    /* 顶部账号菜单 */
-    .account{margin-left:auto; position:relative}
-    .account-btn{
-      display:inline-flex; align-items:center; gap:8px; background:#eef2ff; color:#1e3a8a;
-      border:1px solid #c7d2fe; padding:8px 12px; border-radius:999px; font-weight:600;
-      max-width:70vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .dropdown{
-      position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:90vw;
-      background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 24px rgba(0,0,0,.08);
-      padding:12px; display:none
-    }
-    .dropdown.open{display:block}
-    .dropdown .title{font-weight:700; margin-bottom:8px}
-    .field{display:flex; flex-direction:column; gap:6px; margin:8px 0}
-    .hint{font-size:12px; color:var(--muted)}
-    .sep{height:1px; background:var(--line); margin:10px 0}
+  /* 历史卡片 */
+  .history{margin-top:14px}
+  .history .row{justify-content:space-between}
 
-    /* Toast */
-    .toast-wrap{position:fixed; top:16px; left:0; right:0; display:flex; justify-content:center; z-index:50; pointer-events:none}
-    .toast{pointer-events:auto; background:#111827; color:#fff; border-radius:10px; padding:10px 14px; box-shadow:0 8px 28px rgba(0,0,0,.25); opacity:.98}
-    .toast.ok{background:#065f46}
-    .toast.err{background:#7f1d1d}
+  /* Toast */
+  .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:20000;pointer-events:none}
+  .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
+  .toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
 
-    /* ======= 手机端紧凑模式（≤640px） ======= */
-    @media (max-width: 640px){
-      :root{
-        --radius: 8px;
-        --gap: 8px;
-        --ctrl-py: 8px;
-        --ctrl-px: 10px;
-        --ctrl-font: 13px;
-        --thtd-py: 8px;
-        --time-w: 100px;         /* 时间列更窄 */
-        --note-min: 140px;       /* 备注/内容列更小 */
-        --content-min: 160px;
-        --table-min: 640px;      /* 表格最小宽度降低，横向滚动更短 */
-      }
-      .container{padding:0 10px}
-      .account-btn{padding:6px 10px; font-size:13px}
-    }
+  /* 同步提示 */
+  .sync{display:inline-flex;align-items:center;gap:8px}
+  .spinner{width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* 超小屏（≤400px）进一步压缩 */
-    @media (max-width: 400px){
-      :root{
-        --ctrl-font: 12.5px;
-        --time-w: 96px;
-        --note-min: 128px;
-        --content-min: 140px;
-        --table-min: 590px;
-      }
-      .container{padding:0 8px}
-    }
-  </style>
+  /* 模态（登录/注册/账户） */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10000}
+  .modal.show{display:flex}
+  .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.35);backdrop-filter: saturate(1.2) blur(1.5px)}
+  .dialog{position:relative;width:520px;max-width:92vw;background:#fff;border-radius:16px;border:1px solid var(--line);
+          box-shadow:0 20px 60px rgba(0,0,0,.25);padding:16px}
+  .dialog h3{margin:0 0 12px}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .hint{font-size:12px;color:var(--muted)}
+  .dialog .row{justify-content:flex-end}
+  .close-x{position:absolute;right:10px;top:8px;background:transparent;border:0;font-size:18px;cursor:pointer}
+
+  /* 手机端紧凑 + iOS 输入不放大（16px） */
+  @media (max-width: 900px){
+    .thead,.trow{grid-template-columns:110px 110px 1fr 1fr 110px 170px}
+  }
+  @media (max-width: 680px){
+    .thead,.trow{grid-template-columns:92px 92px 1fr 1fr 90px 160px}
+    .trow input[type="text"]{height:44px;font-size:16px}
+    .toolbar input[type="date"]{height:44px}
+    .toolbar .btn{height:44px}
+  }
+  @media (max-width: 420px){
+    .thead,.trow{grid-template-columns:86px 86px 1fr 1fr 84px 140px}
+  }
+</style>
 </head>
 <body>
-  <header>
-    <div class="nav container">
-      <h1>时间记录（Excel风格）</h1>
+<header>
+  <div class="container nav">
+    <h1>时间记录（Excel风格）</h1>
+    <div class="account"><button id="accountBtn" class="account-btn">登录 / 注册</button></div>
+  </div>
+</header>
 
-      <!-- 顶部右上角账号菜单 -->
-      <div class="account" id="account">
-        <button id="accountBtn" class="account-btn" aria-haspopup="true" aria-expanded="false">登录 / 注册</button>
-        <div class="dropdown" id="accountDropdown" role="menu" aria-label="账户"></div>
+<!-- Toast -->
+<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+<!-- 未登录提示（模态层 z-index 更高，不会遮盖登录框） -->
+<div class="container" id="guestCard">
+  <div class="card">
+    <div class="row"><strong>请先登录</strong><span class="muted">点击右上角「登录 / 注册」进入你的账户</span></div>
+  </div>
+</div>
+
+<!-- 主体 -->
+<main class="container" id="app" style="display:none">
+  <div class="card">
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div class="row" style="gap:8px">
+        <span class="muted">选择日期</span>
+        <input id="dateInput" type="date" />
       </div>
-    </div>
-  </header>
-
-  <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
-
-  <div class="container">
-    <!-- 主操作条 -->
-    <div class="card" id="appCard" style="margin-top:14px; display:none">
-      <div class="row">
-        <div class="btn secondary" style="cursor:default">📅 选择日期</div>
-        <input type="date" id="datePicker" />
-        <button class="btn" id="btnAddRow">+ 新增一行</button>
-        <button class="btn secondary" id="btnExport">导出 CSV</button>
-        <label class="btn ghost" for="csvImport">导入 CSV</label>
-        <input id="csvImport" type="file" accept=".csv" style="display:none" />
-        <button class="btn secondary" id="btnRefresh">刷新</button>
-        <div class="right muted" id="summary"></div>
-      </div>
-
-      <div class="table-wrap" style="margin-top:10px">
-        <table id="grid">
-          <thead>
-            <tr>
-              <th>开始时间</th>
-              <th>结束时间</th>
-              <th>内容</th>
-              <th>备注</th>
-              <th>时长</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" class="total">合计</td>
-              <td class="total" id="totalCell">00:00:00</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div style="margin-top:10px" class="muted">
-        提示：时间格式如 <code>17:18</code> 或 <code>17:18:17</code>；若跨午夜（结束 &lt; 开始）会自动 +24 小时。
+      <button id="addRow" class="btn">+ 新增一行</button>
+      <button id="exportCsv" class="btn secondary">导出 CSV</button>
+      <input id="csvFile" type="file" accept=".csv" style="display:none">
+      <button id="importCsv" class="btn secondary">导入 CSV</button>
+      <div class="right sync">
+        <div id="syncState" class="muted" style="display:none"><span class="spinner"></span> 正在同步…</div>
+        <button id="refreshBtn" class="btn secondary">刷新</button>
       </div>
     </div>
 
-    <!-- 历史卡片 -->
-    <div class="card" id="historyCard" style="margin-top:14px; display:none">
-      <div class="row">
-        <strong>最近 30 天历史</strong>
-        <div class="muted">按日期汇总</div>
+    <!-- 表格 -->
+    <div class="grid" id="grid">
+      <div class="thead">
+        <div class="cell">开始时间</div>
+        <div class="cell">结束时间</div>
+        <div class="cell">内容</div>
+        <div class="cell">备注</div>
+        <div class="cell">时长</div>
+        <div class="cell">操作</div>
       </div>
-      <div id="historyList" style="margin-top:10px"></div>
+      <div id="tbody"></div>
+      <div class="tfoot">
+        <div class="tip">提示：时间格式如 <b>17:18</b> 或 <b>17:18:17</b>；若跨午夜（结束 &lt; 开始）会自动 +24 小时。</div>
+        <div id="total" class="muted">合计：00:00:00</div>
+      </div>
     </div>
   </div>
 
+  <!-- 历史 -->
+  <div class="history card">
+    <div class="row">
+      <strong>最近 30 天历史</strong>
+      <button id="reloadHistory" class="btn secondary">刷新</button>
+    </div>
+    <div id="historyList" style="margin-top:8px" class="muted">—</div>
+  </div>
+</main>
+
+<!-- 统一模态（登录/注册/账户） -->
+<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
+  <div class="backdrop" id="modalBackdrop"></div>
+  <div class="dialog" role="document">
+    <button class="close-x" id="modalClose" aria-label="关闭">✕</button>
+    <h3 id="dialogTitle">登录 / 注册</h3>
+    <div id="dialogBody"></div>
+  </div>
+</div>
+
 <script>
-/* ------------------ Supabase 初始化 ------------------ */
+/* ===== Supabase 配置 ===== */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
+/* ✅ 如果你之前的表名不同（如 time_records），只改这里 */
+const TABLE_NAME = 'time_logs';
+
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ------------------ 状态 & 元素 ------------------ */
-let session = null;
-let currentDate = new Date();
-let rows = [];
-const tbody = document.getElementById('tbody');
-const datePicker = document.getElementById('datePicker');
-const totalCell = document.getElementById('totalCell');
-const summary = document.getElementById('summary');
-const accountBtn = document.getElementById('accountBtn');
-const accountDropdown = document.getElementById('accountDropdown');
-const toastWrap = document.getElementById('toastWrap');
+/* ===== 安全存储（localStorage 不可用时回退 Cookie） ===== */
+const cookieStorage = {
+  getItem: (k)=>{ const m = document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)')); return m?decodeURIComponent(m[1]):null; },
+  setItem: (k,v)=>{ const e=new Date(); e.setFullYear(e.getFullYear()+1);
+    document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`;
+  },
+  removeItem: (k)=>{ document.cookie=`${encodeURIComponent(k)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`; }
+};
+function makeSafeStorage(){
+  try{ const t='__sb_test__'+Math.random(); localStorage.setItem(t,'1'); localStorage.removeItem(t); return localStorage; }
+  catch{ return cookieStorage; }
+}
+const SAFE_STORAGE = makeSafeStorage();
 
-/* ------------------ 工具函数 ------------------ */
-const two = n => String(n).padStart(2,'0');
-function parseTimeToSec(t){ if(!t) return null; const p=t.split(':').map(x=>parseInt(x,10)); if(p.length<2) return null; const h=p[0]||0,m=p[1]||0,s=p[2]||0; if([h,m,s].some(Number.isNaN)) return null; return h*3600+m*60+s;}
-function secToHHMMSS(s){ if(s==null) return '00:00:00'; const sign=s<0?'-':''; s=Math.abs(s|0); const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60; return `${sign}${two(h)}:${two(m)}:${two(sec)}`;}
-function todayStr(d=new Date()){ const y=d.getFullYear(),m=two(d.getMonth()+1),da=two(d.getDate()); return `${y}-${m}-${da}`;}
-function computeDuration(start,end){ if(start==null||end==null) return 0; if(end<start) end+=24*3600; return end-start;}
-function isValidTimeStr(str){ return /^(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(str||''); }
-function show(el,v){ el.style.display=v?'':'none'; }
-function toast(msg,type='ok',ms=1800){ const t=document.createElement('div'); t.className=`toast ${type==='error'?'err':'ok'} toast-item`; t.textContent=msg; toastWrap.appendChild(t); setTimeout(()=>{ t.style.transition='opacity .35s'; t.style.opacity='0'; }, ms); setTimeout(()=>{ t.remove(); }, ms+400); }
-
-/* ------------------ 顶部账号菜单 ------------------ */
-function closeDropdown(){ accountDropdown.classList.remove('open'); accountBtn.setAttribute('aria-expanded','false'); }
-function toggleDropdown(){ const isOpen=accountDropdown.classList.toggle('open'); accountBtn.setAttribute('aria-expanded',isOpen?'true':'false'); }
-function renderAccountMenu(user){
-  if(user){
-    accountBtn.textContent=`已登录：${user.email||'用户'}`;
-    accountDropdown.innerHTML = `
-      <div class="title">账户</div>
-      <div class="field"><div class="muted">邮箱：${user.email||''}</div></div>
-      <div class="sep"></div>
-      <button class="btn" id="ddLogout">退出登录</button>
-    `;
-    document.getElementById('ddLogout').onclick = async ()=>{ await sb.auth.signOut(); closeDropdown(); toast('您已退出登录'); };
-  }else{
-    accountBtn.textContent='登录 / 注册';
-    accountDropdown.innerHTML = `
-      <div class="title">登录 / 注册</div>
-      <div class="field"><label class="hint">邮箱</label><input id="ddEmail" type="email" placeholder="you@example.com"></div>
-      <div class="field"><label class="hint">密码（≥6位）</label><input id="ddPassword" type="password" placeholder="******"></div>
-      <div class="row" style="gap:8px">
-        <button class="btn" id="ddLogin">登录</button>
-        <button class="btn secondary" id="ddSignup">注册</button>
-      </div>
-      <div class="hint" id="ddHint" style="margin-top:8px"></div>
-    `;
-    const hint=document.getElementById('ddHint');
-    document.getElementById('ddLogin').onclick = async ()=>{
-      const email=document.getElementById('ddEmail').value.trim();
-      const password=document.getElementById('ddPassword').value;
-      if(!email||!password) return hint.textContent='请输入邮箱和密码';
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(error){ hint.textContent='登录失败：'+error.message; } else { hint.textContent=''; closeDropdown(); toast('登录成功'); }
-    };
-    document.getElementById('ddSignup').onclick = async ()=>{
-      const email=document.getElementById('ddEmail').value.trim();
-      const password=document.getElementById('ddPassword').value;
-      if(!email||!password) return hint.textContent='请输入邮箱和密码';
-      const { error } = await sb.auth.signUp({ email, password });
-      if(error){ hint.textContent='注册失败：'+error.message; } else { hint.textContent='注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。'; }
-    };
+/* 创建客户端：显式开启会话持久化+自动刷新，并指定 storage/storageKey */
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth:{
+    persistSession:true, autoRefreshToken:true, detectSessionInUrl:false,
+    storage: SAFE_STORAGE, storageKey: 'sb-time-auth'
   }
-}
-document.addEventListener('click',(e)=>{ const wrap=document.getElementById('account'); if(!wrap.contains(e.target)) closeDropdown(); });
-accountBtn.addEventListener('click',(e)=>{ e.stopPropagation(); toggleDropdown(); });
-
-/* ------------------ 表格渲染 ------------------ */
-function render(){
-  tbody.innerHTML='';
-  let total=0;
-  rows.forEach((r, idx)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td><input class="time" type="text" placeholder="HH:mm 或 HH:mm:ss"
-            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" title="24小时制，示例：08:05 或 17:18:17" value="${r.start||''}" /></td>
-      <td><input class="time" type="text" placeholder="HH:mm 或 HH:mm:ss"
-            pattern="^(?:[01]?\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$" title="24小时制，示例：08:05 或 17:18:17" value="${r.end||''}" /></td>
-      <td><input class="content" type="text" value="${r.content||''}" placeholder="内容" /></td>
-      <td><input class="note" type="text" value="${r.note||''}" placeholder="备注" /></td>
-      <td class="muted">${secToHHMMSS(r.duration)}</td>
-      <td>
-        <button class="btn secondary" data-act="save">保存</button>
-        <button class="btn ghost" data-act="dup">复制</button>
-        <button class="btn danger" data-act="del">删除</button>
-      </td>`;
-    tbody.appendChild(tr);
-
-    const [startI, endI, contentI, noteI] = tr.querySelectorAll('input');
-    const update=()=>{
-      r.start=startI.value.trim(); r.end=endI.value.trim(); r.content=contentI.value; r.note=noteI.value;
-      const s=parseTimeToSec(r.start), e=parseTimeToSec(r.end);
-      r.duration=(isValidTimeStr(r.start)&&isValidTimeStr(r.end))?computeDuration(s,e):0;
-      tr.children[4].textContent=secToHHMMSS(r.duration); updateSummary();
-    };
-    startI.addEventListener('input',update);
-    endI.addEventListener('input',update);
-    contentI.addEventListener('input',()=>{ r.content=contentI.value; });
-    noteI.addEventListener('input',()=>{ r.note=noteI.value; });
-
-    tr.querySelector('[data-act="save"]').onclick=(e)=>saveRow(r,tr,e.currentTarget);
-    tr.querySelector('[data-act="dup"]').onclick=()=>{ const copy={...r,id:null}; rows.splice(idx+1,0,copy); render(); };
-    tr.querySelector('[data-act="del"]').onclick=()=>deleteRow(r,idx);
-    total += (r.duration||0);
-  });
-  totalCell.textContent=secToHHMMSS(total);
-}
-function updateSummary(){
-  const total=rows.reduce((a,b)=>a+(b.duration||0),0);
-  summary.textContent=`当前日期共 ${rows.length} 条，合计 ${secToHHMMSS(total)}`;
-  totalCell.textContent=secToHHMMSS(total);
-}
-
-/* ------------------ 与云端交互 ------------------ */
-async function loadRows(dateStr){
-  if(!session){ rows=[]; render(); return; }
-  const { data, error } = await sb.from('time_entries').select('*').eq('entry_date', dateStr).order('start_time', {ascending:true});
-  if(error){ console.error(error); alert('加载失败：'+error.message); return; }
-  rows=(data||[]).map(rec=>({ id:rec.id, start:rec.start_time, end:rec.end_time, content:rec.content, note:rec.note, duration:rec.duration_seconds }));
-  render();
-}
-async function saveRow(r,tr,btn){
-  if(!session){ toast('请先登录','error'); return; }
-  if(!isValidTimeStr(r.start)||!isValidTimeStr(r.end)){ toast('请按 24 小时制填写时间，如 08:05 或 17:18:17','error'); return; }
-  const s=parseTimeToSec(r.start), e=parseTimeToSec(r.end); const duration=computeDuration(s,e);
-  const payload={ id:r.id||undefined, user_id:session.user.id, entry_date:datePicker.value, start_time:r.start, end_time:r.end, duration_seconds:duration, content:r.content||null, note:r.note||null };
-
-  const old=btn.textContent; btn.textContent='保存中…'; btn.disabled=true;
-  const { data, error } = await sb.from('time_entries').upsert(payload).select().single();
-  btn.textContent=old; btn.disabled=false;
-
-  if(error){ console.error(error); toast('保存失败：'+error.message,'error'); return; }
-  r.id=data.id; r.duration=data.duration_seconds; tr.children[4].textContent=secToHHMMSS(r.duration); updateSummary(); toast('✅ 已保存','ok');
-}
-async function deleteRow(r,idx){
-  if(!r.id){ rows.splice(idx,1); render(); return; }
-  const ok=confirm('确定删除该行吗？'); if(!ok) return;
-  const { error } = await sb.from('time_entries').delete().eq('id', r.id);
-  if(error){ toast('删除失败：'+error.message,'error'); return; }
-  rows.splice(idx,1); render();
-}
-
-/* ------------------ CSV 导入/导出 ------------------ */
-function exportCSV(){
-  const data=rows.map(r=>({'开始时间':r.start||'','结束时间':r.end||'','内容':r.content||'','备注':r.note||'','时长':secToHHMMSS(r.duration||0)}));
-  const csv=Papa.unparse(data); const blob=new Blob(["\uFEFF"+csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=`时间记录_${datePicker.value}.csv`; document.body.appendChild(a); a.click(); a.remove();
-}
-function importCSV(file){
-  Papa.parse(file,{ header:true, skipEmptyLines:true, complete:async (res)=>{
-    const arr=res.data||[]; function pick(o,ks){ for(const k of ks){ if(o[k]!=null && o[k]!=='') return o[k]; } return ''; }
-    const toUpsert=[]; for(const row of arr){
-      const start=pick(row,['开始时间','start','Start']); const end=pick(row,['结束时间','end','End']); const content=pick(row,['内容','content','Content']); const note=pick(row,['备注','note','Note']);
-      if(!isValidTimeStr(start)||!isValidTimeStr(end)) continue; const s=parseTimeToSec(start), e=parseTimeToSec(end); const duration=computeDuration(s,e);
-      toUpsert.push({ user_id:session?.user?.id, entry_date:datePicker.value, start_time:start, end_time:end, duration_seconds:duration, content, note });
-    }
-    if(!session){ toast('导入需要先登录','error'); return; }
-    if(!toUpsert.length){ toast('没有可导入的数据','error'); return; }
-    const { error } = await sb.from('time_entries').upsert(toUpsert);
-    if(error){ toast('导入失败：'+error.message,'error'); return; }
-    await loadRows(datePicker.value); toast(`已导入 ${toUpsert.length} 条`);
-  }});
-}
-
-/* ------------------ 历史（最近 30 天汇总） ------------------ */
-async function loadHistory(){
-  if(!session){ document.getElementById('historyList').innerHTML='请先登录'; return; }
-  const end=new Date(); const start=new Date(); start.setDate(end.getDate()-29);
-  const { data, error } = await sb.from('time_entries').select('entry_date,duration_seconds').gte('entry_date', todayStr(start)).lte('entry_date', todayStr(end)).order('entry_date',{ascending:false});
-  if(error){ console.error(error); return; }
-  const map=new Map(); for(const r of data){ const d=r.entry_date; map.set(d,(map.get(d)||0)+(r.duration_seconds||0)); }
-  const list=[...map.entries()].sort((a,b)=>b[0].localeCompare(a[0])); const wrap=document.getElementById('historyList');
-  wrap.innerHTML = list.map(([d,sec])=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed var(--line)"><div><strong>${d}</strong></div><div class="muted">合计：${secToHHMMSS(sec)}</div></div>`).join('') || '<div class="muted">暂无数据</div>';
-}
-
-/* ------------------ 认证状态监听 ------------------ */
-sb.auth.onAuthStateChange((_event, sess)=>{
-  session=sess;
-  renderAccountMenu(sess?.user||null);
-  show(document.getElementById('appCard'), !!session);
-  show(document.getElementById('historyCard'), !!session);
-  if(session){ loadRows(datePicker.value); loadHistory(); } else { rows=[]; render(); document.getElementById('historyList').innerHTML=''; }
 });
 
-/* ------------------ 事件绑定 ------------------ */
-document.getElementById('btnAddRow').onclick=()=>{ rows.push({id:null,start:'',end:'',content:'',note:'',duration:0}); render(); };
-document.getElementById('btnExport').onclick=exportCSV;
-document.getElementById('csvImport').addEventListener('change',(e)=>{ if(e.target.files?.[0]) importCSV(e.target.files[0]); e.target.value=''; });
-document.getElementById('btnRefresh').onclick=async ()=>{ await loadRows(datePicker.value); await loadHistory(); toast('已从云端同步'); };
+/* ===== 全局状态 ===== */
+let session = null;        // 登录态
+let rows = [];             // 当前日期的行
+let syncing = 0;
 
-datePicker.value=todayStr(currentDate);
-datePicker.addEventListener('change',()=> loadRows(datePicker.value));
+/* ===== DOM ===== */
+const $ = (id)=>document.getElementById(id);
+const els = {
+  app:$('app'), guest:$('guestCard'), toast:$('toastWrap'),
+  accountBtn:$('accountBtn'), date:$('dateInput'), tbody:$('tbody'), total:$('total'),
+  addRow:$('addRow'), exportCsv:$('exportCsv'), importCsv:$('importCsv'), csvFile:$('csvFile'),
+  refresh:$('refreshBtn'), reloadHistory:$('reloadHistory'), history:$('historyList'),
+  syncState:$('syncState'),
+  modal:$('modal'), modalBackdrop:$('modalBackdrop'), modalClose:$('modalClose'),
+  dialogBody:$('dialogBody'), dialogTitle:$('dialogTitle')
+};
 
-/* 初始化 */
+/* ===== 小工具 ===== */
+const toast=(msg,type='ok',ms=1600)=>{const t=document.createElement('div');t.className='toast '+(type==='error'?'err':'ok');t.textContent=msg;els.toast.appendChild(t);setTimeout(()=>{t.style.transition='opacity .35s';t.style.opacity='0';},ms);setTimeout(()=>t.remove(),ms+400)};
+const setSync=(on)=>{syncing+=on?1:-1; if(syncing<0)syncing=0; els.syncState.style.display = syncing>0?'':'none'};
+
+/* 时间解析/格式化 */
+function parseTime(s){
+  s=(s||'').trim(); if(!s) return null;
+  const m=s.split(':').map(n=>n.trim());
+  if(m.length<2 || m.length>3) return null;
+  const h=+m[0], mi=+m[1], se=m[2]?+m[2]:0;
+  if([h,mi,se].some(x=>Number.isNaN(x))) return null;
+  if(h<0||h>47||mi<0||mi>59||se<0||se>59) return null;
+  return h*3600+mi*60+se;
+}
+function fmtSec(sec){ sec=Math.max(0, sec|0); const h=String(Math.floor(sec/3600)).padStart(2,'0'); const m=String(Math.floor(sec%3600/60)).padStart(2,'0'); const s=String(sec%60).padStart(2,'0'); return `${h}:${m}:${s}`; }
+function computeDuration(start,end){ if(start==null||end==null) return 0; let d=end-start; if(d<0) d+=24*3600; return d; }
+
+/* ===== 模态（登录/注册/账户） ===== */
+let lastFocus=null;
+function openModal(title, html){
+  els.dialogTitle.textContent=title||'对话框';
+  els.dialogBody.innerHTML=html||'';
+  lastFocus=document.activeElement;
+  els.modal.classList.add('show'); els.modal.removeAttribute('aria-hidden'); document.body.style.overflow='hidden';
+  const first=els.dialogBody.querySelector('input,button'); if(first) setTimeout(()=>first.focus(),0);
+}
+function closeModal(){
+  els.modal.classList.remove('show'); els.modal.setAttribute('aria-hidden','true'); document.body.style.overflow='';
+  if(lastFocus) lastFocus.focus();
+}
+els.modalBackdrop.onclick=closeModal; els.modalClose.onclick=closeModal;
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && els.modal.classList.contains('show')) closeModal(); });
+
+function showAuthModal(){
+  openModal('登录 / 注册', `
+    <div class="field">
+      <label class="hint">邮箱</label>
+      <input id="authEmail" type="email" placeholder="you@example.com" style="font-size:16px">
+    </div>
+    <div class="field">
+      <label class="hint">密码（≥6位）</label>
+      <input id="authPassword" type="password" placeholder="******" style="font-size:16px">
+    </div>
+    <div class="row" style="gap:8px;justify-content:flex-end">
+      <button id="btnLogin" class="btn">登录</button>
+      <button id="btnSignup" class="btn secondary">注册</button>
+    </div>
+    <div id="authHint" class="hint" style="margin-top:6px"></div>
+  `);
+  const hint=$('authHint');
+  $('btnLogin').onclick=async()=>{
+    const email=$('authEmail').value.trim(), password=$('authPassword').value;
+    if(!email||!password) return hint.textContent='请输入邮箱和密码';
+    const {error} = await sb.auth.signInWithPassword({email,password});
+    if(error) hint.textContent='登录失败：'+error.message; else { hint.textContent=''; toast('登录成功'); closeModal(); }
+  };
+  $('btnSignup').onclick=async()=>{
+    const email=$('authEmail').value.trim(), password=$('authPassword').value;
+    if(!email||!password) return hint.textContent='请输入邮箱和密码';
+    const {error} = await sb.auth.signUp({email,password});
+    hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱完成确认后再登录。';
+  };
+}
+function showAccountModal(user){
+  openModal('账户', `
+    <div class="field"><div class="hint">邮箱：${user.email||''}</div></div>
+    <div class="row" style="gap:8px;justify-content:flex-end">
+      <button id="btnLogout" class="btn">退出登录</button>
+    </div>
+  `);
+  $('btnLogout').onclick=async()=>{ await sb.auth.signOut(); toast('您已退出登录'); closeModal(); };
+}
+$('accountBtn').onclick=()=>{ session?.user ? showAccountModal(session.user) : showAuthModal(); };
+
+/* ===== UI 切换 ===== */
+function applySessionUI(){
+  $('accountBtn').textContent = session?.user ? `已登录：${session.user.email||'用户'}` : '登录 / 注册';
+  els.app.style.display = session ? '' : 'none';
+  els.guest.style.display = session ? 'none' : '';
+}
+
+/* ===== 渲染一行 ===== */
+function makeRowDOM(item){
+  const tr=document.createElement('div');
+  tr.className='trow';
+  tr.innerHTML=`
+    <div class="cell"><input type="text" value="${item.start||''}" placeholder="07:30"></div>
+    <div class="cell"><input type="text" value="${item.end||''}" placeholder="08:45"></div>
+    <div class="cell"><input type="text" value="${item.content||''}" placeholder=""></div>
+    <div class="cell"><input type="text" value="${item.note||''}" placeholder=""></div>
+    <div class="cell duration">${fmtSec(item.duration||0)}</div>
+    <div class="cell actions">
+      <button class="btn secondary save">保存</button>
+      <button class="btn ghost copy">复制</button>
+      <button class="btn danger del">删除</button>
+    </div>
+  `;
+  const [startEl,endEl,contentEl,noteEl] = tr.querySelectorAll('input');
+  const durEl = tr.querySelector('.duration');
+  function recalc(){
+    const s=parseTime(startEl.value), e=parseTime(endEl.value);
+    const d=computeDuration(s,e); item.duration=d; durEl.textContent=fmtSec(d);
+    item.start=startEl.value; item.end=endEl.value; item.content=contentEl.value; item.note=noteEl.value;
+    renderTotal();
+  }
+  startEl.oninput=endEl.oninput=recalc;
+  contentEl.oninput=noteEl.oninput=()=>{ item.content=contentEl.value; item.note=noteEl.value; };
+  tr.querySelector('.copy').onclick=()=>{ rows.splice(rows.indexOf(item)+1,0,{...item,id:null}); renderBody(); toast('已复制一行'); };
+  tr.querySelector('.del').onclick=()=>removeRow(item);
+  tr.querySelector('.save').onclick=()=>saveRow(item, tr.querySelector('.save'));
+  return tr;
+}
+
+/* 渲染主体与合计 */
+function renderBody(){
+  els.tbody.innerHTML='';
+  const frag=document.createDocumentFragment();
+  for(const it of rows){ frag.appendChild(makeRowDOM(it)); }
+  els.tbody.appendChild(frag);
+  renderTotal();
+}
+function renderTotal(){
+  const sum = rows.reduce((a,b)=>a+(b.duration||0),0);
+  els.total.textContent = '合计：' + fmtSec(sum);
+}
+
+/* ===== CRUD 到 Supabase ===== */
+async function fetchRowsByDate(dateStr, showToast=false){
+  if(!session){ rows=[]; renderBody(); return; }
+  setSync(true);
+  const { data, error } = await sb.from(TABLE_NAME)
+    .select('*')
+    .eq('user_id', session.user.id)
+    .eq('date', dateStr)
+    .order('start_time', { ascending: true });
+  setSync(false);
+  if(error){ toast('拉取失败：'+error.message,'error'); return; }
+  rows = (data||[]).map(r=>({
+    id:r.id,start:r.start_time,end:r.end_time,content:r.content||'',note:r.note||'',
+    duration: computeDuration(parseTime(r.start_time), parseTime(r.end_time))
+  }));
+  renderBody();
+  if(showToast) toast('已从云端同步');
+}
+async function saveRow(item, btn){
+  if(!session) return toast('请先登录','error');
+  const s=parseTime(item.start), e=parseTime(item.end);
+  if(s==null||e==null) return toast('时间格式应为 HH:MM 或 HH:MM:SS','error');
+  btn.disabled=true; setSync(true);
+  const payload={ user_id:session.user.id, date:els.date.value, start_time:item.start, end_time:item.end, content:item.content||'', note:item.note||'' };
+  let error;
+  if(item.id){
+    ({ error } = await sb.from(TABLE_NAME).update(payload).eq('id', item.id));
+  }else{
+    const res = await sb.from(TABLE_NAME).insert(payload).select('id').single();
+    error = res.error; if(!error) item.id = res.data.id;
+  }
+  setSync(false); btn.disabled=false;
+  if(error) return toast('保存失败：'+error.message,'error');
+  toast('✅ 已保存并同步到云端');
+}
+async function removeRow(item){
+  const i=rows.indexOf(item); if(i<0) return;
+  if(item.id){ setSync(true); const { error } = await sb.from(TABLE_NAME).delete().eq('id', item.id); setSync(false); if(error) return toast('删除失败：'+error.message,'error'); }
+  rows.splice(i,1); renderBody(); toast('🗑️ 已删除');
+}
+
+/* ===== CSV ===== */
+function toCSV(){
+  const header=['date','start_time','end_time','content','note'];
+  const lines=[header.join(',')];
+  for(const it of rows){
+    lines.push([els.date.value, it.start||'', it.end||'', (it.content||'').replace(/,/g,'，'), (it.note||'').replace(/,/g,'，')].join(','));
+  }
+  return lines.join('\n');
+}
+function download(filename, text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); URL.revokeObjectURL(url);
+}
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(Boolean);
+  if(lines.length===0) return [];
+  const head=lines[0].split(',');
+  const idx={
+    date: head.findIndex(h=>/date|日期/i.test(h)),
+    start: head.findIndex(h=>/start/i.test(h)||/开始/.test(h)),
+    end: head.findIndex(h=>/end/i.test(h)||/结束/.test(h)),
+    content: head.findIndex(h=>/content|内容/i.test(h)),
+    note: head.findIndex(h=>/note|备注/i.test(h)),
+  };
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=lines[i].split(',');
+    const d=cols[idx.date]||els.date.value;
+    if(d!==els.date.value) continue; // 只导入到当前选中日期
+    out.push({
+      id:null,
+      start:cols[idx.start]||'',
+      end:cols[idx.end]||'',
+      content:(cols[idx.content]||'').replace(/，/g,','),
+      note:(cols[idx.note]||'').replace(/，/g,','),
+      duration: computeDuration(parseTime(cols[idx.start]||''), parseTime(cols[idx.end]||''))
+    });
+  }
+  return out;
+}
+
+/* ===== 历史 ===== */
+async function loadHistory(){
+  if(!session){ $('historyList').textContent='—'; return; }
+  const from = new Date(els.date.value); from.setDate(from.getDate()-29);
+  setSync(true);
+  const { data, error } = await sb.from(TABLE_NAME)
+    .select('date,start_time,end_time')
+    .eq('user_id', session.user.id)
+    .gte('date', from.toISOString().slice(0,10))
+    .lte('date', els.date.value);
+  setSync(false);
+  if(error){ toast('历史拉取失败：'+error.message,'error'); return; }
+  const map=new Map();
+  for(const r of (data||[])){
+    const d=computeDuration(parseTime(r.start_time), parseTime(r.end_time));
+    map.set(r.date, (map.get(r.date)||0) + d);
+  }
+  const items=[...map.entries()].sort((a,b)=>a[0]<b[0]?1:-1);
+  els.history.innerHTML = items.length? items.map(([d,s])=>`<div class="row"><div>${d}</div><div class="muted">合计：${fmtSec(s)}</div></div>`).join('') : '—';
+}
+
+/* ===== 事件绑定 ===== */
+els.addRow.onclick=()=>{ rows.push({id:null,start:'',end:'',content:'',note:'',duration:0}); renderBody(); };
+els.exportCsv.onclick=()=>download(`timelog_${els.date.value}.csv`, toCSV());
+els.importCsv.onclick=()=>els.csvFile.click();
+els.csvFile.onchange=async(e)=>{
+  const file=e.target.files[0]; if(!file) return;
+  const text=await file.text(); const items=parseCSV(text);
+  if(items.length===0) return toast('CSV 没有可导入的当前日期数据','error');
+  rows.push(...items); renderBody(); toast(`已加入 ${items.length} 行，记得点“保存”写入云端`);
+};
+els.refresh.onclick=()=>fetchRowsByDate(els.date.value,true);
+els.reloadHistory.onclick=loadHistory;
+
+/* ===== 认证监听 & 初始化 ===== */
+sb.auth.onAuthStateChange((_evt, sess)=>{
+  session = sess;
+  applySessionUI();                 // 立刻切换 UI
+  if(session){ fetchRowsByDate(els.date.value); loadHistory(); }
+}); // 官方建议回调保持精简，避免在回调里 await 过多操作。参见文档。:contentReference[oaicite:0]{index=0}
+
 (async function init(){
+  // 默认选择今天
+  const today=new Date(); els.date.value = today.toISOString().slice(0,10);
+
+  // 首屏会话
   const { data } = await sb.auth.getSession();
-  session=data.session||null;
-  renderAccountMenu(session?.user||null);
-  show(document.getElementById('appCard'), !!session);
-  show(document.getElementById('historyCard'), !!session);
-  if(session){ await loadRows(datePicker.value); await loadHistory(); }
+  session = data.session || null;
+  applySessionUI();
+
+  if(session){ fetchRowsByDate(els.date.value); loadHistory(); }
+
+  // 改日期时切换数据
+  els.date.onchange=()=>{ if(session){ fetchRowsByDate(els.date.value); } renderBody(); loadHistory(); };
 })();
 </script>
 </body>
