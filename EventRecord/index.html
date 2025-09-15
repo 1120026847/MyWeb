@@ -200,8 +200,8 @@
 
 <script>
 /* ========= Supabase ========= */
-const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';   // ← 替换为你的
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY'; // ← 替换为你的
 
 const TABLE = 'time_entries';
 const COL_DATE = 'entry_date';
@@ -226,60 +226,19 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 /* ========= 状态 & DOM ========= */
 let session=null, rows=[], syncing=0;
+/* 草稿 & 脏数据保护 */
+let dirty=false;
 const $=id=>document.getElementById(id);
 const els={
   app:$('app'),guest:$('guestCard'),date:$('dateInput'),tbody:$('tbody'),total:$('total'),
   add:$('addRow'),exp:$('exportCsv'),imp:$('importCsv'),file:$('csvFile'),refresh:$('refreshBtn'),
-  hist:$('historyList'), rehist:$('reloadHistory'),  /* <- 统一用 hist */
+  hist:$('historyList'), rehist:$('reloadHistory'),
   sync:$('syncState'),account:$('accountBtn'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),
   title:$('dialogTitle'),body:$('dialogBody'),
   toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols')
 };
 
-
-/* ========= 本地草稿（防丢失） ========= */
-// 说明：在编辑（开始/结束/内容/备注）时，将当前日期的未保存行和本地修改标记为 _dirty 并存入 localStorage。
-// 在页面恢复/重新加载/切换回来时，会自动把草稿与云端数据合并，确保未保存内容不会“消失”。
-const debounce = (fn, wait = 300) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; };
-const draftKey = () => (session ? `time-draft:${session.user.id}:${els.date.value}` : null);
-
-function saveDraft(force=false){
-  try{
-    const key = draftKey(); if(!key) return;
-    // 仅保存未保存的新行或被修改过的行，减小体积并避免覆盖纯云端数据
-    const draftRows = rows.filter(r => !r.id || r._dirty);
-    localStorage.setItem(key, JSON.stringify(draftRows));
-  }catch(e){ /* 忽略本地存储异常 */ }
-}
-const saveDraftDebounced = debounce(() => saveDraft(false), 400);
-
-function loadDraft(){
-  try{
-    const key = draftKey(); if(!key) return [];
-    const t = localStorage.getItem(key); return t ? JSON.parse(t) : [];
-  }catch(e){ return []; }
-}
-
-function mergeDraft(){
-  const draft = loadDraft(); if(!draft || !draft.length) return;
-  const byId = new Map(rows.filter(r => r.id).map(r => [r.id, r]));
-  for(const d of draft){
-    if(d.id && byId.has(d.id)){
-      // 有 id：用草稿覆盖云端同 id 记录（以用户本地编辑为准）
-      Object.assign(byId.get(d.id), d);
-      byId.get(d.id)._dirty = true;
-    }else{
-      // 无 id：这是一条本地新建但尚未保存到云端的记录
-      rows.push(d);
-    }
-  }
-}
-
-// 失焦/最小化/系统回收时尝试落盘；返回时不强制刷新，避免把草稿覆盖
-document.addEventListener('visibilitychange', () => { if (document.hidden) saveDraft(true); });
-window.addEventListener('pagehide', () => saveDraft(true));   // iOS/Safari 更可靠
-window.addEventListener('beforeunload', () => saveDraft(true));
 const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
 function setSync(v){
   syncing += v ? 1 : -1;
@@ -294,7 +253,7 @@ const parseTime=s=>{s=(s||'').trim();if(!s)return null;const a=s.split(':');if(a
 const fmt=sec=>{sec=Math.max(0,sec|0);const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`};
 const dur=(s,e)=>{if(s==null||e==null)return 0;let d=e-s; if(d<0)d+=86400; return d};
 
-// Safari 友好：把 'YYYY-MM-DD' 解析为当天 00:00:00 的 ISO 形式
+// Safari 友好：把 'YYYY-MM-DD' 解析为当天 00:00:00
 function parseDay(yyyy_mm_dd){ return new Date(`${yyyy_mm_dd}T00:00:00`); }
 function toDayString(d){ return d.toISOString().slice(0,10); }
 
@@ -360,6 +319,37 @@ function applySessionUI(){
 }
 function renderTotal(){const sum=rows.reduce((a,b)=>a+(b.duration||0),0);$('total').textContent='合计：'+fmt(sum)}
 
+function markDirty(item){ item._dirty = true; dirty = true; }
+function draftKey(){
+  const uid = session?.user?.id || 'guest';
+  return `timelog-draft:${uid}:${$('dateInput').value}`;
+}
+function hasDraft(){
+  try{ return !!localStorage.getItem(draftKey()); }catch{ return false; }
+}
+function saveDraft(){
+  try{
+    const drafts = rows.filter(r => !r.id || r._dirty);
+    if (drafts.length) localStorage.setItem(draftKey(), JSON.stringify(drafts));
+  }catch{}
+}
+function restoreDraft(){
+  try{
+    const txt = localStorage.getItem(draftKey());
+    if(!txt) return false;
+    const list = JSON.parse(txt)||[];
+    if(list.length){
+      // 合并（不覆盖已有已保存 id 的行）
+      rows.push(...list.map(it=>({...it, _dirty:true})));
+      renderBody();
+      toast(`已恢复 ${list.length} 条未保存项`);
+      dirty = true;
+    }
+    localStorage.removeItem(draftKey());
+    return list.length>0;
+  }catch{ return false; }
+}
+
 function rowDOM(item){
   const tr=document.createElement('div');tr.className='trow';
   tr.innerHTML=`<div class="cell"><input type="text" value="${item.start||''}" placeholder="07:30"></div>
@@ -369,13 +359,12 @@ function rowDOM(item){
                 <div class="cell duration">${fmt(item.duration||0)}</div>
                 <div class="cell actions"><button class="btn secondary save">保存</button><button class="btn danger del">删除</button></div>`;
   const [sEl,eEl,cEl,nEl]=tr.querySelectorAll('input');const dEl=tr.querySelector('.duration');
-  const recalc=()=>{const s=parseTime(sEl.value),e=parseTime(eEl.value);const d=dur(s,e);item.duration=d;item.start=sEl.value;item.end=eEl.value;dEl.textContent=fmt(d);renderTotal()};
-    const markDirty=()=>{ item._dirty = true; saveDraftDebounced(); };
-  sEl.oninput = eEl.oninput = () => { recalc(); markDirty(); };
-  cEl.oninput = () => { item.content = cEl.value; markDirty(); };
-  nEl.oninput = () => { item.note = nEl.value; markDirty(); };
-
-  tr.querySelector('.del').onclick=()=>removeRow(item);
+  const recalc=()=>{const s=parseTime(sEl.value),e=parseTime(eEl.value);const d=dur(s,e);
+    item.duration=d;item.start=sEl.value;item.end=eEl.value;dEl.textContent=fmt(d);renderTotal();markDirty(item);saveDraft();};
+  sEl.oninput=eEl.oninput=recalc;
+  cEl.oninput=()=>{ item.content=cEl.value; markDirty(item); saveDraft(); };
+  nEl.oninput=()=>{ item.note=nEl.value;    markDirty(item); saveDraft(); };
+  tr.querySelector('.del').onclick=()=>{ removeRow(item); saveDraft(); };
   tr.querySelector('.save').onclick=()=>saveRow(item,tr.querySelector('.save'));
   return tr;
 }
@@ -389,7 +378,14 @@ function renderBody(){
 
 /* ========= CRUD ========= */
 async function fetchRowsByDate(dateStr, tip=false){
-  if(!session){ rows=[]; mergeDraft(); renderBody(); return; }
+  if(!session){ rows=[]; renderBody(); return; }
+
+  // A. 有脏数据或本地草稿：跳过自动刷新，避免覆盖
+  if (dirty || hasDraft()) {
+    if (tip) toast('有未保存内容，已跳过自动刷新');
+    return;
+  }
+
   setSync(true);
   try{
     const { data, error } = await sb.from(TABLE)
@@ -420,7 +416,11 @@ async function saveRow(item, btn){
       if(error) return toast('保存失败：' + error.message,'error');
       item.id=data.id;
     }
-    item._dirty=false; saveDraft(true); toast('✅ 已保存并同步到云端');
+    item._dirty=false;
+    dirty = rows.some(r=>r._dirty);  // 重新计算整体脏状态
+    // 保存成功就清空草稿（当前日期）
+    try{ localStorage.removeItem(draftKey()); }catch{}
+    toast('✅ 已保存并同步到云端');
   }catch(err){ toast('保存异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); btn.disabled=false; }
 }
@@ -432,7 +432,7 @@ async function removeRow(item){
   try{
     const { error } = await sb.from(TABLE).delete().eq('id',item.id);
     if(error) return toast('删除失败：' + error.message,'error');
-    rows.splice(idx,1); renderBody(); saveDraft(true); toast('🗑️ 已删除');
+    rows.splice(idx,1); renderBody(); toast('🗑️ 已删除');
   }catch(err){ toast('删除异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); }
 }
@@ -470,9 +470,7 @@ function parseCSV(text){
 
 /* ========= 历史 ========= */
 async function loadHistory(){
-  // 兜底：元素缺失直接退出，避免 innerHTML 抛错
   if(!els.hist){ console.warn('historyList element missing'); return; }
-
   if(!session){ els.hist.textContent='—'; return; }
 
   const curStr=$('dateInput').value;
@@ -496,7 +494,6 @@ async function loadHistory(){
       ? items.map(([d,s])=>`<div class="row"><div>${d}</div><div class="muted">合计：${fmt(s)}</div></div>`).join('')
       : '—';
   }catch(err){
-    // 这里曾因 els.historyList 未定义而抛错；改为 els.hist 并加兜底
     toast('历史同步异常：' + (err?.message||err),'error');
   }finally{
     setSync(false);
@@ -508,34 +505,65 @@ function applyCompactUI(on){
   if(on){ $('grid').classList.add('compact'); $('toggleCols').textContent='显示备注与时长'; }
   else { $('grid').classList.remove('compact'); $('toggleCols').textContent='隐藏备注与时长'; }
   $('grid').scrollLeft = 0;
-  localStorage.setItem('hideNoteDur', on ? '1' : '0');
+  try{ localStorage.setItem('hideNoteDur', on ? '1' : '0'); }catch{}
 }
 
 /* ========= 事件 ========= */
-$('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0});renderBody()};
+$('addRow').onclick=()=>{rows.push({id:null,start:'',end:'',content:'',note:'',duration:0,_dirty:true}); dirty=true; renderBody(); saveDraft();};
 $('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
-$('importCsv').onclick=()=>$('csvFile').click();
+$('importCsv').onclick()=>$('csvFile').click();
 $('csvFile').onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   const text=await f.text(); const list=parseCSV(text);
   if(list.length===0) return toast('CSV 没有可导入的当前日期数据','error');
-  rows.push(...list); renderBody(); toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
+  rows.push(...list.map(it=>({...it,_dirty:true}))); renderBody(); saveDraft();
+  toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
 };
 $('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,true);
 els.rehist.onclick=loadHistory;
 $('toggleCols').onclick=()=>applyCompactUI(!$('grid').classList.contains('compact'));
 
 /* ========= 认证监听 & 初始化 ========= */
-sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchRowsByDate($('dateInput').value);loadHistory()}});
+// 仅在“无未保存内容”时才自动同步，避免覆盖
+sb.auth.onAuthStateChange((event,sess)=>{
+  session=sess;applySessionUI();
+  if(!session){ rows=[]; renderBody(); return; }
+  if(dirty || hasDraft()){ /* 跳过自动刷新，等用户手动保存/刷新 */ return; }
+  fetchRowsByDate($('dateInput').value, true);
+});
 
-(function init(){
+(async function init(){
   const today=new Date(); $('dateInput').value=today.toISOString().slice(0,10);
-  sb.auth.getSession().then(({data})=>{session=data.session||null; applySessionUI(); if(session){fetchRowsByDate($('dateInput').value);loadHistory()}});
+  const { data } = await sb.auth.getSession();
+  session=data.session||null; applySessionUI();
+
   // 手机默认紧凑；桌面记忆上次
-  const remembered = localStorage.getItem('hideNoteDur');
+  const remembered = (()=>{
+    try{ return localStorage.getItem('hideNoteDur'); }catch{ return null; }
+  })();
   const isSmall = window.matchMedia('(max-width: 480px)').matches;
   applyCompactUI(remembered ? remembered==='1' : isSmall);
-  $('dateInput').onchange=()=>{ saveDraft(true); if(session){ fetchRowsByDate($('dateInput').value) } renderBody(); loadHistory(); };
+
+  $('dateInput').onchange=()=>{
+    // 切日期前，先把当前草稿存起来
+    saveDraft();
+    if(session){ fetchRowsByDate($('dateInput').value); }
+    rows = []; dirty=false; // 新日期先清空，随后可能恢复草稿
+    renderBody(); loadHistory(); restoreDraft();
+  };
+
+  if(session){ await fetchRowsByDate($('dateInput').value); loadHistory(); }
+
+  // 可见性与页面生命周期：隐藏时立即写草稿；显示时尝试恢复
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) saveDraft();
+    else restoreDraft();
+  });
+  window.addEventListener('pagehide', saveDraft);   // iOS/Safari 更可靠
+  window.addEventListener('pageshow', ()=>{ restoreDraft(); });
+
+  // 首次进入也尝试恢复草稿
+  restoreDraft();
 })();
 </script>
 </body>
