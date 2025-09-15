@@ -14,6 +14,7 @@
     :root {
       --bg:#f7f9fc; --card:#ffffff; --muted:#6b7280; --text:#0b1220;
       --accent:#2563eb; --danger:#dc2626; --line:#e5e7eb; --thead:#f3f4f6;
+      --ok:#16a34a;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -25,6 +26,7 @@
       padding:14px 16px; position:sticky; top:0; z-index:5; background:#fff;
       border-bottom:1px solid var(--line); box-shadow:0 2px 10px rgba(0,0,0,.04)
     }
+    .nav{display:flex; align-items:center; gap:12px}
     h1{margin:0; font-size:18px; letter-spacing:.5px}
     .container{max-width:1100px; margin:14px auto; padding:0 12px}
     .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 4px 24px rgba(0,0,0,.06)}
@@ -41,6 +43,7 @@
     .btn.secondary{background:#eef2ff; color:#1e3a8a}
     .btn.ghost{background:transparent; border:1px dashed var(--line); color:#334155}
     .btn.danger{background:var(--danger)}
+    .btn:disabled{opacity:.6; cursor:not-allowed}
     .muted{color:var(--muted)}
     .right{margin-left:auto}
     .grid{display:grid; gap:8px}
@@ -54,7 +57,6 @@
     td input, td textarea{width:100%}
     td .time{width:140px}
     td .note{min-width:180px}
-    td .narrow{width:90px; text-align:center}
     td .content{min-width:200px}
     .total{font-weight:700; color:#0f172a}
 
@@ -65,41 +67,52 @@
       table{min-width:700px}
     }
 
-    .badge{display:inline-flex;align-items:center;gap:6px;background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;
-      padding:6px 10px;border-radius:999px}
+    /* 顶部账号菜单 */
+    .account{margin-left:auto; position:relative}
+    .account-btn{
+      display:inline-flex; align-items:center; gap:8px; background:#eef2ff; color:#1e3a8a;
+      border:1px solid #c7d2fe; padding:8px 12px; border-radius:999px; font-weight:600
+    }
+    .dropdown{
+      position:absolute; right:0; top:calc(100% + 8px); width:320px; max-width:90vw;
+      background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 24px rgba(0,0,0,.08);
+      padding:12px; display:none
+    }
+    .dropdown.open{display:block}
+    .dropdown .title{font-weight:700; margin-bottom:8px}
+    .field{display:flex; flex-direction:column; gap:6px; margin:8px 0}
+    .hint{font-size:12px; color:var(--muted)}
+    .sep{height:1px; background:var(--line); margin:10px 0}
+
+    /* Toast */
+    .toast-wrap{position:fixed; top:16px; left:0; right:0; display:flex; justify-content:center; z-index:50; pointer-events:none}
+    .toast{pointer-events:auto; background:#111827; color:#fff; border-radius:10px; padding:10px 14px; box-shadow:0 8px 28px rgba(0,0,0,.25); opacity:.98}
+    .toast.ok{background:#065f46}
+    .toast.err{background:#7f1d1d}
   </style>
 </head>
 <body>
   <header>
-    <div class="row">
+    <div class="nav container">
       <h1>时间记录（Excel风格）</h1>
-      <div class="right" id="authArea">
-        <!-- 登录状态/操作放这里 -->
+
+      <!-- 顶部右上角账号菜单 -->
+      <div class="account" id="account">
+        <button id="accountBtn" class="account-btn" aria-haspopup="true" aria-expanded="false">登录 / 注册</button>
+        <div class="dropdown" id="accountDropdown" role="menu" aria-label="账户">
+          <!-- 未登录/已登录的内容由 JS 动态填充 -->
+        </div>
       </div>
     </div>
   </header>
 
-  <div class="container">
-    <!-- 认证卡片 -->
-    <div class="card" id="authCard">
-      <div class="row">
-        <strong>登录 / 注册</strong>
-        <span class="muted">登录后数据会自动与云端同步</span>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <input id="email" type="email" placeholder="邮箱" />
-        <input id="password" type="password" placeholder="密码（≥6位）" />
-        <button class="btn" id="btnLogin">登录</button>
-        <button class="btn secondary" id="btnSignup">注册</button>
-        <button class="btn ghost" id="btnLogout" style="display:none">退出</button>
-      </div>
-      <div class="muted" id="authHint" style="margin-top:8px"></div>
-    </div>
+  <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 
+  <div class="container">
     <!-- 应用卡片 -->
     <div class="card" id="appCard" style="margin-top:14px; display:none">
       <div class="row">
-        <div class="badge"><span>📅</span>选择日期</div>
+        <div class="btn secondary" style="cursor:default">📅 选择日期</div>
         <input type="date" id="datePicker" />
         <button class="btn" id="btnAddRow">+ 新增一行</button>
         <button class="btn secondary" id="btnExport">导出 CSV</button>
@@ -153,10 +166,9 @@ const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
 const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 浏览器端 createClient（会默认持久化会话）
-// 参考：初始化与 Auth 概览（persistSession 默认开启）。 
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY); // 浏览器端 createClient（默认持久化会话）
 
-/* ------------------ 简单状态 ------------------ */
+/* ------------------ 简单状态与元素 ------------------ */
 let session = null;
 let currentDate = new Date();
 let rows = []; // 当前日期的行数据
@@ -164,6 +176,9 @@ const tbody = document.getElementById('tbody');
 const datePicker = document.getElementById('datePicker');
 const totalCell = document.getElementById('totalCell');
 const summary = document.getElementById('summary');
+const accountBtn = document.getElementById('accountBtn');
+const accountDropdown = document.getElementById('accountDropdown');
+const toastWrap = document.getElementById('toastWrap');
 
 /* ------------------ 工具函数 ------------------ */
 const two = n => String(n).padStart(2,'0');
@@ -199,21 +214,93 @@ function isValidTimeStr(str){
   if (!str) return false;
   return /^(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(str);
 }
-function setAuthUI(user){
-  const authArea = document.getElementById('authArea');
-  const btnLogout = document.getElementById('btnLogout');
+function show(el, v){ el.style.display = v ? '' : 'none'; }
+function toast(msg, type='ok', ms=1800){
+  const t = document.createElement('div');
+  t.className = `toast ${type==='error'?'err':'ok'} toast-item`;
+  t.textContent = msg;
+  toastWrap.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .35s'; t.style.opacity='0'; }, ms);
+  setTimeout(()=>{ t.remove(); }, ms+400);
+}
+
+/* ------------------ 顶部账号菜单渲染 ------------------ */
+function closeDropdown(){ accountDropdown.classList.remove('open'); accountBtn.setAttribute('aria-expanded','false'); }
+function toggleDropdown(){
+  const isOpen = accountDropdown.classList.toggle('open');
+  accountBtn.setAttribute('aria-expanded', isOpen ? 'true':'false');
+}
+
+function renderAccountMenu(user){
   if (user){
-    authArea.innerHTML = `<span class="badge">已登录：${user.email||'用户'}</span>`;
-    btnLogout.style.display='inline-block';
-    document.getElementById('authCard').querySelector('#authHint').textContent = '登录成功，数据已与云端同步';
+    // 顶部按钮文案
+    accountBtn.textContent = `已登录：${user.email||'用户'}`;
+
+    // 下拉内容（退出）
+    accountDropdown.innerHTML = `
+      <div class="title">账户</div>
+      <div class="field"><div class="muted">邮箱：${user.email||''}</div></div>
+      <div class="sep"></div>
+      <button class="btn" id="ddLogout">退出登录</button>
+    `;
+    document.getElementById('ddLogout').onclick = async ()=>{
+      await sb.auth.signOut();
+      closeDropdown();
+      toast('您已退出登录');
+    };
   }else{
-    authArea.innerHTML = `<span class="muted">未登录</span>`;
-    btnLogout.style.display='none';
+    // 顶部按钮文案
+    accountBtn.textContent = '登录 / 注册';
+
+    // 下拉内容（登录 / 注册）
+    accountDropdown.innerHTML = `
+      <div class="title">登录 / 注册</div>
+      <div class="field">
+        <label class="hint">邮箱</label>
+        <input id="ddEmail" type="email" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label class="hint">密码（≥6位）</label>
+        <input id="ddPassword" type="password" placeholder="******">
+      </div>
+      <div class="row" style="gap:8px">
+        <button class="btn" id="ddLogin">登录</button>
+        <button class="btn secondary" id="ddSignup">注册</button>
+      </div>
+      <div class="hint" id="ddHint" style="margin-top:8px"></div>
+    `;
+
+    const hint = document.getElementById('ddHint');
+    document.getElementById('ddLogin').onclick = async ()=>{
+      const email = document.getElementById('ddEmail').value.trim();
+      const password = document.getElementById('ddPassword').value;
+      if (!email || !password) return hint.textContent = '请输入邮箱和密码';
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error){ hint.textContent = '登录失败：' + error.message; }
+      else { hint.textContent = ''; closeDropdown(); toast('登录成功'); }
+    };
+    document.getElementById('ddSignup').onclick = async ()=>{
+      const email = document.getElementById('ddEmail').value.trim();
+      const password = document.getElementById('ddPassword').value;
+      if (!email || !password) return hint.textContent = '请输入邮箱和密码';
+      const { error } = await sb.auth.signUp({ email, password });
+      if (error){ hint.textContent = '注册失败：' + error.message; }
+      else { hint.textContent = '注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。'; }
+    };
   }
 }
-function show(el, v){ el.style.display = v ? '' : 'none'; }
 
-/* ------------------ 渲染表格（手动文本输入） ------------------ */
+/* 点击外部收起下拉 */
+document.addEventListener('click', (e)=>{
+  const wrap = document.getElementById('account');
+  if (!wrap.contains(e.target)) closeDropdown();
+});
+accountBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  toggleDropdown();
+});
+
+/* ------------------ 主表格渲染（手动文本输入） ------------------ */
 function render(){
   tbody.innerHTML = '';
   let total = 0;
@@ -263,7 +350,7 @@ function render(){
     contentI.addEventListener('input', ()=>{ r.content = contentI.value; });
     noteI.addEventListener('input', ()=>{ r.note = noteI.value; });
 
-    tr.querySelector('[data-act="save"]').onclick = ()=> saveRow(r, tr);
+    tr.querySelector('[data-act="save"]').onclick = (e)=> saveRow(r, tr, e.currentTarget);
     tr.querySelector('[data-act="dup"]').onclick = ()=>{
       const copy = {...r, id:null};
       rows.splice(idx+1,0,copy);
@@ -300,10 +387,10 @@ async function loadRows(dateStr){
   render();
 }
 
-async function saveRow(r, tr){
-  if (!session){ alert('请先登录'); return; }
+async function saveRow(r, tr, btn){
+  if (!session){ toast('请先登录', 'error'); return; }
   if (!isValidTimeStr(r.start) || !isValidTimeStr(r.end)){
-    alert('请按 24 小时制填写时间，如 08:05 或 17:18:17'); return;
+    toast('请按 24 小时制填写时间，如 08:05 或 17:18:17', 'error'); return;
   }
   const s = parseTimeToSec(r.start);
   const e = parseTimeToSec(r.end);
@@ -318,12 +405,23 @@ async function saveRow(r, tr){
     content: r.content || null,
     note: r.note || null
   };
+
+  // 反馈：按钮 loading
+  const oldText = btn.textContent;
+  btn.textContent = '保存中…';
+  btn.disabled = true;
+
   const { data, error } = await sb.from('time_entries').upsert(payload).select().single();
-  if (error){ console.error(error); alert('保存失败：'+error.message); return; }
+
+  btn.textContent = oldText;
+  btn.disabled = false;
+
+  if (error){ console.error(error); toast('保存失败：'+error.message, 'error'); return; }
   r.id = data.id;
   r.duration = data.duration_seconds;
   tr.children[4].textContent = secToHHMMSS(r.duration);
   updateSummary();
+  toast('✅ 已保存', 'ok');
 }
 
 async function deleteRow(r, idx){
@@ -331,7 +429,7 @@ async function deleteRow(r, idx){
   const ok = confirm('确定删除该行吗？');
   if (!ok) return;
   const { error } = await sb.from('time_entries').delete().eq('id', r.id);
-  if (error){ alert('删除失败：'+error.message); return; }
+  if (error){ toast('删除失败：'+error.message, 'error'); return; }
   rows.splice(idx,1);
   render();
 }
@@ -376,12 +474,12 @@ function importCSV(file){
           content, note
         });
       }
-      if (!session){ alert('导入需要先登录'); return; }
-      if (!toUpsert.length){ alert('没有可导入的数据'); return; }
+      if (!session){ toast('导入需要先登录','error'); return; }
+      if (!toUpsert.length){ toast('没有可导入的数据','error'); return; }
       const { error } = await sb.from('time_entries').upsert(toUpsert);
-      if (error){ alert('导入失败：'+error.message); return; }
+      if (error){ toast('导入失败：'+error.message,'error'); return; }
       await loadRows(datePicker.value);
-      alert(`导入成功：${toUpsert.length} 条`);
+      toast(`已导入 ${toUpsert.length} 条`);
     }
   });
 }
@@ -408,30 +506,10 @@ async function loadHistory(){
     <div><strong>${d}</strong></div><div class="muted">合计：${secToHHMMSS(sec)}</div></div>`).join('') || '<div class="muted">暂无数据</div>';
 }
 
-/* ------------------ 认证（登录/注册/登出） ------------------ */
-async function login(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if (!email || !password) return alert('请输入邮箱和密码');
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) return alert('登录失败：'+error.message);
-}
-async function signup(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if (!email || !password) return alert('请输入邮箱和密码');
-  const { error } = await sb.auth.signUp({ email, password });
-  if (error) return alert('注册失败：'+error.message);
-  document.getElementById('authHint').textContent = '注册成功。如开启邮箱验证，请前往邮箱完成确认后再登录。';
-}
-async function logout(){
-  await sb.auth.signOut();
-}
-
-// 监听登录状态变化
+/* ------------------ 认证状态监听 ------------------ */
 sb.auth.onAuthStateChange((_event, sess)=>{
   session = sess;
-  setAuthUI(sess?.user || null);
+  renderAccountMenu(sess?.user || null);           // 刷新右上角菜单
   show(document.getElementById('appCard'), !!session);
   show(document.getElementById('historyCard'), !!session);
   if (session){
@@ -444,9 +522,6 @@ sb.auth.onAuthStateChange((_event, sess)=>{
 });
 
 /* ------------------ 事件绑定 ------------------ */
-document.getElementById('btnLogin').onclick = login;
-document.getElementById('btnSignup').onclick = signup;
-document.getElementById('btnLogout').onclick = logout;
 document.getElementById('btnAddRow').onclick = ()=>{
   rows.push({ id:null, start:'', end:'', content:'', note:'', duration:0 });
   render();
@@ -466,7 +541,7 @@ datePicker.addEventListener('change', ()=> loadRows(datePicker.value));
 (async function init(){
   const { data } = await sb.auth.getSession();
   session = data.session || null;
-  setAuthUI(session?.user || null);
+  renderAccountMenu(session?.user || null);
   show(document.getElementById('appCard'), !!session);
   show(document.getElementById('historyCard'), !!session);
   if (session){
