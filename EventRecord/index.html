@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>时间记录表 · Excel 风格 · Supabase 同步</title>
 
-<!-- 延迟加载 supabase-js；我们在 ensureClient()/initAuth 里再创建客户端 -->
+<!-- 延迟加载 supabase-js；在 ensureClient()/initAuth 里创建客户端 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 
 <style>
@@ -127,6 +127,23 @@ function ensureClient(){
   return null;
 }
 
+/** ========== 登录相关（带 UI 强刷补丁） ========== */
+/** 强制拉取会话并刷新 UI（用于登录/注册/退出后立刻生效） */
+async function forceRefreshAuthUI() {
+  const sb = ensureClient();
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    __user = session?.user || null;
+    if (!__user) {
+      const { data: ures } = await sb.auth.getUser();
+      __user = ures?.user || null;
+    }
+  } catch (_) {
+    __user = null;
+  }
+  updateAuthUI();
+}
+
 /** 兜底版登录（按钮内联调用） */
 async function __signin(){
   try{
@@ -136,6 +153,7 @@ async function __signin(){
     const password = document.getElementById('password').value;
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if(error) throw error;
+    await forceRefreshAuthUI();       // 登录后立刻刷新 UI
   }catch(err){
     alert('登录失败：'+(err?.message||err));
   }
@@ -152,6 +170,7 @@ async function __signup(){
     const { error } = await sb.auth.signUp({ email, password });
     if(error) throw error;
     alert('注册成功：若开启邮箱验证，请到邮箱确认后再登录');
+    await forceRefreshAuthUI();
   }catch(err){
     alert('注册失败：'+(err?.message||err));
   }
@@ -164,13 +183,14 @@ async function __signout(){
     const sb = ensureClient();
     if(!sb){ return false; }
     await sb.auth.signOut();
+    await forceRefreshAuthUI();       // 退出后刷新 UI
   }catch(err){
     alert('退出失败：'+(err?.message||err));
   }
   return false;
 }
 
-/* ========= 页面主逻辑（仍然使用 DOMContentLoaded 初始化 + 绑定） ========= */
+/* ========= 页面主逻辑 ========= */
 window.addEventListener('DOMContentLoaded', () => {
   let rows = []; // [{start_t:'HH:MM:SS', end_t:'HH:MM:SS', content:'', note:''}]
   const els = {
@@ -259,6 +279,39 @@ window.addEventListener('DOMContentLoaded', () => {
 
       els.tbody.appendChild(tr);
     });
+  }
+
+  // ---- 待同步队列 & 状态指示 ----
+  function queuePending(payload){
+    const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+    q.push(payload);
+    localStorage.setItem('grid_pending', JSON.stringify(q));
+    updateBadge();
+  }
+  async function flushPending(){
+    if(!__user) return;
+    const sb = ensureClient();
+    const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
+    if(q.length===0){ updateBadge(); return; }
+    for(const it of q){
+      if(it.type==='saveDay'){
+        const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: it.d });
+        if(del.error){ console.warn('flush del fail', del.error.message); return; }
+        const ins = await sb.from('event_grid').insert(it.rows);
+        if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
+      }
+    }
+    localStorage.removeItem('grid_pending');
+    updateBadge();
+  }
+  function updateBadge(){
+    const online = navigator.onLine;
+    const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
+    const parts = [];
+    parts.push(online?'🟢 在线':'🔴 离线');
+    parts.push(__user ? '已登录' : '未登录');
+    if(__user) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
+    els.syncBadge.textContent = parts.join(' · ');
   }
 
   // ---- 绑定 UI ----
@@ -393,17 +446,29 @@ window.addEventListener('DOMContentLoaded', () => {
     download(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `${y}-${pad(m)}_整月时间.json`);
   }
 
-  // ---- 云端：保存/读取当天 ----
+  // ---- 云端：保存/读取当天（含“离线入队”补丁） ----
   async function saveDayToCloud(){
     if(!__user){ alert('请先登录'); return; }
-    const sb = ensureClient();
     const dstr = els.dayPicker.value;
+
+    // 组装有效行
+    const rowsReady = rows
+      .filter(r=>r.start_t && r.end_t && (r.content||'').trim())
+      .map(r=>({ user_id: __user.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
+
+    if(rowsReady.length===0){ alert('没有可保存的行'); return; }
+
+    // 离线则进入待同步队列（补丁）
+    if(!navigator.onLine){
+      queuePending({ type:'saveDay', d:dstr, rows:rowsReady });
+      alert('已离线：此次保存加入待同步队列');
+      return;
+    }
+
+    const sb = ensureClient();
+    // 先清空当天，再插入
     const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: dstr });
     if(del.error){ alert('删除旧记录失败：'+del.error.message); return; }
-    const rowsReady = rows
-      .filter(r=>r.start_t && r.end_t && r.content?.trim())
-      .map(r=>({ user_id: __user.id, d:dstr, start_t:r.start_t, end_t:r.end_t, content:r.content.trim(), note:r.note||'' }));
-    if(rowsReady.length===0){ alert('没有可保存的行'); return; }
     const ins = await sb.from('event_grid').insert(rowsReady);
     if(ins.error){ alert('插入失败：'+ins.error.message); return; }
     alert('已保存到云端');
@@ -422,34 +487,7 @@ window.addEventListener('DOMContentLoaded', () => {
     saveLocal(dstr); render();
   }
 
-  // ---- 待同步 & 状态 ----
-  function updateBadge(){
-    const online = navigator.onLine;
-    const pending = JSON.parse(localStorage.getItem('grid_pending')||'[]').length;
-    const parts = [];
-    parts.push(online?'🟢 在线':'🔴 离线');
-    parts.push(__user ? '已登录' : '未登录');
-    if(__user) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-    els.syncBadge.textContent = parts.join(' · ');
-  }
-
-  async function flushPending(){
-    if(!__user) return;
-    const sb = ensureClient();
-    const q = JSON.parse(localStorage.getItem('grid_pending')||'[]');
-    if(q.length===0){ updateBadge(); return; }
-    for(const it of q){
-      if(it.type==='saveDay'){
-        const del = await sb.from('event_grid').delete().match({ user_id: __user.id, d: it.d });
-        if(del.error){ console.warn('flush del fail', del.error.message); return; }
-        const ins = await sb.from('event_grid').insert(it.rows);
-        if(ins.error){ console.warn('flush ins fail', ins.error.message); return; }
-      }
-    }
-    localStorage.removeItem('grid_pending');
-    updateBadge();
-  }
-
+  // ---- Auth UI 切换 ----
   function updateAuthUI(){
     if(__user){
       els.signedOut.style.display='none';
@@ -464,29 +502,33 @@ window.addEventListener('DOMContentLoaded', () => {
 
   async function initAuth(){
     const sb = ensureClient();
-    // 读取现有会话
-    const { data:{ session } } = await sb.auth.getSession();
-    __user = session?.user || null;
-    updateAuthUI();
+
+    // 初始化强制刷新一次
+    await forceRefreshAuthUI();
 
     // 监听会话变化
-    sb.auth.onAuthStateChange((_e, s) => {
-      __user = s?.user || null;
-      updateAuthUI();
-      if(__user) flushPending();
+    sb.auth.onAuthStateChange((_event, session) => {
+      __user = session?.user || null;
+      forceRefreshAuthUI();
     });
 
-    // 事件绑定（即使有内联兜底，也再绑定一次，提升兼容性）
+    // 监听 localStorage（跨标签/SDK异步写入）
+    window.addEventListener('storage', (e) => {
+      if (e.key && e.key.includes('auth-token')) {
+        forceRefreshAuthUI();
+      }
+    });
+
+    // 再绑定一次（与内联兜底并存，提升兼容性）
     els.btnSignUp.onclick = __signup;
     els.btnSignIn.onclick = __signin;
     els.btnSignOut.onclick = __signout;
   }
 
-  // ---- 初始化 UI 与登录模块 ----
+  // ---- 初始化 ----
   bindUI();
   initAuth();
 
-  // 网络状态
   window.addEventListener('online', ()=>{ updateBadge(); flushPending(); });
   window.addEventListener('offline', updateBadge);
 });
