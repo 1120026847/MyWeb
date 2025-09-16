@@ -1,135 +1,99 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>背单词15:41:30</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root{
-      --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
-      --accent:#2563eb;--accent-weak:#eef2ff;--green:#22c55e;--red:#ef4444;--radius:16px;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);
-         font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
-    header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:12px 16px}
-    .nav{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-    h1{margin:0;font-size:clamp(16px,4vw,20px);font-weight:600;flex-shrink:1;min-width:0}
-    
-    /* 账户区域优化 */
-    .account{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
-    .status-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-    .pill{font-size:11px;color:#666;border:1px solid #e1e1e1;border-radius:999px;padding:3px 8px;background:#fff;white-space:nowrap}
-    .account-btn{
-      display:inline-flex;align-items:center;gap:6px;
-      background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;
-      padding:6px 10px;border-radius:999px;font-weight:600;font-size:12px;
-      white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;
-    }
-    
-    /* 移动端适配 */
-    @media (max-width: 640px) {
-      header{padding:10px 12px}
-      .nav{gap:6px}
-      h1{font-size:16px;order:1;width:100%;margin-bottom:6px}
-      .account{order:2;flex-direction:row;align-items:center;width:100%;justify-content:space-between}
-      .status-row{order:1}
-      .account-btn{order:2;font-size:11px;padding:5px 8px;max-width:100px}
-    }
-    
-    .container{padding:12px 16px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
-          padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06);max-width:920px;margin:16px auto}
-    .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-    .muted{color:var(--muted)}
-    
-    button{border-radius:12px;padding:12px 16px;border:1px solid #cfe3ff;background:var(--accent-weak);color:#1e3a8a;cursor:pointer;font-size:14px}
-    button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-    button.green{background:var(--green);color:#fff;border:none}
-    button.red{background:var(--red);color:#fff;border:none}
-    button:disabled{opacity:.6;cursor:not-allowed}
-    
-    /* 工具栏优化 */
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start;margin-bottom:16px}
-    .toolbar button{font-size:13px;padding:10px 14px}
-    
-    /* 同步按钮特殊样式 */
-    #btnSync{
-      background:linear-gradient(135deg, #22c55e, #16a34a);
-      color:#fff;border:none;position:relative;overflow:hidden;
-    }
-    #btnSync:disabled{background:#9ca3af}
-    #btnSync.syncing::after{
-      content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
-      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
-      animation:shimmer 1.5s infinite;
-    }
-    @keyframes shimmer{0%{left:-100%}100%{left:100%}}
-    
-    @media (max-width: 640px) {
-      .toolbar{justify-content:center}
-      .toolbar button{font-size:12px;padding:8px 12px;flex:1;min-width:0}
-      #btnSync{margin-left:0!important;flex-basis:100%;margin-top:8px}
-    }
-    
-    .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:36px 0 10px}
-    .meaning{font-size:clamp(20px,6vw,36px);text-align:center;color:#1e40af;min-height:40px;display:none;margin:18px 0}
-    .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 10px;flex-wrap:wrap}
-    
-    @media (max-width: 640px) {
-      .actions{gap:8px}
-      .actions button{flex:1;min-width:0;font-size:13px;padding:10px 8px}
-    }
-    
-    .progress-wrap{display:flex;justify-content:center;margin:12px 0 4px}
-    .bar{width:86%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
-    .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e);transition:width 0.3s ease}
-    
-    /* 完成提示优化 */
-    .completion{
-      text-align:center;margin:20px 0;padding:20px;
-      background:linear-gradient(135deg,#22c55e,#16a34a);
-      color:#fff;border-radius:16px;
-    }
-    .completion h3{margin:0 0 8px;font-size:18px}
-    .completion p{margin:0;opacity:0.9;font-size:14px}
-    
-    /* 弹出提示 */
-    .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;background:#111827;color:#fff;padding:10px 14px;border-radius:12px}
-    
-    /* 模态优化 */
-    .modal{position:fixed;inset:0;z-index:30000;display:none}
-    .modal.show{display:block}
-    .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
-    .modal .panel{
-      position:absolute;left:50%;top:10%;transform:translateX(-50%);
-      width:min(92vw,480px);max-height:80vh;overflow:auto;
-      background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px
-    }
-    
-    @media (max-width:640px){
-      .modal .panel{left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;border-radius:16px 16px 12px 12px}
-    }
-    
-    .modal .close-x{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer}
-    .modal .title{margin:0 40px 10px 0;font-size:18px}
-    .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
-    textarea,input[type="text"],input[type="email"],input[type="password"]{width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit}
-    
-    .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
-    .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
-    .m-pop .actions{display:flex;justify-content:flex-end;margin:8px 0 0}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>背单词（墨墨风格）</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{
+    --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
+    --accent:#2563eb;--accent-weak:#eef2ff;--green:#22c55e;--red:#ef4444;--radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
+
+  /* 顶部加安全区，避免刘海遮挡（env()） */
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);
+         padding-top:env(safe-area-inset-top)}
+  .container{padding:12px 16px}
+
+  /* 用 Grid 让标题与账号区在窄屏自然换行 */
+  .nav{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}
+  h1{margin:0;font-size:clamp(18px,4.5vw,22px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* 账号区：桌面横排，手机竖排满宽 */
+  .account{margin-left:auto;display:grid;grid-auto-flow:column;grid-auto-columns:max-content;align-items:center;gap:8px}
+  .account-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;
+    padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+  .pill{font-size:12px;color:#666;border:1px solid #e1e1e1;border-radius:999px;padding:4px 8px;background:#fff}
+
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06);max-width:920px;margin:16px auto
+  }
+
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+
+  button{border-radius:12px;padding:12px 16px;border:1px solid #cfe3ff;background:var(--accent-weak);color:#1e3a8a;cursor:pointer}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.green{background:var(--green);color:#fff;border:none}
+  button.red{background:var(--red);color:#fff;border:none}
+  button:disabled{opacity:.6;cursor:not-allowed}
+
+  /* 工具栏用 Grid，自适应；手机上“保存/同步”独占一行 */
+  .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;justify-content:stretch}
+  #btnSync{justify-self:end}
+
+  .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:36px 0 10px}
+  .meaning{font-size:clamp(20px,6vw,36px);text-align:center;color:#1e40af;min-height:40px;display:none;margin:18px 0}
+
+  .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 10px;flex-wrap:wrap}
+
+  /* 进度条 */
+  .progress-wrap{display:flex;justify-content:center;margin:12px 0 4px;padding:0 8px}
+  .bar{width:100%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e)}
+
+  /* Toast */
+  .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;background:#111827;color:#fff;padding:10px 14px;border-radius:12px}
+
+  /* 模态（登录/注册/账户） */
+  .modal{position:fixed;inset:0;z-index:30000;display:none}
+  .modal.show{display:block}
+  .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+  .modal .panel{
+    position:absolute;left:50%;top:10%;transform:translateX(-50%);
+    width:min(92vw,480px);max-height:80vh;overflow:auto;
+    background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px
+  }
+  @media (max-width:680px){
+    .modal .panel{left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;border-radius:16px 16px 12px 12px}
+    .nav{grid-template-columns:1fr}
+    .account{margin:0;grid-auto-flow:row;justify-items:stretch}
+    .account-btn{max-width:100%}
+    #btnSync{grid-column:1 / -1;justify-self:stretch} /* 手机满宽 */
+  }
+  .modal .close-x{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer}
+  .modal .title{margin:0 40px 10px 0;font-size:18px}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  textarea,input[type="text"],input[type="email"],input[type="password"]{width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit}
+</style>
 </head>
+
 <body>
 <header>
-  <div class="nav">
+  <div class="container nav">
     <h1>背单词（墨墨风格）</h1>
     <div class="account">
-      <div class="status-row">
-        <span id="syncBadge" class="pill">🔴 离线 · 未登录</span>
-      </div>
+      <span id="syncBadge" class="pill">离线 · 未登录</span>
       <button id="accountBtn" class="account-btn" type="button">登录 / 注册</button>
     </div>
   </div>
@@ -137,44 +101,26 @@
 
 <main class="card">
   <div class="toolbar">
-    <input id="fileInput" type="file" hidden accept="application/json" />
-    <button id="btnImportJson" type="button">导入 JSON</button>
-    <button id="btnImportText" type="button">导入单词</button>
-    <button id="btnExport" class="primary" type="button">导出 JSON</button>
-    <button id="btnSync" style="margin-left:auto" type="button">🔄 同步</button>
+    <input id="fileInput" type="file" hidden accept=".csv,text/csv" />
+    <button id="btnImportCsv" type="button">导入 CSV</button>
+    <button id="btnExportCsv" class="primary" type="button">导出 CSV</button>
+    <button id="btnSync" type="button">保存 / 同步</button>
   </div>
-  
-  <div id="emptyMsg" class="muted" style="text-align:center;margin:20px 0;display:none">词库为空，请先导入</div>
-  
-  <div id="completionMsg" class="completion" style="display:none">
-    <h3>🎉 恭喜，今日学习完成！</h3>
-    <p>数据已自动同步到云端</p>
-  </div>
-  
+
+  <div id="emptyMsg" class="muted" style="text-align:center;margin:20px 0;display:none">词库为空，请先导入 CSV</div>
+
   <div id="word" class="word"></div>
   <div id="meaning" class="meaning"></div>
-  
+
   <div class="actions">
     <button id="btnShow" class="primary" type="button">显示意思</button>
     <button id="btnKnow" class="green" style="display:none" type="button">认识</button>
     <button id="btnDont" class="red" style="display:none" type="button">不认识</button>
     <button id="btnRestart" style="display:none" type="button">重新开始</button>
   </div>
-  
+
   <div class="progress-wrap"><div class="bar"><i id="progress"></i></div></div>
 </main>
-
-<!-- 文本导入弹窗 -->
-<div id="dlgImportText" class="m-pop">
-  <div class="dialog">
-    <h3 style="margin:0 0 8px">批量导入（每行：英文 空格 中文）</h3>
-    <textarea id="textBulk" placeholder="apple 苹果&#10;take off 脱下；起飞" rows="8"></textarea>
-    <div class="actions">
-      <button id="okImportText" class="primary" type="button">确定</button>
-      <button id="cancelImportText" type="button">取消</button>
-    </div>
-  </div>
-</div>
 
 <!-- 账号模态 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
@@ -193,12 +139,12 @@
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';        // ← 换成你的
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';               // ← 换成你的
 
+// 更稳妥的会话存储（localStorage 不可用时回退至 Cookie）
 const cookieStorage = {
   getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
   setItem:(k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
   removeItem:k=>{document.cookie=`${encodeURIComponent(k)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`}
 };
-
 function safeStorage(){try{const t='__sb__'+Math.random();localStorage.setItem(t,'1');localStorage.removeItem(t);return localStorage}catch{return cookieStorage}}
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -208,11 +154,9 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 /* ========= 2) DOM & 状态 ========= */
 const $=id=>document.getElementById(id);
 const els={
-  word:$('word'), meaning:$('meaning'), progress:$('progress'), empty:$('emptyMsg'), completion:$('completionMsg'),
+  word:$('word'), meaning:$('meaning'), progress:$('progress'), empty:$('emptyMsg'),
   btnShow:$('btnShow'), btnKnow:$('btnKnow'), btnDont:$('btnDont'), btnRestart:$('btnRestart'),
-  fileInput:$('fileInput'), btnImportJson:$('btnImportJson'), btnImportText:$('btnImportText'),
-  btnExport:$('btnExport'), btnSync:$('btnSync'),
-  dlgImportText:$('dlgImportText'), textBulk:$('textBulk'), okImportText:$('okImportText'), cancelImportText:$('cancelImportText'),
+  fileInput:$('fileInput'), btnImportCsv:$('btnImportCsv'), btnExportCsv:$('btnExportCsv'), btnSync:$('btnSync'),
   accountBtn:$('accountBtn'), sync:$('syncBadge'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody'),
   toast:$('toast')
@@ -222,58 +166,76 @@ let sessionUser=null, rtChannel=null;
 let dataMap = {};   // { word: { meaning, memoryLevel } }
 let queue = [];     // 学习队列
 let cur = null;     // 当前
-let isCompleted = false; // 本轮是否完成
 
-/* ========= 3) 小工具 ========= */
-function showToast(msg, ms=1800){
-  els.toast.textContent=msg;
-  els.toast.style.display='block';
-  setTimeout(()=>{els.toast.style.display='none'}, ms);
-}
+/* ========= 3) 行为开关 ========= */
+const AUTO_SYNC_AFTER_ROUND = true; // ← 每轮学习完成后自动同步云端
 
+/* ========= 4) 小工具 ========= */
+function showToast(msg, ms=1800){ els.toast.textContent=msg; els.toast.style.display='block'; setTimeout(()=>{els.toast.style.display='none'}, ms); }
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const saveLocal=()=>localStorage.setItem('words_local',JSON.stringify(dataMap));
-const loadLocal=()=>{try{dataMap=JSON.parse(localStorage.getItem('words_local')||'{}')||{}}catch{dataMap={}}};
-
 function updateBadge(){
-  const parts=[];
-  parts.push(navigator.onLine?'🟢 在线':'🔴 离线');
-  parts.push(sessionUser?`已登录：${sessionUser.email||'用户'}`:'未登录');
+  const parts=[]; parts.push(navigator.onLine?'🟢 在线':'🔴 离线'); parts.push(sessionUser?`已登录：${sessionUser.email||'用户'}`:'未登录');
   els.sync.textContent = parts.join(' · ');
 }
-
 window.addEventListener('online',updateBadge);
 window.addEventListener('offline',updateBadge);
-
 function log(...args){ console.log('[WORDS]', ...args); }
 
-// 自动同步函数
-async function autoSync() {
-  if (!sessionUser) return;
-  
-  try {
-    els.btnSync.classList.add('syncing');
-    els.btnSync.disabled = true;
-    
-    const rows = Object.entries(dataMap).map(([w,v])=>({
-      user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0
-    }));
-    
-    if(rows.length){
-      const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
-      if(error) throw error;
+/* ========= 5) CSV 工具 ========= */
+function csvEscape(v){ if(v==null) return ''; const s=String(v).replace(/"/g,'""'); return /[",\n]/.test(s) ? `"${s}"` : s; }
+function parseCsvLine(line){
+  const out=[]; let cur='', i=0, inQ=false;
+  while(i<line.length){
+    const ch=line[i];
+    if(inQ){
+      if(ch==='"' && line[i+1]==='"'){ cur+='"'; i+=2; continue; }
+      if(ch==='"'){ inQ=false; i++; continue; }
+      cur+=ch; i++; continue;
+    }else{
+      if(ch===','){ out.push(cur); cur=''; i++; continue; }
+      if(ch==='"'){ inQ=true; i++; continue; }
+      cur+=ch; i++; continue;
     }
-    
-    log('Auto sync completed');
-  } catch(err) {
-    log('Auto sync error', err);
-  } finally {
-    els.btnSync.classList.remove('syncing');
-    els.btnSync.disabled = false;
   }
+  out.push(cur); return out;
+}
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(lines.length===0) return {};
+  const head = parseCsvLine(lines[0]).map(h=>h.trim().toLowerCase());
+  const iWord = head.indexOf('word'), iMeaning = head.indexOf('meaning'), iMem = head.indexOf('memory_level');
+  const map={};
+  for(let i=1;i<lines.length;i++){
+    const arr = parseCsvLine(lines[i]);
+    const w = (arr[iWord]||'').trim(); if(!w) continue;
+    map[w] = { meaning: (arr[iMeaning]||'').trim(), memoryLevel: Number(arr[iMem]||0) || 0 };
+  }
+  return map;
+}
+function toCSV(mapObj){
+  const lines=['word,meaning,memory_level'];
+  for(const [w,v] of Object.entries(mapObj)){
+    lines.push([csvEscape(w), csvEscape(v.meaning||''), String(v.memoryLevel||0)].join(','));
+  }
+  return '\ufeff' + lines.join('\n'); // 加 BOM 以便 Excel 正确识别 UTF-8
+}
+function downloadCSV(filename, text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.style.display='none'; a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},0);
 }
 
-/* ========= 4) 登录模态 ========= */
+/* ========= 6) 本地 CSV 持久化 ========= */
+function saveLocalCsv(){ try{ localStorage.setItem('words_local_csv', toCSV(dataMap)); }catch{} }
+function loadLocalCsv(){
+  try{
+    const csv = localStorage.getItem('words_local_csv') || '';
+    dataMap = csv ? parseCSV(csv) : {};
+  }catch{ dataMap = {}; }
+}
+
+/* ========= 7) 登录模态 ========= */
 let lastFocus=null;
 function openModal(title,html){
   els.title.textContent=title;els.body.innerHTML=html;
@@ -281,26 +243,19 @@ function openModal(title,html){
   document.body.style.overflow='hidden';
   const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
 }
-
-function closeModal(){
-  els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow='';
-  if(lastFocus)lastFocus.focus();
-}
-
-els.backdrop.onclick=closeModal;els.close.onclick=closeModal;
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
+function closeModal(){ els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow=''; if(lastFocus)lastFocus.focus(); }
+els.backdrop.onclick=closeModal;els.close.onclick=closeModal;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
 
 function showAuth(){
-  openModal('登录 / 注册',
-    `<div class="field"><label>邮箱</label><input id="em" type="email" placeholder="you@example.com"></div>
-     <div class="field"><label>密码（≥6位）</label><input id="pw" type="password" placeholder="******"></div>
-     <div class="row" style="gap:8px;justify-content:flex-end">
-       <button id="lg" class="primary" type="button">登录</button>
-       <button id="sg" type="button">注册</button>
-     </div>
-     <div id="hint" class="muted" style="margin-top:6px"></div>`
-  );
-  
+  openModal('登录 / 注册', `
+    <div class="field"><label>邮箱</label><input id="em" type="email" placeholder="you@example.com"></div>
+    <div class="field"><label>密码（≥6位）</label><input id="pw" type="password" placeholder="******"></div>
+    <div class="row" style="gap:8px;justify-content:flex-end">
+      <button id="lg" class="primary" type="button">登录</button>
+      <button id="sg" type="button">注册</button>
+    </div>
+    <div id="hint" class="muted" style="margin-top:6px"></div>
+  `);
   const hint=$('hint');
   $('lg').onclick=async()=>{
     try{
@@ -311,7 +266,6 @@ function showAuth(){
       showToast('登录成功'); closeModal();
     }catch(err){ hint.textContent='登录异常：'+(err?.message||err)}
   };
-  
   $('sg').onclick=async()=>{
     try{
       const email=$('em').value.trim(),password=$('pw').value;
@@ -321,25 +275,21 @@ function showAuth(){
     }catch(err){ hint.textContent='注册异常：'+(err?.message||err)}
   };
 }
-
 function showAccount(u){
-  openModal('账户',
-    `<div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
-     <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="primary" type="button">退出登录</button></div>`
-  );
+  openModal('账户', `
+    <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
+    <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="primary" type="button">退出登录</button></div>
+  `);
   $('lo').onclick=async()=>{ await sb.auth.signOut(); showToast('已退出'); closeModal(); };
 }
-
 els.accountBtn.onclick=()=>{sessionUser?showAccount(sessionUser):showAuth()};
 
-/* ========= 5) 学习流程 ========= */
+/* ========= 8) 学习流程 ========= */
 function resetQueue(){
   queue = shuffle(Object.entries(dataMap));
   cur=null;
-  isCompleted=false;
   els.progress.style.width='0%';
   els.meaning.style.display='none';
-  els.completion.style.display='none';
   els.btnShow.style.display='inline-block';
   els.btnKnow.style.display='none';
   els.btnDont.style.display='none';
@@ -347,54 +297,34 @@ function resetQueue(){
   els.empty.style.display = queue.length? 'none':'block';
   next();
 }
-
-async function next(){
+function next(){
   if(queue.length===0){
-    // 学习完成
-    isCompleted = true;
-    els.word.textContent='';
+    els.word.textContent='恭喜，今日学习完成！';
     els.meaning.style.display='none';
-    els.completion.style.display='block';
     els.btnShow.style.display='none';
     els.btnKnow.style.display='none';
     els.btnDont.style.display='none';
     els.btnRestart.style.display='inline-block';
-    
-    // 自动同步
-    if(sessionUser) {
-      await autoSync();
-      showToast('学习完成，数据已同步');
-    } else {
-      showToast('学习完成！建议登录后同步数据');
-    }
+    // 整轮完成 => 自动同步
+    if(AUTO_SYNC_AFTER_ROUND && sessionUser){ syncNow().catch(err=>log('autosync error', err)); }
     return;
   }
-  
   cur = queue.pop();
   els.word.textContent = cur[0];
   els.meaning.textContent = cur[1].meaning || '';
   els.meaning.style.display='none';
-  els.completion.style.display='none';
   els.btnShow.style.display='inline-block';
   els.btnKnow.style.display='none';
   els.btnDont.style.display='none';
   els.btnRestart.style.display='none';
   updateProgress();
 }
-
 function updateProgress(){
   const total = Object.keys(dataMap).length || 1;
   const remain = queue.length;
   els.progress.style.width = (((total-remain)/total*100).toFixed(1))+'%';
 }
-
-els.btnShow.onclick=()=>{
-  els.meaning.style.display='block';
-  els.btnShow.style.display='none';
-  els.btnKnow.style.display='inline-block';
-  els.btnDont.style.display='inline-block';
-};
-
+els.btnShow.onclick=()=>{ els.meaning.style.display='block'; els.btnShow.style.display='none'; els.btnKnow.style.display='inline-block'; els.btnDont.style.display='inline-block'; };
 els.btnKnow.onclick=()=>vote(true);
 els.btnDont.onclick=()=>vote(false);
 els.btnRestart.onclick=resetQueue;
@@ -404,98 +334,58 @@ function vote(known){
   const [w, v] = cur;
   v.memoryLevel = (v.memoryLevel||0) + (known?1:-1);
   if(!known){ queue.unshift([w,v]); }
-  dataMap[w] = v; saveLocal();
-  
-  // 实时更新单个词汇（非阻塞）
-  if(sessionUser) updateOne(w).catch(err=>log('updateOne error', err));
-  
+  dataMap[w] = v; saveLocalCsv();
   next();
 }
 
-/* ========= 6) 导入导出 ========= */
-els.btnImportJson.onclick=()=>els.fileInput.click();
+/* ========= 9) 导入/导出（CSV） ========= */
+els.btnImportCsv.onclick=()=>els.fileInput.click();
 els.fileInput.onchange=async e=>{
   const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); e.target.value='';
   try{
-    const obj=JSON.parse(text);
-    Object.assign(dataMap, obj); saveLocal();
-    if(sessionUser) await upsertMany(obj);
-    resetQueue(); showToast('导入 JSON 完成');
-  }catch(err){ alert('JSON 解析失败：'+(err?.message||err)) }
+    const obj = parseCSV(text);
+    Object.assign(dataMap, obj); saveLocalCsv();
+    if(sessionUser) await upsertMany(obj); // 可选：导入后立即写云
+    resetQueue(); showToast('导入 CSV 完成');
+  }catch(err){ alert('CSV 解析失败：'+(err?.message||err)) }
 };
+els.btnExportCsv.onclick=()=>downloadCSV('words.csv', toCSV(dataMap));
 
-els.btnImportText.onclick=()=>{ els.dlgImportText.style.display='flex'; };
-els.cancelImportText.onclick=()=>{ els.dlgImportText.style.display='none'; };
-els.okImportText.onclick=()=>{
-  const lines=(els.textBulk.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
-  const obj={};
-  for(const line of lines){
-    const [w,...rest]=line.split(/\s+/); const meaning=rest.join(' ');
-    if(w && meaning){ obj[w] = { meaning, memoryLevel: dataMap[w]?.memoryLevel||0 }; }
-  }
-  Object.assign(dataMap,obj); saveLocal();
-  if(sessionUser) upsertMany(obj).catch(err=>log('upsertMany error', err));
-  els.textBulk.value=''; els.dlgImportText.style.display='none'; resetQueue();
-  showToast('导入完成');
-};
-
-els.btnExport.onclick=()=>exportJSON();
-async function exportJSON(){
-  try{
-    if(sessionUser){
-      const { data, error } = await sb.from('words')
-        .select('word,meaning,memory_level')
-        .eq('user_id', sessionUser.id)
-        .order('created_at',{ascending:true});
-      if(error) throw error;
-      const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
-      return downloadJSON(map,'words_cloud.json');
-    }
-    return downloadJSON(dataMap,'words_local.json');
-  }catch(err){
-    alert('导出失败：'+(err?.message||err));
-  }
-}
-
-function downloadJSON(obj, filename){
-  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.style.display='none'; a.href=url; a.download=filename;
-  document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},0);
-}
-
-/* ========= 7) 手动同步 ========= */
-els.btnSync.onclick = async ()=>{
+/* ========= 10) 保存 / 同步（本地→云 & 云→本地） ========= */
+let _syncing = false;
+async function syncNow(){
   if(!sessionUser){ alert('请先登录'); return; }
+  if(_syncing) return;
+  _syncing = true;
+  const oldText = els.btnSync.textContent;
   els.btnSync.disabled = true;
-  els.btnSync.classList.add('syncing');
-  
+  els.btnSync.textContent = '同步中…';
   try{
     // 1) 本地 → 云端（批量 upsert）
     const rows = Object.entries(dataMap).map(([w,v])=>({
       user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0
     }));
     if(rows.length){
-      log('upsert rows', rows.length);
       const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' }).select();
       if(error) throw error;
     }
-    
     // 2) 云端 → 本地（覆盖加载）
     await loadAllFromCloud();
-    showToast('同步完成');
+    showToast('同步完成（已保存并加载）');
   }catch(err){
     log('Sync error', err);
     const msg=(err && err.message)||String(err);
-    alert('同步失败：'+msg+'\n\n请确认已按文档创建表与 RLS 策略。');
+    alert('保存/加载失败：'+msg+'\n\n请确认已按文档创建表与 RLS 策略（含授权）。');
   }finally{
     els.btnSync.disabled = false;
-    els.btnSync.classList.remove('syncing');
+    els.btnSync.textContent = oldText;
+    _syncing = false;
     updateBadge();
   }
-};
+}
+els.btnSync.onclick = syncNow;
 
-/* ========= 8) 云端 CRUD ========= */
+/* ========= 11) 云端 CRUD ========= */
 async function loadAllFromCloud(){
   if(!sessionUser) return;
   const { data, error } = await sb.from('words')
@@ -504,29 +394,48 @@ async function loadAllFromCloud(){
     .order('created_at',{ascending:true});
   if(error){ throw error; }
   const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
-  dataMap = map; saveLocal(); resetQueue(); updateBadge();
+  dataMap = map; saveLocalCsv(); resetQueue(); updateBadge();
 }
-
 async function upsertMany(obj){
   if(!sessionUser) return;
   const rows = Object.entries(obj).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
-  if(rows.length===0) return;
+  if(!rows.length) return;
   const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
   if(error) throw error;
 }
 
-async function updateOne(word){
-  if(!sessionUser) return;
-  const v=dataMap[word]; if(!v) return;
-  const { error } = await sb.from('words').upsert(
-    { user_id:sessionUser.id, word, meaning:v.meaning||'', memory_level:v.memoryLevel||0 },
-    { onConflict:'user_id,word' }
-  );
-  if(error) throw error;
-}
-
-/* ========= 9) Realtime ========= */
+/* ========= 12) Realtime（可选） ========= */
 function subscribeRealtime(){
   if(rtChannel) sb.removeChannel(rtChannel);
   if(!sessionUser) return;
-  rtChannel = sb.
+  rtChannel = sb.channel('words-ch')
+    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{
+      try{ await loadAllFromCloud(); }catch(err){ log('realtime refresh error', err); }
+    })
+    .subscribe();
+}
+function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
+
+/* ========= 13) 会话监听 & 初始化 ========= */
+sb.auth.onAuthStateChange(async (_evt,sess)=>{
+  sessionUser = sess?.user || null;
+  els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+  updateBadge();
+  if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ log('load cloud error', err); } subscribeRealtime(); }
+  else{ unsubscribeRealtime(); loadLocalCsv(); resetQueue(); }
+});
+
+(async function init(){
+  // 本地先可用（CSV 持久化）
+  loadLocalCsv(); resetQueue(); updateBadge();
+  // 恢复会话
+  try{
+    const { data:{session} } = await sb.auth.getSession();
+    sessionUser = session?.user || null;
+    els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+    if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ log('getSession cloud error', err); } subscribeRealtime(); }
+  }catch(err){ log('getSession error', err); }
+})();
+</script>
+</body>
+</html>
