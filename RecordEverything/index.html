@@ -40,8 +40,14 @@
   .btn.danger{background:var(--danger)}
   .btn:disabled{opacity:.6;cursor:not-allowed}
 
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .toolbar .btn{height:40px}
+
+  /* 冲突提示条 */
+  .conflict{
+    display:none;align-items:center;gap:8px;margin-top:10px;
+    padding:10px;border:1px dashed #c7d2fe;border-radius:12px;background:#f8faff;color:#1e3a8a
+  }
 
   /* Toast */
   .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:20000;pointer-events:none}
@@ -93,7 +99,7 @@
 <!-- 主体 -->
 <main class="container" id="app" style="display:none">
   <div class="card">
-    <div class="toolbar" style="justify-content:flex-end;align-items:center">
+    <div class="toolbar" style="justify-content:flex-end;">
       <div id="syncState" class="muted" style="display:none">
         <span style="display:inline-block;width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
         正在同步…
@@ -102,6 +108,13 @@
     </div>
 
     <textarea id="memoInput" placeholder="写点什么…（登录后自动与云端同步保存）"></textarea>
+
+    <!-- 云端 vs 本地 冲突提示条 -->
+    <div id="conflictBar" class="conflict">
+      <span>已保留本地草稿，同时检测到与云端内容不一致。</span>
+      <button id="useCloud" class="btn secondary">用云端覆盖</button>
+      <button id="appendCloud" class="btn secondary">把云端追加到末尾</button>
+    </div>
 
     <div class="row" style="margin-top:10px;gap:10px">
       <button id="saveBtn" class="btn">保存</button>
@@ -141,7 +154,8 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 /* ========= 状态 & DOM ========= */
-let session=null, syncing=0;
+let session=null, syncing=0, dirty=false;
+let serverCache = ''; // 最近一次云端内容，用于冲突提示
 const $=id=>document.getElementById(id);
 const els={
   app:$('app'),guest:$('guestCard'),memo:$('memoInput'),
@@ -149,16 +163,44 @@ const els={
   refresh:$('refreshBtn'),sync:$('syncState'),account:$('accountBtn'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),
   title:$('dialogTitle'),body:$('dialogBody'),
-  toast:document.getElementById('toastWrap')
+  toast:document.getElementById('toastWrap'),
+  conflict:$('conflictBar'), useCloud:$('useCloud'), appendCloud:$('appendCloud')
 };
-
 const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
 function setSync(v){
-  syncing += v ? 1 : -1;
-  if (syncing < 0) syncing = 0;
+  syncing += v ? 1 : -1; if (syncing < 0) syncing = 0;
   els.sync.style.display = syncing > 0 ? '' : 'none';
-  // 15 秒兜底，防止异常导致一直显示
   if (v) setTimeout(() => { if (syncing > 0) { syncing = 0; els.sync.style.display = 'none'; } }, 15000);
+}
+
+/* ========= 草稿：本地持久化（localStorage） ========= */
+const draftKey = ()=> {
+  const uid = session?.user?.id || 'guest';
+  return `memo-draft:${uid}`;
+};
+const hasDraft   = ()=>{ try{return !!localStorage.getItem(draftKey())}catch{return false}};
+const readDraft  = ()=>{ try{const t=localStorage.getItem(draftKey()); return t?JSON.parse(t):null}catch{return null}};
+const writeDraft = ()=>{ try{localStorage.setItem(draftKey(), JSON.stringify({content: els.memo.value || '', ts: Date.now()}));}catch{} };
+const clearDraft = ()=>{ try{localStorage.removeItem(draftKey())}catch{} };
+
+function markDirty(){ dirty = true; writeDraft(); showConflictIfNeeded(); }
+function restoreDraft(tip=true){
+  const d = readDraft();
+  if(d && typeof d.content === 'string' && d.content !== els.memo.value){
+    els.memo.value = d.content;
+    dirty = true;
+    if(tip) toast('已恢复本地草稿（未覆盖云端）');
+    showConflictIfNeeded();
+    return true;
+  }
+  return false;
+}
+
+/* ========= 冲突提示 ========= */
+function showConflictIfNeeded(){
+  // 与最近云端内容不同且有会话时才提示
+  const conflict = session && els.memo.value !== (serverCache || '');
+  els.conflict.style.display = conflict ? 'flex' : 'none';
 }
 
 /* ========= 模态（登录 / 注册 / 账户） ========= */
@@ -183,20 +225,20 @@ function showAuth(){
     <div class="row" style="gap:8px;justify-content:flex-end"><button id="lg" class="btn">登录</button><button id="sg" class="btn secondary">注册</button></div>
     <div id="hint" class="muted" style="margin-top:6px"></div>
   `);
-  const hint=$('hint');
-  $('lg').onclick=async()=>{
-    const email=$('em').value.trim(),password=$('pw').value;
+  const hint=document.getElementById('hint');
+  document.getElementById('lg').onclick=async()=>{
+    const email=document.getElementById('em').value.trim(),password=document.getElementById('pw').value;
     if(!email||!password) return hint.textContent='请输入邮箱和密码';
     setSync(true);
     try{
-      const { error } = await sb.auth.signInWithPassword({ email, password }); // 登录 API
+      const { error } = await sb.auth.signInWithPassword({ email, password });
       if(error){ hint.textContent='登录失败：'+error.message; }
-      else { hint.textContent=''; toast('登录成功'); closeModal(); fetchMemo(); }
+      else { hint.textContent=''; toast('登录成功'); closeModal(); fetchMemo({mode:'overwrite', tip:true}).then(()=>restoreDraft(false)); }
     }catch(err){ hint.textContent='登录异常：'+(err?.message||err); }
     finally{ setSync(false); }
   };
-  $('sg').onclick=async()=>{
-    const email=$('em').value.trim(),password=$('pw').value;
+  document.getElementById('sg').onclick=async()=>{
+    const email=document.getElementById('em').value.trim(),password=document.getElementById('pw').value;
     if(!email||!password) return hint.textContent='请输入邮箱和密码';
     setSync(true);
     try{
@@ -211,23 +253,34 @@ function showAccount(u){
     <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
     <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="btn">退出登录</button></div>
   `);
-  $('lo').onclick=async()=>{ setSync(true); try{ await sb.auth.signOut(); toast('您已退出登录'); closeModal(); applySessionUI(); } finally{ setSync(false);} };
+  document.getElementById('lo').onclick=async()=>{ setSync(true); try{ await sb.auth.signOut(); toast('您已退出登录'); closeModal(); applySessionUI(); } finally{ setSync(false);} };
 }
 els.account.onclick=()=>{session?.user?showAccount(session.user):showAuth()};
 
-/* ========= 业务：读写备忘录 ========= */
-async function fetchMemo(){
-  if(!session){ els.memo.value=''; return; }
+/* ========= 读写备忘录（含草稿合并策略） ========= */
+async function fetchMemo({ mode='auto', tip=false } = {}){
+  if(!session){ els.memo.value=''; serverCache=''; showConflictIfNeeded(); return; }
   setSync(true);
   try{
-    const { data, error } = await sb.from(TABLE)
-      .select('id, content')
-      .eq('user_id', session.user.id);
+    const { data, error } = await sb.from(TABLE).select('id, content').eq('user_id', session.user.id).limit(1).maybeSingle();
     if(error){ toast('拉取失败：'+error.message,'error'); return; }
-    const row = Array.isArray(data) ? data[0] : null;
-    els.memo.value = row?.content || '';
-    if(row) els.memo.dataset.id = row.id; else delete els.memo.dataset.id;
-    toast('已从云端同步');
+    const content = data?.content || '';
+    serverCache = content;
+    // 合并策略
+    if(mode === 'overwrite'){
+      // 用云端填充，但如果有草稿，稍后 restoreDraft() 会把本地覆盖回来
+      els.memo.value = content;
+      dirty = false;
+    }else{
+      // auto / merge：保留本地输入，不覆盖；只提示冲突
+      if(!dirty && !hasDraft()){
+        // 只有在本地“干净”时才覆盖 UI
+        els.memo.value = content;
+      }
+      // 如果本地和云端不同，展示冲突条
+    }
+    showConflictIfNeeded();
+    if(tip) toast('已从云端同步（本地草稿已保留）');
   }catch(err){ toast('同步异常：'+(err?.message||err),'error'); }
   finally{ setSync(false); }
 }
@@ -237,9 +290,12 @@ async function saveMemo(){
   const payload = { user_id: session.user.id, content: els.memo.value };
   setSync(true);
   try{
-    // 单行覆盖写入：onConflict user_id
+    // 单行覆盖写入（user_id 唯一）：upsert + onConflict
     const { error } = await sb.from(TABLE).upsert(payload, { onConflict: 'user_id' }).select();
     if(error){ toast('保存失败：'+error.message,'error'); return; }
+    serverCache = els.memo.value;
+    dirty = false; clearDraft();
+    showConflictIfNeeded();
     toast('✅ 已保存并同步到云端');
   }catch(err){ toast('保存异常：'+(err?.message||err),'error'); }
   finally{ setSync(false); }
@@ -247,12 +303,13 @@ async function saveMemo(){
 
 async function clearMemo(){
   els.memo.value = '';
+  markDirty();
   await saveMemo();
 }
 
 async function copyMemo(){
   try{
-    await navigator.clipboard.writeText(els.memo.value || ''); // Clipboard API
+    await navigator.clipboard.writeText(els.memo.value || '');
     toast('📋 已复制到剪贴板');
   }catch(err){
     toast('复制失败：'+(err?.message||err),'error');
@@ -260,25 +317,54 @@ async function copyMemo(){
 }
 
 /* ========= 绑定事件 ========= */
+// 输入 -> 标记脏 & 节流写草稿
+let draftTimer=null;
+els.memo.addEventListener('input', ()=>{
+  dirty = true;
+  if(draftTimer) clearTimeout(draftTimer);
+  draftTimer = setTimeout(()=>{ writeDraft(); showConflictIfNeeded(); }, 250);
+});
 els.save.onclick = saveMemo;
 els.clear.onclick = clearMemo;
 els.copy.onclick = copyMemo;
-els.refresh.onclick = fetchMemo;
+// 手动刷新：仅同步云端，不覆盖本地，必要时给出冲突按钮
+els.refresh.onclick = ()=> fetchMemo({ mode:'merge', tip:true });
+
+// 冲突处理按钮
+els.useCloud.onclick = ()=>{ els.memo.value = serverCache || ''; markDirty(); showConflictIfNeeded(); toast('已用云端覆盖当前文本（尚未保存）'); };
+els.appendCloud.onclick = ()=>{ 
+  const nl = els.memo.value && !els.memo.value.endsWith('\n') ? '\n' : '';
+  els.memo.value = (els.memo.value || '') + nl + (serverCache || '');
+  markDirty(); showConflictIfNeeded(); toast('已将云端内容追加到文本末尾（尚未保存）'); 
+};
 
 /* ========= 会话监听 & 初始化 ========= */
-sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI();if(session){fetchMemo()}});
+sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI(); if(session){ fetchMemo({mode:'overwrite'}).then(()=>restoreDraft(false)); }});
 
 function applySessionUI(){
   els.account.textContent = session?.user?`已登录：${session.user.email||'用户'}`:'登录 / 注册';
   $('app').style.display=session?'':'none';
   $('guestCard').style.display=session?'none':'';
+  showConflictIfNeeded();
 }
 
 (async function init(){
   const { data } = await sb.auth.getSession();
   session = data.session || null;
   applySessionUI();
-  if(session) fetchMemo();
+  if(session){ await fetchMemo({mode:'overwrite'}); }
+  // 首次进入尝试恢复草稿（优先本地）
+  restoreDraft(false);
+
+  /* 页面可见性 & 生命周期：
+     - 隐藏/切后台/锁屏：保存草稿
+     - 返回/恢复（bfcache 或刷新）：尝试恢复草稿，并重新对比云端 */
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'hidden'){ writeDraft(); }  // 页面不可见时立即落盘
+    else { restoreDraft(false); showConflictIfNeeded(); }        // 回到前台尝试恢复
+  });
+  window.addEventListener('pagehide', writeDraft);              // 移动端更可靠
+  window.addEventListener('pageshow', ()=>{ restoreDraft(false); showConflictIfNeeded(); }); // 前进/后退/刷新恢复
 })();
 </script>
 </body>
