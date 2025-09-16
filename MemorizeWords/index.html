@@ -1,498 +1,447 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>智能单词记忆系统 · 云端同步版</title>
-  <style>
-    :root{--primary:#4CAF50;--blue:#2196F3;--red:#f44336;}
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'PingFang SC','Noto Sans SC','Microsoft Yahei',sans-serif;color:#222}
-    header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid #eee;position:sticky;top:0;z-index:5}
-    .app-title{font-weight:800}
-    .auth{display:flex;gap:8px;align-items:center}
-    .auth input{padding:8px 10px;border:1px solid #ddd;border-radius:8px;min-width:160px}
-    .btn{padding:10px 16px;border-radius:8px;border:1px solid #e1e1e1;background:#fff;cursor:pointer}
-    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
-    .pill{padding:4px 8px;border:1px solid #e1e1e1;border-radius:999px;font-size:12px;color:#666}
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>背单词（墨墨风格）</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
+    --accent:#2563eb;--accent-weak:#eef2ff;--green:#22c55e;--red:#ef4444;--radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
 
-    .main{flex:1;max-width:880px;margin:20px auto;padding:20px;background:#fff;border-radius:14px;box-shadow:0 10px 20px rgba(0,0,0,.06)}
-    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-    .word-display{text-align:center;font-size:5em;margin:40px 0;min-height:120px;line-height:1.2}
-    .meaning-display{text-align:center;font-size:3.2em;color:var(--blue);margin:30px 0;min-height:80px;display:none;line-height:1.3}
-    .action-buttons{display:flex;justify-content:center;gap:12px;margin:40px 0}
-    #knowBtn,#dontKnowBtn,#showMeaningBtn,#restartBtn{padding:18px 36px;font-size:22px;min-width:160px;border:0;color:#fff;border-radius:10px}
-    #restartBtn{display:none;background:var(--blue)}
-    #knowBtn{background:var(--primary)}
-    #dontKnowBtn{background:var(--red)}
-    #showMeaningBtn{background:var(--blue)}
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
+  .container{padding:12px 16px}
+  .nav{display:flex;align-items:center;gap:10px}
+  h1{margin:0;font-size:clamp(18px,4.5vw,22px)}
+  .account{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .account-btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;
+    padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+  .pill{font-size:12px;color:#666;border:1px solid #e1e1e1;border-radius:999px;padding:4px 8px;background:#fff}
 
-    #progressBar{width:80%;height:12px;background:#ddd;border-radius:6px;margin:30px auto 20px}
-    #progress{height:100%;background:var(--primary);transition:width .3s;border-radius:6px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+        padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06);max-width:920px;margin:16px auto}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .muted{color:var(--muted)}
 
-    .modal{display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,.45);z-index:50}
-    .dialog{background:#fff;padding:24px;border-radius:12px;min-width:420px;max-width:92vw}
-    .dialog textarea{width:100%;height:180px;margin:12px 0;padding:12px;font-size:15px;border:2px solid #ddd;border-radius:10px;resize:vertical;line-height:1.6}
-    .dialog-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
-    .warning-text{color:#d33}
+  button{border-radius:12px;padding:12px 16px;border:1px solid #cfe3ff;background:var(--accent-weak);color:#1e3a8a;cursor:pointer}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  button.green{background:var(--green);color:#fff;border:none}
+  button.red{background:var(--red);color:#fff;border:none}
+  button:disabled{opacity:.6;cursor:not-allowed}
 
-    .control-group{display:flex;gap:10px;justify-content:center;margin:10px 0;flex-wrap:wrap}
-    #emptyMsg{text-align:center;margin:40px 0;font-size:1.6em;color:#666}
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  /* 主区域 */
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start}
+  .status{margin-left:auto}
+
+  .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:36px 0 10px}
+  .meaning{font-size:clamp(20px,6vw,36px);text-align:center;color:#1e40af;min-height:40px;display:none;margin:18px 0}
+  .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 6px;flex-wrap:wrap}
+  .progress-wrap{display:flex;justify-content:center}
+  .bar{width:86%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e)}
+
+  /* 模态（与“备忘录”一致风格） */
+  .modal{position:fixed;inset:0;z-index:30000;display:none}
+  .modal.show{display:block}
+  .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+  .modal .panel{
+    position:absolute;left:50%;top:10%;transform:translateX(-50%);
+    width:min(92vw,480px);max-height:80vh;overflow:auto;
+    background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px
+  }
+  @media (max-width:680px){
+    .modal .panel{
+      left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;
+      border-radius:16px 16px 12px 12px
+    }
+  }
+  .modal .close-x{
+    position:absolute;right:10px;top:10px;width:36px;height:36px;
+    border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer
+  }
+  .modal .title{margin:0 40px 10px 0;font-size:18px}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .panel .btn{height:42px}
+
+  textarea,input[type="text"]{
+    width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit
+  }
+
+  /* 导入/删除弹窗 */
+  .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
+  .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
+  .m-pop .actions{justify-content:flex-end;margin:8px 0 0}
+</style>
 </head>
 <body>
-  <header>
-    <div class="app-title">📚 智能单词记忆系统</div>
-    <div class="auth">
-      <div id="signed-out">
-        <input type="email" id="email" placeholder="邮箱"/>
-        <input type="password" id="password" placeholder="密码（≥6位）"/>
-        <button class="btn" id="btnSignUp">注册</button>
-        <button class="btn primary" id="btnSignIn">登录</button>
-      </div>
-      <div id="signed-in" style="display:none;gap:8px;align-items:center">
-        <span class="pill" id="userEmail"></span>
-        <span class="pill" id="syncBadge">未登录</span>
-        <button class="btn" id="btnSignOut">退出</button>
-      </div>
-    </div>
-  </header>
-
-  <main class="main">
-    <div class="toolbar">
-      <button class="btn" onclick="location.href='https://www.molijun.com'">首页</button>
-      <input type="file" id="fileInput" hidden accept="application/json"/>
-      <button class="btn" id="btnImport">导入 JSON</button>
-      <button class="btn" id="btnAdd">添加数据</button>
-      <button class="btn" id="btnExport">导出 JSON</button>
-      <button class="btn" id="btnSyncLocal">同步本地 → 云端</button>
-      <span style="color:#666;font-size:12px">（未登录仅保存在本地）</span>
-    </div>
-
-    <div class="control-group">
-      <button class="btn" id="btnDeleteWords">删除单词</button>
-      <button class="btn" id="btnHelp">说明</button>
-    </div>
-
-    <div id="progressBar"><div id="progress"></div></div>
-    <div id="emptyMsg" style="display:none;">数据为空，请添加数据</div>
-
-    <div class="word-display" id="wordDisplay"></div>
-    <div class="meaning-display" id="meaningDisplay"></div>
-
-    <div class="action-buttons">
-      <button class="btn" id="knowBtn" style="display:none;background:var(--primary);">认识</button>
-      <button class="btn" id="restartBtn">重新开始</button>
-      <button class="btn" id="showMeaningBtn" style="background:var(--blue);">显示释义</button>
-      <button class="btn" id="dontKnowBtn" style="display:none;background:var(--red);">不认识</button>
-    </div>
-  </main>
-
-  <!-- 添加数据 -->
-  <div id="addDataModal" class="modal">
-    <div class="dialog">
-      <h3 style="margin:0 0 8px">添加新单词</h3>
-      <textarea id="newDataInput" placeholder="每行：单词 释义（空格分隔）&#10;示例：&#10;apple 苹果&#10;banana 香蕉"></textarea>
-      <div class="dialog-actions">
-        <button class="btn" id="confirmAdd">确定</button>
-        <button class="btn" id="cancelAdd">取消</button>
-      </div>
+<header>
+  <div class="container nav">
+    <h1>背单词（墨墨风格）</h1>
+    <div class="account">
+      <span id="syncBadge" class="pill">未登录</span>
+      <button id="accountBtn" class="account-btn">登录 / 注册</button>
     </div>
   </div>
+</header>
 
-  <!-- 删除阈值 -->
-  <div id="deleteModal" class="modal">
-    <div class="dialog">
-      <h4 style="margin:0 0 8px">删除记忆次数较多的单词</h4>
-      <p>请输入要删除的记忆次数阈值（不低于 5）</p>
-      <input type="number" id="deleteThreshold" min="5" placeholder="请输入数字" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"/>
-      <div class="dialog-actions">
-        <button class="btn" id="confirmDelete">确定</button>
-        <button class="btn" id="cancelDelete">取消</button>
-      </div>
+<main class="card">
+  <div class="toolbar">
+    <input id="fileInput" type="file" hidden accept="application/json" />
+    <button id="btnImportJson">导入 JSON</button>
+    <button id="btnImportText">导入单词（文本）</button>
+    <button id="btnExport" class="primary">导出 JSON</button>
+    <button id="btnSyncLocal">本地 → 云端</button>
+    <button id="btnDelete" style="margin-left:auto">删除记忆度 ≥ 5</button>
+    <button id="btnHelp">说明</button>
+  </div>
+
+  <div class="progress-wrap"><div class="bar"><i id="progress"></i></div></div>
+
+  <div id="emptyMsg" class="muted" style="text-align:center;margin:20px 0;display:none">词库为空，请先导入</div>
+
+  <div id="word" class="word"></div>
+  <div id="meaning" class="meaning"></div>
+
+  <div class="actions">
+    <button id="btnShow" class="primary">显示意思</button>
+    <button id="btnKnow" class="green" style="display:none">认识</button>
+    <button id="btnDont" class="red" style="display:none">不认识</button>
+    <button id="btnRestart" style="display:none">重新开始</button>
+  </div>
+</main>
+
+<!-- 文本导入弹窗 -->
+<div id="dlgImportText" class="m-pop">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px">批量导入（每行一组：英文 空格 中文）</h3>
+    <textarea id="textBulk" placeholder="apple 苹果&#10;take off 脱下；起飞"></textarea>
+    <div class="actions">
+      <button id="okImportText" class="primary">确定</button>
+      <button id="cancelImportText">取消</button>
     </div>
   </div>
+</div>
+
+<!-- 删除阈值弹窗 -->
+<div id="dlgDelete" class="m-pop">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px">删除记忆度≥阈值</h3>
+    <div class="row">
+      <input id="deleteTh" type="number" min="5" value="5" style="max-width:140px" />
+      <span class="muted">默认 5，可改</span>
+    </div>
+    <div class="actions">
+      <button id="okDelete" class="primary">确定</button>
+      <button id="cancelDelete">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 账号模态（沿用“备忘录”样式与交互） -->
+<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
+  <div class="backdrop" id="modalBackdrop"></div>
+  <div class="panel" role="document">
+    <button class="close-x" id="modalClose" aria-label="关闭">✕</button>
+    <h3 id="dialogTitle" class="title">登录 / 注册</h3>
+    <div id="dialogBody"></div>
+  </div>
+</div>
 
 <script>
-/** ================= Supabase（你的项目配置） ================= */
+/* ========= Supabase =========
+ * 需要的表（SQL）：
+ * create table if not exists public.words(
+ *   user_id uuid references auth.users(id) on delete cascade,
+ *   word text not null,
+ *   meaning text default '',
+ *   memory_level int default 0,
+ *   created_at timestamptz default now(),
+ *   primary key(user_id, word)
+ * );
+ * 启用 RLS 并给 anon 授权对应策略（或仅登录可读写）。
+ */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true} });
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-});
-
-/** ================= 状态 ================= */
-const els = {
-  wordDisplay: document.getElementById('wordDisplay'),
-  meaningDisplay: document.getElementById('meaningDisplay'),
-  progress: document.getElementById('progress'),
-  emptyMsg: document.getElementById('emptyMsg'),
-  knowBtn: document.getElementById('knowBtn'),
-  dontKnowBtn: document.getElementById('dontKnowBtn'),
-  showMeaningBtn: document.getElementById('showMeaningBtn'),
-  restartBtn: document.getElementById('restartBtn'),
-  // toolbar
-  fileInput: document.getElementById('fileInput'),
-  btnImport: document.getElementById('btnImport'),
-  btnAdd: document.getElementById('btnAdd'),
-  btnExport: document.getElementById('btnExport'),
-  btnSyncLocal: document.getElementById('btnSyncLocal'),
-  btnDeleteWords: document.getElementById('btnDeleteWords'),
-  btnHelp: document.getElementById('btnHelp'),
-  addDataModal: document.getElementById('addDataModal'),
-  deleteModal: document.getElementById('deleteModal'),
-  newDataInput: document.getElementById('newDataInput'),
-  deleteThreshold: document.getElementById('deleteThreshold'),
-  // auth
-  signedOut: document.getElementById('signed-out'),
-  signedIn: document.getElementById('signed-in'),
-  userEmail: document.getElementById('userEmail'),
-  syncBadge: document.getElementById('syncBadge'),
+/* ========= DOM & 状态 ========= */
+const $=id=>document.getElementById(id);
+const els={
+  word:$('word'), meaning:$('meaning'), progress:$('progress'), empty:$('emptyMsg'),
+  btnShow:$('btnShow'), btnKnow:$('btnKnow'), btnDont:$('btnDont'), btnRestart:$('btnRestart'),
+  fileInput:$('fileInput'), btnImportJson:$('btnImportJson'), btnImportText:$('btnImportText'),
+  btnExport:$('btnExport'), btnSyncLocal:$('btnSyncLocal'),
+  btnDelete:$('btnDelete'), dlgDelete:$('dlgDelete'), th:$('deleteTh'), okDelete:$('okDelete'), cancelDelete:$('cancelDelete'),
+  dlgImportText:$('dlgImportText'), textBulk:$('textBulk'), okImportText:$('okImportText'), cancelImportText:$('cancelImportText'),
+  accountBtn:$('accountBtn'), sync:$('syncBadge'),
+  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody')
 };
 
-let wordData = { original: {}, backup: [] }; // original: { word: { meaning, memoryLevel } }
-let currentWord = null;                       // [word, obj]
-let currentUser = null;
-let rtChannel = null;
+let sessionUser=null, rtChannel=null;
+let dataMap = {};                 // { word: { meaning, memoryLevel } }
+let queue = [];                   // 学习队列  [ [word, obj], ... ]
+let cur = null;                   // 当前 [word, obj]
+let dirtyLocal=false;
 
-/** ================= 启动 ================= */
-window.addEventListener('DOMContentLoaded', async () => {
-  wireUI();
-  restoreLocal();
-  resetLearning();
-  await initAuth();
-});
+/* ========= 小工具 ========= */
+const toast=(m)=>{console.log('[toast]',m)};
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const saveLocal=()=>localStorage.setItem('words_local',JSON.stringify(dataMap));
+const loadLocal=()=>{try{dataMap=JSON.parse(localStorage.getItem('words_local')||'{}')||{}}catch{dataMap={}}};
+const pendingQKey='words_pending';
+const getPending=()=>JSON.parse(localStorage.getItem(pendingQKey)||'[]');
+const setPending=q=>localStorage.setItem(pendingQKey,JSON.stringify(q));
 
-function wireUI(){
-  els.btnImport.onclick = ()=> els.fileInput.click();
-  els.fileInput.onchange = onImportFile;
-  els.btnAdd.onclick = ()=> showModal(els.addDataModal, true);
-  document.getElementById('confirmAdd').onclick = onConfirmAdd;
-  document.getElementById('cancelAdd').onclick = ()=> showModal(els.addDataModal, false);
-
-  els.btnDeleteWords.onclick = ()=> showModal(els.deleteModal, true);
-  document.getElementById('confirmDelete').onclick = onConfirmDelete;
-  document.getElementById('cancelDelete').onclick = ()=> showModal(els.deleteModal, false);
-
-  els.btnExport.onclick = exportData;
-  els.btnSyncLocal.onclick = syncLocalToCloud;
-  els.btnHelp.onclick = showHelp;
-
-  els.showMeaningBtn.onclick = showMeaning;
-  els.knowBtn.onclick = () => handleKnow(true);
-  els.dontKnowBtn.onclick = () => handleKnow(false);
-  els.restartBtn.onclick = resetLearning;
-
-  document.getElementById('btnSignUp').onclick = signUp;
-  document.getElementById('btnSignIn').onclick = signIn;
-  document.getElementById('btnSignOut').onclick = signOut;
-
-  window.addEventListener('online', ()=>{ updateStatusIndicator(); flushPending(); });
-  window.addEventListener('offline', updateStatusIndicator);
+/* ========= 账户模态（沿用备忘录交互） ========= */
+let lastFocus=null;
+function openModal(title,html){
+  els.title.textContent=title;els.body.innerHTML=html;
+  lastFocus=document.activeElement;els.modal.classList.add('show');els.modal.removeAttribute('aria-hidden');
+  document.body.style.overflow='hidden';
+  const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
 }
-
-function showModal(el, on){ el.style.display = on? 'flex':'none'; }
-
-/** ================= 本地存储 ================= */
-function restoreLocal(){ try{ const saved=JSON.parse(localStorage.getItem('wordData')||'{}'); wordData.original = saved.original || {}; }catch{} }
-function saveLocal(){ localStorage.setItem('wordData', JSON.stringify(wordData)); }
-
-/** ================= Auth ================= */
-async function initAuth(){
-  const { data: { session } } = await sb.auth.getSession();
-  currentUser = session?.user || null; updateAuthUI();
-  if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-  sb.auth.onAuthStateChange(async (_e, session) => {
-    currentUser = session?.user || null; updateAuthUI();
-    if(currentUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
-    else { unsubscribeRealtime(); restoreLocal(); resetLearning(); }
-  });
+function closeModal(){
+  els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow='';
+  if(lastFocus)lastFocus.focus();
 }
+els.backdrop.onclick=closeModal;els.close.onclick=closeModal;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
 
-async function signUp(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  try{
-    toggleBtn('btnSignUp', true, '注册中…');
-    const { error } = await sb.auth.signUp({ email, password });
-    if(error) throw error;
-    alert('注册成功：若开启邮箱验证，请先到邮箱完成验证再登录。');
-  }catch(err){
-    console.error('[signUp]', err);
-    alert('注册失败：' + (err?.message || err));
-  }finally{ toggleBtn('btnSignUp', false, '注册'); }
+function showAuth(){
+  openModal('登录 / 注册', `
+    <div class="field"><label>邮箱</label><input id="em" type="email" placeholder="you@example.com"></div>
+    <div class="field"><label>密码（≥6位）</label><input id="pw" type="password" placeholder="******"></div>
+    <div class="row" style="gap:8px;justify-content:flex-end">
+      <button id="lg" class="primary">登录</button>
+      <button id="sg">注册</button>
+    </div>
+    <div id="hint" class="muted" style="margin-top:6px"></div>
+  `);
+  const hint=$('hint');
+  $('lg').onclick=async()=>{
+    const email=$('em').value.trim(),password=$('pw').value; if(!email||!password){hint.textContent='请输入邮箱和密码';return}
+    try{
+      const { error } = await sb.auth.signInWithPassword({ email,password });
+      if(error){ hint.textContent='登录失败：'+error.message; return; }
+      toast('登录成功'); closeModal();
+    }catch(err){ hint.textContent='登录异常：'+(err?.message||err)}
+  };
+  $('sg').onclick=async()=>{
+    const email=$('em').value.trim(),password=$('pw').value; if(!email||!password){hint.textContent='请输入邮箱和密码';return}
+    try{
+      const { error } = await sb.auth.signUp({ email,password });
+      hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱确认后再登录。';
+    }catch(err){ hint.textContent='注册异常：'+(err?.message||err)}
+  };
 }
+function showAccount(u){
+  openModal('账户', `
+    <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
+    <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="primary">退出登录</button></div>
+  `);
+  $('lo').onclick=async()=>{ await sb.auth.signOut(); toast('已退出'); closeModal(); };
+}
+els.accountBtn.onclick=()=>{sessionUser?showAccount(sessionUser):showAuth()};
 
-async function signIn(){
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  if(!email || !password){ alert('请输入邮箱和密码'); return; }
-
-  try{
-    toggleBtn('btnSignIn', true, '登录中…');
-    console.log('[signIn] start', { email });
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){
-      const map = {
-        'Email not confirmed': '邮箱未验证：请到邮箱点确认链接（或在 Auth/Email 临时关闭 Confirm email）',
-        'Invalid login credentials': '邮箱或密码不正确',
-      };
-      alert('登录失败：' + (map[error.message] || error.message));
-      return;
-    }
-    currentUser = data?.user || (await sb.auth.getUser()).data?.user || null;
-    updateAuthUI();
-    await loadAllFromCloud();
-    subscribeRealtime();
-    console.log('[signIn] success', currentUser?.id);
-  }catch(err){
-    console.error('[signIn] error', err);
-    alert('网络或脚本错误：' + (err?.message || err));
-  }finally{
-    toggleBtn('btnSignIn', false, '登录');
+/* ========= UI & 学习流程 ========= */
+function resetQueue(){
+  queue = shuffle(Object.entries(dataMap));
+  cur=null;
+  els.progress.style.width='0%';
+  els.meaning.style.display='none';
+  els.btnShow.style.display='inline-block';
+  els.btnKnow.style.display='none';
+  els.btnDont.style.display='none';
+  els.btnRestart.style.display='none';
+  els.empty.style.display = queue.length? 'none':'block';
+  next();
+}
+function next(){
+  if(queue.length===0){
+    els.word.textContent='恭喜，今日学习完成！';
+    els.meaning.style.display='none';
+    els.btnShow.style.display='none';
+    els.btnKnow.style.display='none';
+    els.btnDont.style.display='none';
+    els.btnRestart.style.display='inline-block';
+    return;
   }
+  cur = queue.pop(); // [word, obj]
+  els.word.textContent = cur[0];
+  els.meaning.textContent = cur[1].meaning || '';
+  els.meaning.style.display='none';
+  els.btnShow.style.display='inline-block';
+  els.btnKnow.style.display='none';
+  els.btnDont.style.display='none';
+  els.btnRestart.style.display='none';
+  updateProgress();
+}
+function updateProgress(){
+  const total = Object.keys(dataMap).length || 1;
+  const remain = queue.length;
+  els.progress.style.width = (((total-remain)/total*100).toFixed(1))+'%';
+}
+els.btnShow.onclick=()=>{ els.meaning.style.display='block'; els.btnShow.style.display='none'; els.btnKnow.style.display='inline-block'; els.btnDont.style.display='inline-block'; };
+els.btnKnow.onclick=()=>vote(true);
+els.btnDont.onclick=()=>vote(false);
+els.btnRestart.onclick=resetQueue;
+
+function vote(known){
+  if(!cur) return;
+  const [w, v] = cur;
+  v.memoryLevel = (v.memoryLevel||0) + (known?1:-1);
+  if(!known){ queue.unshift([w,v]); }  // 不认识 → 放回队列前端
+  dataMap[w] = v; saveLocal(); dirtyLocal=true;
+  if(sessionUser) updateOne(w);
+  next();
 }
 
-async function signOut(){
+/* ========= 导入导出 ========= */
+function showPop(el,on){ el.style.display = on?'flex':'none'; }
+$('btnImportJson').onclick=()=>els.fileInput.click();
+els.fileInput.onchange=async e=>{
+  const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); e.target.value='';
   try{
-    toggleBtn('btnSignOut', true, '退出中…');
-    await sb.auth.signOut();
-  }catch(err){
-    console.error('[signOut]', err);
-    alert('退出失败：' + (err?.message || err));
-  }finally{ toggleBtn('btnSignOut', false, '退出'); }
-}
+    const obj=JSON.parse(text); // { word:{meaning,memoryLevel} }
+    Object.assign(dataMap, obj); saveLocal(); dirtyLocal=true;
+    if(sessionUser) await upsertMany(obj);
+    resetQueue(); toast('导入 JSON 完成');
+  }catch(err){ alert('JSON 解析失败：'+(err?.message||err)) }
+};
+$('btnImportText').onclick=()=>showPop(els.dlgImportText,true);
+els.okImportText.onclick=()=>{
+  const lines=(els.textBulk.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const obj={};
+  for(const line of lines){
+    const [w,...rest]=line.split(/\s+/); const meaning=rest.join(' ');
+    if(w && meaning){ obj[w] = { meaning, memoryLevel: dataMap[w]?.memoryLevel||0 }; }
+  }
+  Object.assign(dataMap,obj); saveLocal(); dirtyLocal=true;
+  if(sessionUser) upsertMany(obj);
+  els.textBulk.value=''; showPop(els.dlgImportText,false); resetQueue();
+};
+els.cancelImportText.onclick=()=>showPop(els.dlgImportText,false);
 
-function updateAuthUI(){
-  if(currentUser){
-    els.signedOut.style.display='none';
-    els.signedIn.style.display='flex';
-    els.userEmail.textContent = currentUser.email || '已登录';
+$('btnExport').onclick=async()=>{
+  if(sessionUser){
+    // 从云端导出
+    const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
+    if(error){ alert('导出失败：'+error.message); return; }
+    const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
+    download(map,'words_cloud.json');
   }else{
-    els.signedOut.style.display='block';
-    els.signedIn.style.display='none';
+    download(dataMap,'words_local.json');
   }
-  updateStatusIndicator();
+};
+function download(obj,name){
+  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);
 }
 
-/** ================= 云端交互 ================= */
+/* ========= 删除（阈值 ≥ 5） ========= */
+$('btnDelete').onclick=()=>showPop(els.dlgDelete,true);
+els.cancelDelete.onclick=()=>showPop(els.dlgDelete,false);
+els.okDelete.onclick=async()=>{
+  const th = Math.max(5, parseInt(els.th.value||'5',10));
+  for(const k of Object.keys(dataMap)){ if((dataMap[k].memoryLevel||0) >= th) delete dataMap[k]; }
+  saveLocal(); resetQueue();
+  if(sessionUser){ await deleteByThreshold(th); await loadAllFromCloud(); }
+  showPop(els.dlgDelete,false); alert(`已删除记忆度 ≥ ${th} 的单词`);
+};
+
+/* ========= 云端：加载/写入/同步 ========= */
+function updateBadge(){
+  const online = navigator.onLine;
+  const pend = getPending().length;
+  const parts=[];
+  parts.push(online?'🟢 在线':'🔴 离线');
+  parts.push(sessionUser?'已登录':'未登录');
+  if(sessionUser) parts.push(pend>0?`待同步(${pend})`:'已同步');
+  els.sync.textContent = parts.join(' · ');
+}
+window.addEventListener('online',()=>{updateBadge(); flushPending();});
+window.addEventListener('offline',updateBadge);
+
 async function loadAllFromCloud(){
-  if(!currentUser) return;
-  const { data, error } = await sb.from('words')
-    .select('word, meaning, memory_level')
-    .eq('user_id', currentUser.id)
-    .order('created_at', { ascending: true });
-  if(error){ console.warn('加载云端失败：', error.message); return; }
-  const map = {};
-  (data||[]).forEach(r => { map[r.word] = { meaning: r.meaning, memoryLevel: r.memory_level || 0 }; });
-  wordData.original = map; saveLocal(); resetLearning();
+  if(!sessionUser) return;
+  const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
+  if(error){ console.warn('云端加载失败：',error.message); return; }
+  const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
+  dataMap = map; saveLocal(); resetQueue(); updateBadge();
 }
 
 async function upsertMany(obj){
-  if(!currentUser) return;
-  const rows = Object.entries(obj).map(([w,v])=>({ user_id: currentUser.id, word:w, meaning:v.meaning||'', memory_level: v.memoryLevel||0 }));
+  if(!sessionUser) return;
+  const rows = Object.entries(obj).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
   if(rows.length===0) return;
   const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
-  if(error){ console.warn('云端 upsert 失败：', error.message); queuePending({ type:'upsertMany', rows }); }
+  if(error){ queuePending({type:'upsertMany',rows}); updateBadge(); }
 }
 
 async function updateOne(word){
-  if(!currentUser) return;
-  const v = wordData.original[word]; if(!v) return;
-  const { error } = await sb.from('words').update({ meaning:v.meaning||'', memory_level:v.memoryLevel||0 }).match({ user_id: currentUser.id, word });
-  if(error){ console.warn('云端更新失败：', error.message); queuePending({ type:'updateOne', word, payload:{ meaning:v.meaning||'', memory_level:v.memoryLevel||0 } }); }
+  if(!sessionUser) return;
+  const v=dataMap[word]; if(!v) return;
+  const { error } = await sb.from('words').update({ meaning:v.meaning||'', memory_level:v.memoryLevel||0 }).match({ user_id:sessionUser.id, word });
+  if(error){ queuePending({type:'updateOne', word, payload:{ meaning:v.meaning||'', memory_level:v.memoryLevel||0 }}); updateBadge(); }
 }
 
 async function deleteByThreshold(th){
-  if(!currentUser) return;
-  const { error } = await sb.from('words').delete().eq('user_id', currentUser.id).gte('memory_level', th);
-  if(error){ alert('云端删除失败：'+error.message); }
+  if(!sessionUser) return;
+  const { error } = await sb.from('words').delete().eq('user_id',sessionUser.id).gte('memory_level',th);
+  if(error) alert('云端删除失败：'+error.message);
 }
 
 function subscribeRealtime(){
   if(rtChannel) sb.removeChannel(rtChannel);
-  rtChannel = sb.channel('words-ch');
-  rtChannel.on('postgres_changes', { event:'*', schema:'public', table:'words', filter:`user_id=eq.${currentUser.id}` }, async ()=>{ await loadAllFromCloud(); }).subscribe();
+  if(!sessionUser) return;
+  rtChannel = sb.channel('words-ch')
+    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{ await loadAllFromCloud(); })
+    .subscribe();
 }
 function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
 
-/** ================= 离线待同步 ================= */
-function queuePending(item){
-  const q = JSON.parse(localStorage.getItem('words_pending')||'[]');
-  q.push(item);
-  localStorage.setItem('words_pending', JSON.stringify(q));
-  updateStatusIndicator();
-}
+/* 离线待同步 */
+function queuePending(item){ const q=getPending(); q.push(item); setPending(q); }
 async function flushPending(){
-  if(!currentUser) return;
-  let q = JSON.parse(localStorage.getItem('words_pending')||'[]');
-  if(q.length===0){ updateStatusIndicator(); return; }
+  if(!sessionUser) return;
+  let q=getPending(); if(q.length===0){ updateBadge(); return; }
   for(const it of q){
     if(it.type==='upsertMany'){
-      const { error } = await sb.from('words').upsert(it.rows, { onConflict:'user_id,word' });
-      if(error){ console.warn('flush upsert 失败', error.message); return; }
+      const { error } = await sb.from('words').upsert(it.rows,{ onConflict:'user_id,word' });
+      if(error){ console.warn('flush upsert 失败',error.message); return; }
     }else if(it.type==='updateOne'){
-      const { error } = await sb.from('words').update(it.payload).match({ user_id: currentUser.id, word: it.word });
-      if(error){ console.warn('flush update 失败', error.message); return; }
+      const { error } = await sb.from('words').update(it.payload).match({ user_id:sessionUser.id, word:it.word });
+      if(error){ console.warn('flush update 失败',error.message); return; }
     }
   }
-  localStorage.removeItem('words_pending');
-  updateStatusIndicator();
+  setPending([]); updateBadge();
 }
 
-/** ================= 业务逻辑 ================= */
-function resetLearning(){
-  wordData.backup = shuffle(Object.entries(wordData.original));
-  els.progress.style.width='0%';
-  els.restartBtn.style.display='none';
-  els.showMeaningBtn.style.display='inline-block';
-  els.knowBtn.style.display='none';
-  els.dontKnowBtn.style.display='none';
-  checkEmptyData();
-  showNextWord();
-}
-
-function showNextWord(){
-  if(wordData.backup.length===0){
-    els.showMeaningBtn.style.display='none';
-    els.restartBtn.style.display='inline-block';
-    els.knowBtn.style.display='none';
-    els.dontKnowBtn.style.display='none';
-    return;
-  }
-  els.meaningDisplay.style.display='none';
-  els.showMeaningBtn.style.display='inline-block';
-  els.knowBtn.style.display='none';
-  els.dontKnowBtn.style.display='none';
-  els.restartBtn.style.display='none';
-
-  currentWord = wordData.backup.pop(); // [word, {meaning, memoryLevel}]
-  els.wordDisplay.textContent = currentWord[0];
-  els.meaningDisplay.textContent = currentWord[1].meaning || '';
-  updateProgress();
-}
-
-function updateProgress(){
-  const total = Object.keys(wordData.original).length || 1;
-  const remaining = wordData.backup.length;
-  els.progress.style.width = (((total-remaining)/total*100).toFixed(1)) + '%';
-}
-
-function showMeaning(){
-  els.meaningDisplay.style.display='block';
-  els.showMeaningBtn.style.display='none';
-  els.knowBtn.style.display='inline-block';
-  els.dontKnowBtn.style.display='inline-block';
-}
-
-function handleKnow(know){
-  if(!currentWord) return;
-  const [w, v] = currentWord;
-  v.memoryLevel = (v.memoryLevel||0) + (know?1:-1);
-  if(!know) wordData.backup.unshift([w, v]); // 不认识 → 放回队列前端再测
-  wordData.original[w] = v;
-  saveLocal();
-  if(currentUser) updateOne(w);
-  showNextWord();
-}
-
-function checkEmptyData(){ els.emptyMsg.style.display = Object.keys(wordData.original).length? 'none':'block'; }
-
-/** ================= 导入 / 导出 / 同步 ================= */
-async function onImportFile(e){
-  const file = e.target.files?.[0]; if(!file) return; const text = await file.text(); e.target.value='';
-  try{
-    const obj = JSON.parse(text); // { word: { meaning, memoryLevel } }
-    if(currentUser){ await upsertMany(obj); await loadAllFromCloud(); }
-    else { wordData.original = { ...(wordData.original||{}), ...obj }; saveLocal(); resetLearning(); }
-    alert('导入完成');
-  }catch(err){ alert('文件解析失败：' + err.message); }
-}
-
-async function exportData(){
-  if(currentUser){
-    const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id', currentUser.id).order('created_at',{ascending:true});
-    if(error){ alert('导出失败：'+error.message); return; }
-    const map = {}; (data||[]).forEach(r=>{ map[r.word]={meaning:r.meaning, memoryLevel:r.memory_level||0}; });
-    downloadJSON(map, 'word-data_cloud.json');
-  }else{
-    downloadJSON(wordData.original||{}, 'word-data_local.json');
-  }
-}
-
-async function syncLocalToCloud(){
-  if(!currentUser){ alert('请先登录'); return; }
-  await upsertMany(wordData.original||{});
-  await loadAllFromCloud();
-  alert('本地数据已同步至云端');
-}
-
-function downloadJSON(obj, name){
-  const blob = new Blob([JSON.stringify(obj,null,2)], { type:'application/json' });
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href);
-}
-
-/** ================= 添加 / 删除 ================= */
-function onConfirmAdd(){
-  const text = els.newDataInput.value||''; if(!text.trim()){ showModal(els.addDataModal,false); return; }
-  const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
-  const obj = {};
-  for(const line of lines){
-    const [word, ...rest] = line.split(/\s+/);
-    if(!word || rest.length===0) continue;
-    const meaning = rest.join(' ');
-    obj[word] = { meaning, memoryLevel: wordData.original?.[word]?.memoryLevel || 0 };
-  }
-  wordData.original = { ...(wordData.original||{}), ...obj };
-  saveLocal();
-  if(currentUser) upsertMany(obj);
-  els.newDataInput.value=''; showModal(els.addDataModal,false); resetLearning();
-}
-
-async function onConfirmDelete(){
-  const th = parseInt(els.deleteThreshold.value,10);
-  if(!(th>=5)){ alert('请输入不小于 5 的数字'); return; }
-  for(const k of Object.keys(wordData.original)){ if((wordData.original[k].memoryLevel||0) >= th) delete wordData.original[k]; }
-  saveLocal(); resetLearning();
-  if(currentUser){ await deleteByThreshold(th); await loadAllFromCloud(); }
-  alert(`已删除记忆次数 ≥ ${th} 的单词`);
-  showModal(els.deleteModal,false);
-}
-
-/** ================= 工具 & 指示灯 ================= */
-function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
-function toggleBtn(id, disabled, text){ const btn=document.getElementById(id); if(!btn) return; btn.disabled=!!disabled; if(text) btn.textContent=text; }
-
-function updateStatusIndicator(){
-  const online = navigator.onLine;
-  const pending = JSON.parse(localStorage.getItem('words_pending')||'[]').length;
-  const parts = [];
-  parts.push(online ? '🟢 在线' : '🔴 离线');
-  parts.push(currentUser ? '已登录' : '未登录');
-  if(currentUser) parts.push(pending>0 ? `待同步(${pending})` : '已同步');
-  els.syncBadge.textContent = parts.join(' · ');
-}
-
-function showHelp(){
-  const help = document.createElement('div'); help.className='modal'; help.style.display='flex'; help.style.alignItems='center'; help.style.justifyContent='center';
-  help.innerHTML = `<div class="dialog">
-    <h3 style="margin:0 0 10px">系统说明</h3>
-    <div style="line-height:1.7">
-      点击“显示释义”查看中文；“添加数据”每行按<span class="warning-text">单词 空格 释义</span>；<br/>
-      支持导入/导出 JSON（登录时导入/导出云端；未登录导入/导出本地）。<br/>
-      登录后所有操作会自动保存到 Supabase，并在多端<span class="warning-text">实时同步</span>；离线时写入本地，恢复联网后自动补推。
-    </div>
-    <div class="dialog-actions"><button class="btn" onclick="this.closest('.modal').remove()">关闭</button></div>
-  </div>`;
-  document.body.appendChild(help);
-}
-
-window.addEventListener('unhandledrejection', e=>{
-  console.error('[unhandledrejection]', e.reason);
-  alert('出错了：' + (e.reason?.message || e.reason));
+/* ========= 认证监听 & 初始化 ========= */
+sb.auth.onAuthStateChange(async (_evt,sess)=>{
+  sessionUser = sess?.user || null;
+  els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+  updateBadge();
+  if(sessionUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
+  else{ unsubscribeRealtime(); loadLocal(); resetQueue(); }
 });
+
+(async function init(){
+  loadLocal(); resetQueue(); updateBadge();
+  const { data:{session} } = await sb.auth.getSession();
+  sessionUser = session?.user || null;
+  els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+  if(sessionUser){ await loadAllFromCloud(); subscribeRealtime(); flushPending(); }
+})();
 </script>
 </body>
 </html>
