@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>背单词v0.2</title>
+<title>背单词v0.3</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -134,8 +134,8 @@
 
 <script>
 /* ========= 1) Supabase ========= */
-const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';      // ← 换成你的
-const SUPABASE_ANON_KEY = 'YOUR_PUBLIC_ANON_KEY';            // ← 换成你的
+const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 // 更稳妥的会话存储（localStorage 不可用时回退至 Cookie）
 const cookieStorage = {
   getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
