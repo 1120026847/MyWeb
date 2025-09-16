@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>背单词123123</title>
+<title>背单词（墨墨风格）</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -505,3 +505,134 @@ function subscribeRealtime(){
   if(!sessionUser) return;
   
   log('订阅实时更新', sessionUser.id);
+  rtChannel = sb.channel('words-ch')
+    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{
+      try{ 
+        log('收到实时更新，重新加载数据');
+        await loadAllFromCloud(); 
+      }catch(err){ 
+        log('实时更新处理失败', err); 
+      }
+    })
+    .subscribe();
+}
+function unsubscribeRealtime(){ 
+  if(rtChannel){ 
+    log('取消实时订阅');
+    sb.removeChannel(rtChannel); 
+    rtChannel=null; 
+  } 
+}
+
+/* ========= 10) 会话监听 & 初始化 ========= */
+sb.auth.onAuthStateChange(async (event, session)=>{
+  log('认证状态变化', event, session?.user?.email);
+  sessionUser = session?.user || null;
+  els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+  updateBadge();
+  
+  if(sessionUser){ 
+    try{ 
+      log('用户已登录，加载云端数据');
+      await loadAllFromCloud(); 
+      subscribeRealtime();
+    }catch(err){ 
+      log('登录后加载云端数据失败', err); 
+    } 
+  } else{ 
+    log('用户已退出，使用本地数据');
+    unsubscribeRealtime(); 
+    loadLocal(); 
+    resetQueue(); 
+  }
+});
+
+// 测试连接函数
+async function testConnection(){
+  try{
+    log('测试Supabase连接...');
+    const { data, error } = await sb.from('words').select('count', { count: 'exact' }).limit(1);
+    if(error){
+      log('连接测试失败', error);
+      return false;
+    }
+    log('连接测试成功');
+    return true;
+  }catch(err){
+    log('连接测试异常', err);
+    return false;
+  }
+}
+
+// 添加测试按钮到工具栏
+function addTestButton(){
+  const testBtn = document.createElement('button');
+  testBtn.textContent = '测试连接';
+  testBtn.style.background = '#f59e0b';
+  testBtn.style.color = '#fff';
+  testBtn.onclick = async () => {
+    testBtn.disabled = true;
+    testBtn.textContent = '测试中...';
+    const success = await testConnection();
+    testBtn.disabled = false;
+    testBtn.textContent = '测试连接';
+    showToast(success ? '连接正常' : '连接失败，请检查配置');
+  };
+  document.querySelector('.toolbar').appendChild(testBtn);
+}
+
+(async function init(){
+  log('应用初始化开始');
+  
+  // 添加测试按钮
+  addTestButton();
+  
+  // 本地先可用
+  loadLocal(); 
+  resetQueue(); 
+  updateBadge();
+  log('本地数据加载完成，单词数量:', Object.keys(dataMap).length);
+  
+  // 恢复会话
+  try{
+    log('恢复用户会话...');
+    const { data: { session }, error } = await sb.auth.getSession();
+    if(error){
+      log('获取会话失败', error);
+    } else {
+      sessionUser = session?.user || null;
+      els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+      
+      if(sessionUser){ 
+        log('会话恢复成功，用户:', sessionUser.email);
+        try{ 
+          await loadAllFromCloud(); 
+          subscribeRealtime();
+        }catch(err){ 
+          log('恢复会话后加载云端数据失败', err); 
+        } 
+      } else {
+        log('无有效会话');
+      }
+    }
+  }catch(err){ 
+    log('会话恢复异常', err); 
+  }
+  
+  updateBadge();
+  log('应用初始化完成');
+})();
+
+// 页面卸载时清理
+window.addEventListener('beforeunload', () => {
+  unsubscribeRealtime();
+});
+
+// 双击调试信息可清空
+els.debug.ondblclick = () => {
+  els.debug.textContent = '';
+  els.debug.style.display = 'none';
+};
+</script>
+</body>
+</html>
