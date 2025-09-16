@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>背单词123123123</title>
+<title>背单词（墨墨风格）</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -12,7 +12,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
-       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
+      font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
   header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
   .container{padding:12px 16px}
   .nav{display:flex;align-items:center;gap:10px}
@@ -63,7 +63,6 @@
   .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
   .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
   .m-pop .actions{display:flex;justify-content:flex-end;margin:8px 0 0}
-  .debug{background:#f0f0f0;border:1px solid #ccc;padding:8px;font-family:monospace;font-size:12px;margin:8px 0;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -98,14 +97,9 @@
     <button id="btnRestart" style="display:none" type="button">重新开始</button>
   </div>
 
-  <!-- 进度条在按钮下面 -->
   <div class="progress-wrap"><div class="bar"><i id="progress"></i></div></div>
-  
-  <!-- 调试信息 -->
-  <div id="debugInfo" class="debug" style="display:none"></div>
 </main>
 
-<!-- 文本导入弹窗 -->
 <div id="dlgImportText" class="m-pop">
   <div class="dialog">
     <h3 style="margin:0 0 8px">批量导入（每行：英文 空格 中文）</h3>
@@ -117,7 +111,6 @@
   </div>
 </div>
 
-<!-- 账号模态 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="panel" role="document">
@@ -130,12 +123,9 @@
 <div id="toast" class="toast" style="display:none"></div>
 
 <script>
-/* ========= 修复的地方：优化错误处理和调试信息 ========= */
-
 /* ========= 1) Supabase ========= */
-const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';        
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-
+const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';      // ← 换成你的
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';                      // ← 换成你的
 // 更稳妥的会话存储（localStorage 不可用时回退至 Cookie）
 const cookieStorage = {
   getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
@@ -157,38 +147,25 @@ const els={
   dlgImportText:$('dlgImportText'), textBulk:$('textBulk'), okImportText:$('okImportText'), cancelImportText:$('cancelImportText'),
   accountBtn:$('accountBtn'), sync:$('syncBadge'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody'),
-  toast:$('toast'), debug:$('debugInfo')
+  toast:$('toast')
 };
 let sessionUser=null, rtChannel=null;
-let dataMap = {};   // { word: { meaning, memoryLevel } }
-let queue = [];     // 学习队列
-let cur = null;     // 当前
+let dataMap = {};  // { word: { meaning, memoryLevel } }
+let queue = [];    // 学习队列
+let cur = null;    // 当前
 
 /* ========= 3) 小工具 ========= */
 function showToast(msg, ms=1800){ els.toast.textContent=msg; els.toast.style.display='block'; setTimeout(()=>{els.toast.style.display='none'}, ms); }
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-const saveLocal=()=>{try{localStorage.setItem('words_local',JSON.stringify(dataMap))}catch(e){log('saveLocal error',e)}};
+const saveLocal=()=>localStorage.setItem('words_local',JSON.stringify(dataMap));
 const loadLocal=()=>{try{dataMap=JSON.parse(localStorage.getItem('words_local')||'{}')||{}}catch{dataMap={}}};
-
 function updateBadge(){
   const parts=[]; parts.push(navigator.onLine?'🟢 在线':'🔴 离线'); parts.push(sessionUser?`已登录：${sessionUser.email||'用户'}`:'未登录');
   els.sync.textContent = parts.join(' · ');
 }
 window.addEventListener('online',updateBadge);
 window.addEventListener('offline',updateBadge);
-
-function log(...args){ 
-  console.log('[WORDS]', ...args); 
-  // 显示调试信息
-  const debugText = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
-  els.debug.textContent += new Date().toLocaleTimeString() + ': ' + debugText + '\n';
-  els.debug.style.display = 'block';
-  // 只保留最后10行
-  const lines = els.debug.textContent.split('\n');
-  if(lines.length > 10){
-    els.debug.textContent = lines.slice(-10).join('\n');
-  }
-}
+function log(...args){ console.log('[WORDS]', ...args); }
 
 /* ========= 4) 登录模态 ========= */
 let lastFocus=null;
@@ -216,32 +193,18 @@ function showAuth(){
     try{
       const email=$('em').value.trim(),password=$('pw').value;
       if(!email||!password){hint.textContent='请输入邮箱和密码';return}
-      log('尝试登录', email);
-      const { error, data } = await sb.auth.signInWithPassword({ email,password });
-      if(error){ 
-        log('登录失败', error);
-        hint.textContent='登录失败：'+error.message; 
-        return; 
-      }
-      log('登录成功', data);
+      const { error } = await sb.auth.signInWithPassword({ email,password });
+      if(error){ hint.textContent='登录失败：'+error.message; return; }
       showToast('登录成功'); closeModal();
-    }catch(err){ 
-      log('登录异常', err);
-      hint.textContent='登录异常：'+(err?.message||err)
-    }
+    }catch(err){ hint.textContent='登录异常：'+(err?.message||err)}
   };
   $('sg').onclick=async()=>{
     try{
       const email=$('em').value.trim(),password=$('pw').value;
       if(!email||!password){hint.textContent='请输入邮箱和密码';return}
-      log('尝试注册', email);
-      const { error, data } = await sb.auth.signUp({ email,password });
-      log('注册结果', { error, data });
+      const { error } = await sb.auth.signUp({ email,password });
       hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱确认后再登录。';
-    }catch(err){ 
-      log('注册异常', err);
-      hint.textContent='注册异常：'+(err?.message||err)
-    }
+    }catch(err){ hint.textContent='注册异常：'+(err?.message||err)}
   };
 }
 function showAccount(u){
@@ -330,7 +293,6 @@ els.okImportText.onclick=()=>{
   Object.assign(dataMap,obj); saveLocal();
   if(sessionUser) upsertMany(obj).catch(err=>log('upsertMany error', err));
   els.textBulk.value=''; els.dlgImportText.style.display='none'; resetQueue();
-  showToast(`导入 ${Object.keys(obj).length} 个单词`);
 };
 
 els.btnExport.onclick=()=>exportJSON();
@@ -338,20 +300,16 @@ els.btnExport.onclick=()=>exportJSON();
 async function exportJSON(){
   try{
     if(sessionUser){
-      log('导出云端数据');
       const { data, error } = await sb.from('words')
         .select('word,meaning,memory_level')
         .eq('user_id', sessionUser.id)
         .order('created_at',{ascending:true});
       if(error) throw error;
-      log('云端数据条数', data?.length || 0);
       const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
       return downloadJSON(map,'words_cloud.json');
     }
-    log('导出本地数据');
     return downloadJSON(dataMap,'words_local.json');
   }catch(err){
-    log('导出失败', err);
     alert('导出失败：'+(err?.message||err));
   }
 }
@@ -364,75 +322,27 @@ function downloadJSON(obj, filename){
 
 /* ========= 7) 一键保存 / 加载（本地→云 & 云→本地） ========= */
 els.btnSync.onclick = async ()=>{
-  if(!sessionUser){ 
-    alert('请先登录'); 
-    return; 
-  }
-  
+  if(!sessionUser){ alert('请先登录'); return; }
   els.btnSync.disabled = true;
-  els.btnSync.textContent = '同步中...';
-  
   try{
-    log('开始同步，本地单词数', Object.keys(dataMap).length);
-    
-    // 1) 本地 → 云端（批量 upsert），分批处理避免超时
-    const localEntries = Object.entries(dataMap);
-    if(localEntries.length > 0){
-      log('上传本地数据到云端');
-      
-      // 分批处理，每次100个
-      const BATCH_SIZE = 100;
-      for(let i = 0; i < localEntries.length; i += BATCH_SIZE){
-        const batch = localEntries.slice(i, i + BATCH_SIZE);
-        const rows = batch.map(([w,v])=>({
-          user_id:sessionUser.id, 
-          word:w, 
-          meaning:v.meaning||'', 
-          memory_level:v.memoryLevel||0
-        }));
-        
-        log(`上传批次 ${Math.floor(i/BATCH_SIZE) + 1}，包含 ${rows.length} 个单词`);
-        
-        const { error } = await sb.from('words')
-          .upsert(rows, { onConflict:'user_id,word' });
-          
-        if(error){
-          log('批次上传失败', error);
-          throw error;
-        }
-        
-        // 给UI一点时间更新
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      log('本地数据上传完成');
+    // 1) 本地 → 云端（批量 upsert）
+    const rows = Object.entries(dataMap).map(([w,v])=>({
+      user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0
+    }));
+    if(rows.length){
+      log('upsert rows', rows.length);
+      const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
+      if(error) throw error;
     }
-    
     // 2) 云端 → 本地（覆盖加载）
-    log('从云端加载数据');
     await loadAllFromCloud();
-    log('同步完成');
     showToast('已保存并加载（同步完成）');
-    
   }catch(err){
-    log('同步失败', err);
+    log('Sync error', err);
     const msg=(err && err.message)||String(err);
-    
-    // 更详细的错误信息
-    let errorDetails = msg;
-    if(err.code){
-      errorDetails += `\n错误代码: ${err.code}`;
-    }
-    if(err.details){
-      errorDetails += `\n详细信息: ${err.details}`;
-    }
-    if(err.hint){
-      errorDetails += `\n提示: ${err.hint}`;
-    }
-    
-    alert('保存/加载失败：' + errorDetails + '\n\n请检查:\n1. 网络连接\n2. Supabase配置\n3. 数据库表是否存在\n4. RLS策略是否正确');
+    alert('保存/加载失败：'+msg+'\n\n请确认已按文档创建表与 RLS 策略（含授权）。');
   }finally{
     els.btnSync.disabled = false;
-    els.btnSync.textContent = '保存 / 加载';
     updateBadge();
   }
 };
@@ -440,52 +350,21 @@ els.btnSync.onclick = async ()=>{
 /* ========= 8) 云端 CRUD ========= */
 async function loadAllFromCloud(){
   if(!sessionUser) return;
-  log('查询用户单词数据', sessionUser.id);
-  
   const { data, error } = await sb.from('words')
     .select('word,meaning,memory_level')
     .eq('user_id',sessionUser.id)
     .order('created_at',{ascending:true});
-    
-  if(error){ 
-    log('查询失败', error);
-    throw error; 
-  }
-  
-  log('查询到单词数量', data?.length || 0);
-  const map={}; 
-  (data||[]).forEach(r=>{
-    map[r.word]={
-      meaning:r.meaning||'',
-      memoryLevel:r.memory_level||0
-    };
-  });
-  
-  dataMap = map; 
-  saveLocal(); 
-  resetQueue(); 
-  updateBadge();
-  log('本地数据已更新');
+  if(error){ throw error; }
+  const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
+  dataMap = map; saveLocal(); resetQueue(); updateBadge();
 }
-
 async function upsertMany(obj){
   if(!sessionUser) return;
-  const rows = Object.entries(obj).map(([w,v])=>({ 
-    user_id:sessionUser.id, 
-    word:w, 
-    meaning:v.meaning||'', 
-    memory_level:v.memoryLevel||0 
-  }));
+  const rows = Object.entries(obj).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
   if(rows.length===0) return;
-  
-  log('批量upsert', rows.length, '个单词');
   const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
-  if(error){
-    log('upsertMany失败', error);
-    throw error;
-  }
+  if(error) throw error;
 }
-
 async function updateOne(word){
   if(!sessionUser) return;
   const v=dataMap[word]; if(!v) return;
@@ -493,146 +372,41 @@ async function updateOne(word){
     { user_id:sessionUser.id, word, meaning:v.meaning||'', memory_level:v.memoryLevel||0 },
     { onConflict:'user_id,word' }
   );
-  if(error) {
-    log('updateOne失败', word, error);
-    throw error;
-  }
+  if(error) throw error;
 }
 
 /* ========= 9) Realtime（可选） ========= */
 function subscribeRealtime(){
   if(rtChannel) sb.removeChannel(rtChannel);
   if(!sessionUser) return;
-  
-  log('订阅实时更新', sessionUser.id);
   rtChannel = sb.channel('words-ch')
     .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{
-      try{ 
-        log('收到实时更新，重新加载数据');
-        await loadAllFromCloud(); 
-      }catch(err){ 
-        log('实时更新处理失败', err); 
-      }
+      try{ await loadAllFromCloud(); }catch(err){ log('realtime refresh error', err); }
     })
     .subscribe();
 }
-function unsubscribeRealtime(){ 
-  if(rtChannel){ 
-    log('取消实时订阅');
-    sb.removeChannel(rtChannel); 
-    rtChannel=null; 
-  } 
-}
+function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
 
 /* ========= 10) 会话监听 & 初始化 ========= */
-sb.auth.onAuthStateChange(async (event, session)=>{
-  log('认证状态变化', event, session?.user?.email);
-  sessionUser = session?.user || null;
+sb.auth.onAuthStateChange(async (_evt,sess)=>{
+  sessionUser = sess?.user || null;
   els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
   updateBadge();
-  
-  if(sessionUser){ 
-    try{ 
-      log('用户已登录，加载云端数据');
-      await loadAllFromCloud(); 
-      subscribeRealtime();
-    }catch(err){ 
-      log('登录后加载云端数据失败', err); 
-    } 
-  } else{ 
-    log('用户已退出，使用本地数据');
-    unsubscribeRealtime(); 
-    loadLocal(); 
-    resetQueue(); 
-  }
+  if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ log('load cloud error', err); } subscribeRealtime(); }
+  else{ unsubscribeRealtime(); loadLocal(); resetQueue(); }
 });
-
-// 测试连接函数
-async function testConnection(){
-  try{
-    log('测试Supabase连接...');
-    const { data, error } = await sb.from('words').select('count', { count: 'exact' }).limit(1);
-    if(error){
-      log('连接测试失败', error);
-      return false;
-    }
-    log('连接测试成功');
-    return true;
-  }catch(err){
-    log('连接测试异常', err);
-    return false;
-  }
-}
-
-// 添加测试按钮到工具栏
-function addTestButton(){
-  const testBtn = document.createElement('button');
-  testBtn.textContent = '测试连接';
-  testBtn.style.background = '#f59e0b';
-  testBtn.style.color = '#fff';
-  testBtn.onclick = async () => {
-    testBtn.disabled = true;
-    testBtn.textContent = '测试中...';
-    const success = await testConnection();
-    testBtn.disabled = false;
-    testBtn.textContent = '测试连接';
-    showToast(success ? '连接正常' : '连接失败，请检查配置');
-  };
-  document.querySelector('.toolbar').appendChild(testBtn);
-}
 
 (async function init(){
-  log('应用初始化开始');
-  
-  // 添加测试按钮
-  addTestButton();
-  
   // 本地先可用
-  loadLocal(); 
-  resetQueue(); 
-  updateBadge();
-  log('本地数据加载完成，单词数量:', Object.keys(dataMap).length);
-  
+  loadLocal(); resetQueue(); updateBadge();
   // 恢复会话
   try{
-    log('恢复用户会话...');
-    const { data: { session }, error } = await sb.auth.getSession();
-    if(error){
-      log('获取会话失败', error);
-    } else {
-      sessionUser = session?.user || null;
-      els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
-      
-      if(sessionUser){ 
-        log('会话恢复成功，用户:', sessionUser.email);
-        try{ 
-          await loadAllFromCloud(); 
-          subscribeRealtime();
-        }catch(err){ 
-          log('恢复会话后加载云端数据失败', err); 
-        } 
-      } else {
-        log('无有效会话');
-      }
-    }
-  }catch(err){ 
-    log('会话恢复异常', err); 
-  }
-  
-  updateBadge();
-  log('应用初始化完成');
+    const { data:{session} } = await sb.auth.getSession();
+    sessionUser = session?.user || null;
+    els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+    if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ log('getSession cloud error', err); } subscribeRealtime(); }
+  }catch(err){ log('getSession error', err); }
 })();
-
-// 页面卸载时清理
-window.addEventListener('beforeunload', () => {
-  unsubscribeRealtime();
-});
-
-// 双击调试信息可清空
-els.debug.ondblclick = () => {
-  els.debug.textContent = '';
-  els.debug.style.display = 'none';
-};
 </script>
 </body>
 </html>
