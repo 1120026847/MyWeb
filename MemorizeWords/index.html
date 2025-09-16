@@ -45,11 +45,13 @@
   .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:36px 0 10px}
   .meaning{font-size:clamp(20px,6vw,36px);text-align:center;color:#1e40af;min-height:40px;display:none;margin:18px 0}
   .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 6px;flex-wrap:wrap}
-  .progress-wrap{display:flex;justify-content:center}
+
+  /* 进度条现在在按钮下方，并留出空隙 */
+  .progress-wrap{display:flex;justify-content:center;margin:16px 0 6px}
   .bar{width:86%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e)}
 
-  /* 模态（与“备忘录”一致风格） */
+  /* 模态（登录/注册/退出） */
   .modal{position:fixed;inset:0;z-index:30000;display:none}
   .modal.show{display:block}
   .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
@@ -76,10 +78,10 @@
     width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit
   }
 
-  /* 导入/删除弹窗 */
+  /* 通用小弹窗 */
   .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
   .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
-  .m-pop .actions{justify-content:flex-end;margin:8px 0 0}
+  .m-pop .actions{display:flex;justify-content:flex-end;margin:8px 0 0}
 </style>
 </head>
 <body>
@@ -99,12 +101,13 @@
     <button id="btnImportJson">导入 JSON</button>
     <button id="btnImportText">导入单词（文本）</button>
     <button id="btnExport" class="primary">导出 JSON</button>
-    <button id="btnSyncLocal">本地 → 云端</button>
+
+    <!-- 改名：保存/加载 -->
+    <button id="btnSaveLoad">保存 / 加载</button>
+
     <button id="btnDelete" style="margin-left:auto">删除记忆度 ≥ 5</button>
     <button id="btnHelp">说明</button>
   </div>
-
-  <div class="progress-wrap"><div class="bar"><i id="progress"></i></div></div>
 
   <div id="emptyMsg" class="muted" style="text-align:center;margin:20px 0;display:none">词库为空，请先导入</div>
 
@@ -117,6 +120,9 @@
     <button id="btnDont" class="red" style="display:none">不认识</button>
     <button id="btnRestart" style="display:none">重新开始</button>
   </div>
+
+  <!-- 进度条放在按钮下面，并留出 margin -->
+  <div class="progress-wrap"><div class="bar"><i id="progress"></i></div></div>
 </main>
 
 <!-- 文本导入弹窗 -->
@@ -146,7 +152,21 @@
   </div>
 </div>
 
-<!-- 账号模态（沿用“备忘录”样式与交互） -->
+<!-- 保存/加载弹窗 -->
+<div id="dlgSaveLoad" class="m-pop">
+  <div class="dialog">
+    <h3 style="margin:0 0 8px">保存 / 加载</h3>
+    <div class="row" style="gap:10px">
+      <button id="saveCloud" class="primary">保存到云端</button>
+      <button id="loadCloud">从云端加载</button>
+    </div>
+    <div class="actions">
+      <button id="closeSaveLoad">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 账号模态（与“备忘录”一致） -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="panel" role="document">
@@ -158,16 +178,8 @@
 
 <script>
 /* ========= Supabase =========
- * 需要的表（SQL）：
- * create table if not exists public.words(
- *   user_id uuid references auth.users(id) on delete cascade,
- *   word text not null,
- *   meaning text default '',
- *   memory_level int default 0,
- *   created_at timestamptz default now(),
- *   primary key(user_id, word)
- * );
- * 启用 RLS 并给 anon 授权对应策略（或仅登录可读写）。
+ * 表结构（提醒）：public.words(user_id uuid, word text, meaning text, memory_level int, created_at timestamptz, primary key(user_id, word))
+ * 已在 Realtime publication 中勾选（多端自动同步）。
  */
 const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
@@ -179,7 +191,8 @@ const els={
   word:$('word'), meaning:$('meaning'), progress:$('progress'), empty:$('emptyMsg'),
   btnShow:$('btnShow'), btnKnow:$('btnKnow'), btnDont:$('btnDont'), btnRestart:$('btnRestart'),
   fileInput:$('fileInput'), btnImportJson:$('btnImportJson'), btnImportText:$('btnImportText'),
-  btnExport:$('btnExport'), btnSyncLocal:$('btnSyncLocal'),
+  btnExport:$('btnExport'),
+  btnSaveLoad:$('btnSaveLoad'), dlgSaveLoad:$('dlgSaveLoad'), saveCloud:$('saveCloud'), loadCloud:$('loadCloud'), closeSaveLoad:$('closeSaveLoad'),
   btnDelete:$('btnDelete'), dlgDelete:$('dlgDelete'), th:$('deleteTh'), okDelete:$('okDelete'), cancelDelete:$('cancelDelete'),
   dlgImportText:$('dlgImportText'), textBulk:$('textBulk'), okImportText:$('okImportText'), cancelImportText:$('cancelImportText'),
   accountBtn:$('accountBtn'), sync:$('syncBadge'),
@@ -188,11 +201,11 @@ const els={
 
 let sessionUser=null, rtChannel=null;
 let dataMap = {};                 // { word: { meaning, memoryLevel } }
-let queue = [];                   // 学习队列  [ [word, obj], ... ]
-let cur = null;                   // 当前 [word, obj]
+let queue = [];                   // 学习队列
+let cur = null;                   // 当前
 let dirtyLocal=false;
 
-/* ========= 小工具 ========= */
+/* ========= 工具 ========= */
 const toast=(m)=>{console.log('[toast]',m)};
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const saveLocal=()=>localStorage.setItem('words_local',JSON.stringify(dataMap));
@@ -200,8 +213,9 @@ const loadLocal=()=>{try{dataMap=JSON.parse(localStorage.getItem('words_local')|
 const pendingQKey='words_pending';
 const getPending=()=>JSON.parse(localStorage.getItem(pendingQKey)||'[]');
 const setPending=q=>localStorage.setItem(pendingQKey,JSON.stringify(q));
+function showPop(el,on){ el.style.display = on?'flex':'none'; }
 
-/* ========= 账户模态（沿用备忘录交互） ========= */
+/* ========= 登录模态 ========= */
 let lastFocus=null;
 function openModal(title,html){
   els.title.textContent=title;els.body.innerHTML=html;
@@ -209,12 +223,8 @@ function openModal(title,html){
   document.body.style.overflow='hidden';
   const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
 }
-function closeModal(){
-  els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow='';
-  if(lastFocus)lastFocus.focus();
-}
-els.backdrop.onclick=closeModal;els.close.onclick=closeModal;
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
+function closeModal(){ els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow=''; if(lastFocus)lastFocus.focus(); }
+els.backdrop.onclick=closeModal;els.close.onclick=closeModal;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
 
 function showAuth(){
   openModal('登录 / 注册', `
@@ -275,7 +285,7 @@ function next(){
     els.btnRestart.style.display='inline-block';
     return;
   }
-  cur = queue.pop(); // [word, obj]
+  cur = queue.pop();
   els.word.textContent = cur[0];
   els.meaning.textContent = cur[1].meaning || '';
   els.meaning.style.display='none';
@@ -299,14 +309,13 @@ function vote(known){
   if(!cur) return;
   const [w, v] = cur;
   v.memoryLevel = (v.memoryLevel||0) + (known?1:-1);
-  if(!known){ queue.unshift([w,v]); }  // 不认识 → 放回队列前端
+  if(!known){ queue.unshift([w,v]); }
   dataMap[w] = v; saveLocal(); dirtyLocal=true;
   if(sessionUser) updateOne(w);
   next();
 }
 
 /* ========= 导入导出 ========= */
-function showPop(el,on){ el.style.display = on?'flex':'none'; }
 $('btnImportJson').onclick=()=>els.fileInput.click();
 els.fileInput.onchange=async e=>{
   const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); e.target.value='';
@@ -333,7 +342,6 @@ els.cancelImportText.onclick=()=>showPop(els.dlgImportText,false);
 
 $('btnExport').onclick=async()=>{
   if(sessionUser){
-    // 从云端导出
     const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
     if(error){ alert('导出失败：'+error.message); return; }
     const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
@@ -357,6 +365,31 @@ els.okDelete.onclick=async()=>{
   if(sessionUser){ await deleteByThreshold(th); await loadAllFromCloud(); }
   showPop(els.dlgDelete,false); alert(`已删除记忆度 ≥ ${th} 的单词`);
 };
+
+/* ========= 保存/加载 ========= */
+els.btnSaveLoad.onclick=()=>showPop(els.dlgSaveLoad,true);
+els.closeSaveLoad.onclick=()=>showPop(els.dlgSaveLoad,false);
+
+els.saveCloud.onclick=async()=>{
+  if(!sessionUser){ alert('请先登录再保存到云端'); return; }
+  await saveAllToCloud();
+  showPop(els.dlgSaveLoad,false);
+  alert('已保存到云端');
+};
+els.loadCloud.onclick=async()=>{
+  if(!sessionUser){ alert('请先登录再从云端加载'); return; }
+  await loadAllFromCloud();
+  showPop(els.dlgSaveLoad,false);
+  alert('已从云端加载到本地');
+};
+
+async function saveAllToCloud(){
+  if(!sessionUser) return;
+  const rows = Object.entries(dataMap).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
+  if(rows.length===0){ return; }
+  const { error } = await sb.from('words').upsert(rows,{ onConflict:'user_id,word' }).select(); // 官方推荐写法
+  if(error){ queuePending({type:'upsertMany',rows}); }
+}
 
 /* ========= 云端：加载/写入/同步 ========= */
 function updateBadge(){
