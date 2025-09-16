@@ -45,7 +45,7 @@
   .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 6px;flex-wrap:wrap}
 
   /* 进度条放在按钮下面并留空隙 */
-  .progress-wrap{display:flex;justify-content:center;margin:16px 0 6px}
+  .progress-wrap{display:flex;justify-content:center;margin:16px 0 10px}
   .bar{width:86%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e)}
 
@@ -301,35 +301,42 @@ els.okImportText.onclick=()=>{
   els.textBulk.value=''; els.dlgImportText.style.display='none'; resetQueue();
 };
 
-els.btnExport.onclick=()=>{
+/* —— 修复导出在移动端/延迟后的兼容性 —— */
+els.btnExport.onclick=async ()=>{
   try{
-    const src = sessionUser ? null : dataMap; // 未登录直接导出本地
-    if(src){
-      return downloadJSON(src, 'words_local.json');
+    if(!sessionUser){
+      return downloadJSON(dataMap, 'words_local.json');
     }
-    // 已登录：从云端取最新再导出
-    exportCloudJSON();
+    const cloud = await exportCloudJSON();
+    downloadJSON(cloud,'words_cloud.json');
   }catch(err){
     alert('导出失败：'+(err?.message||err));
   }
 };
 
 async function exportCloudJSON(){
-  if(!sessionUser){ return downloadJSON(dataMap,'words_local.json'); }
-  const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
-  if(error){ alert('导出失败：'+error.message); return; }
+  if(!sessionUser){ return dataMap; }
+  const { data, error } = await sb.from('words')
+    .select('word,meaning,memory_level')
+    .eq('user_id',sessionUser.id)
+    .order('created_at',{ascending:true})
+    .throwOnError();
   const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
-  downloadJSON(map,'words_cloud.json');
+  return map;
 }
 function downloadJSON(obj, filename){
   const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.style.display='none';
-  a.download=filename;
   a.href=url;
-  document.body.appendChild(a); // 兼容部分移动端/ Safari
-  a.click();
+  a.download=filename;
+
+  // iOS/Safari 兼容：不支持 download 属性时，打开新窗口
+  const canDownload = 'download' in a;
+  document.body.appendChild(a);
+  if(canDownload){ a.click(); }
+  else{ window.open(url, '_blank'); }
   setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},0);
 }
 
@@ -337,21 +344,35 @@ function downloadJSON(obj, filename){
 els.btnSync.onclick = async ()=>{
   if(!sessionUser){ alert('请先登录'); return; }
   els.btnSync.disabled = true;
+
+  // 超时兜底（12s）
+  let timedOut=false;
+  const timer=setTimeout(()=>{ timedOut=true; alert('网络较慢或被拦截，稍后会自动重试。'); els.btnSync.disabled=false; }, 12000);
+
   try{
-    // 1) 本地 → 云端（批量 upsert，onConflict 复合键）
-    const rows = Object.entries(dataMap).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
+    // 1) 本地 → 云端（批量 upsert）
+    const rows = Object.entries(dataMap).map(([w,v])=>({
+      user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0
+    }));
     if(rows.length){
-      const { error } = await sb.from('words').upsert(rows,{ onConflict:'user_id,word' }).select();
-      if(error) throw error;
+      await sb.from('words')
+        .upsert(rows, { onConflict:'user_id,word' })
+        .select()
+        .throwOnError(); // 没有 SELECT 权限或 RLS 将直接抛异常
     }
+
     // 2) 云端 → 本地（加载覆盖）
     await loadAllFromCloud();
-    alert('已保存并加载（同步完成）');
+    if(!timedOut) alert('已保存并加载（同步完成）');
   }catch(err){
-    console.warn('同步失败：', err?.message||err);
-    const msg = (err && err.message && /relation .* does not exist/i.test(err.message)) ? '云端表 words 不存在或未授权，请先在 Supabase 创建并开启 RLS。' : '保存失败（可能离线或权限不足）。已保留本地数据，可稍后再试。';
-    alert(msg);
+    console.warn('同步失败：', err);
+    // 常见：RLS 未开放 SELECT/INSERT/UPDATE；或 words 表不存在
+    const msg = (err && err.message)
+      ? err.message
+      : '保存失败（可能离线或权限不足）。请检查 RLS 与表是否存在。';
+    alert('保存/加载失败：' + msg + '\n\n提示：UPDATE/UPSERT 需要相应的 SELECT 策略，且 onConflict 需命中主键/唯一键。');
   }finally{
+    clearTimeout(timer);
     els.btnSync.disabled = false;
     updateBadge();
   }
@@ -360,8 +381,11 @@ els.btnSync.onclick = async ()=>{
 /* ========= 云端：CRUD & Realtime ========= */
 async function loadAllFromCloud(){
   if(!sessionUser) return;
-  const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
-  if(error){ throw error; }
+  const { data } = await sb.from('words')
+    .select('word,meaning,memory_level')
+    .eq('user_id',sessionUser.id)
+    .order('created_at',{ascending:true})
+    .throwOnError();
   const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
   dataMap = map; saveLocal(); resetQueue(); updateBadge();
 }
@@ -370,20 +394,24 @@ async function upsertMany(obj){
   if(!sessionUser) return;
   const rows = Object.entries(obj).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
   if(rows.length===0) return;
-  await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
+  await sb.from('words').upsert(rows, { onConflict:'user_id,word' }).throwOnError();
 }
 
 async function updateOne(word){
   if(!sessionUser) return;
   const v=dataMap[word]; if(!v) return;
-  await sb.from('words').upsert({ user_id:sessionUser.id, word, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }, { onConflict:'user_id,word' });
+  await sb.from('words')
+    .upsert({ user_id:sessionUser.id, word, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }, { onConflict:'user_id,word' })
+    .throwOnError();
 }
 
 function subscribeRealtime(){
   if(rtChannel) sb.removeChannel(rtChannel);
   if(!sessionUser) return;
   rtChannel = sb.channel('words-ch')
-    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{ try{ await loadAllFromCloud(); }catch{} })
+    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{
+      try{ await loadAllFromCloud(); }catch(e){ console.warn('realtime refresh failed', e); }
+    })
     .subscribe();
 }
 function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
