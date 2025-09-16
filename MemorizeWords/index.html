@@ -14,32 +14,27 @@
   body{margin:0;background:var(--bg);color:var(--text);
        font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
 
+  /* ======= 头部（移动端更稳） ======= */
   header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
   .container{padding:12px 16px}
-
-  /* 顶部采用两行栅格：第一行标题，第二行状态+账户 */
-  .nav{display:grid;grid-template-columns: 1fr auto;grid-auto-rows:auto;gap:8px 12px;align-items:center}
-  .nav h1{grid-column:1 / -1;margin:0;font-size:clamp(18px,4.8vw,22px);line-height:1.2}
-  .account{display:flex;gap:10px;align-items:center;justify-content:flex-end}
+  .nav{
+    display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+  }
+  h1{margin:0;font-size:clamp(18px,5.2vw,22px);line-height:1.2}
+  .accountRow{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
   .account-btn{
     display:inline-flex;align-items:center;gap:8px;
     background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;
     padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis
   }
-  .pill{font-size:12px;color:#1f2937;border:1px solid #e1e1e1;border-radius:999px;padding:6px 10px;background:#fff;
-        display:inline-flex;gap:8px;align-items:center;max-width:min(58vw,360px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill{font-size:12px;color:#1f2937;border:1px solid #e1e1e1;border-radius:999px;padding:4px 8px;background:#fff}
 
-  @media (max-width:680px){
-    .nav{grid-template-columns:1fr;gap:6px}
-    .account{justify-content:space-between}
-    .pill{flex:1;min-width:0}
-    .account-btn{margin-left:8px}
-  }
-
+  /* ======= 主卡片 ======= */
   .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
         padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06);max-width:920px;margin:16px auto}
-  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start}
+  .toolbar .spacer{flex:1 1 auto}
   .muted{color:var(--muted)}
 
   button{border-radius:12px;padding:12px 16px;border:1px solid #cfe3ff;background:var(--accent-weak);color:#1e3a8a;cursor:pointer}
@@ -48,24 +43,22 @@
   button.red{background:var(--red);color:#fff;border:none}
   button:disabled{opacity:.6;cursor:not-allowed}
 
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .toolbar .spacer{flex:1 1 auto}
-  .toolbar .right{margin-left:auto}
-  @media (max-width:680px){
-    .toolbar{gap:10px}
-    .toolbar .right{margin-left:auto}
-  }
-
-  .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:36px 0 10px}
+  .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:32px 0 10px}
   .meaning{font-size:clamp(20px,6vw,36px);text-align:center;color:#1e40af;min-height:40px;display:none;margin:18px 0}
-  .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 0;flex-wrap:wrap}
+  .actions{display:flex;justify-content:center;gap:12px;margin:24px 0 10px;flex-wrap:wrap}
 
-  /* 进度条放在按钮下面并留空隙（移动端也不贴底） */
-  .progress-wrap{display:flex;justify-content:center;margin:20px 0 8px}
-  .bar{width:min(92%,720px);height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+  /* 进度条在按钮下面 + 留足空隙 */
+  .progress-wrap{display:flex;justify-content:center;margin:18px 0 4px}
+  .bar{width:86%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e)}
 
-  /* 模态（登录/注册/退出） */
+  /* ======= 文本导入弹窗 ======= */
+  textarea,input[type="text"]{width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit}
+  .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
+  .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
+  .m-pop .actions{display:flex;justify-content:flex-end;margin:8px 0 0}
+
+  /* ======= 登录模态 ======= */
   .modal{position:fixed;inset:0;z-index:30000;display:none}
   .modal.show{display:block}
   .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
@@ -75,28 +68,23 @@
     background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px
   }
   @media (max-width:680px){
-    .modal .panel{
-      left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;
-      border-radius:16px 16px 12px 12px
-    }
+    .modal .panel{left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;border-radius:16px 16px 12px 12px}
   }
   .modal .close-x{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer}
   .modal .title{margin:0 40px 10px 0;font-size:18px}
   .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
-  .panel .btn{height:42px}
 
-  textarea,input[type="text"]{width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit}
-  .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
-  .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
-  .m-pop .actions{display:flex;justify-content:flex-end;margin:8px 0 0}
+  /* 简易 toast */
+  .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:35000;pointer-events:none}
+  .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
 </style>
 </head>
 <body>
 <header>
   <div class="container nav">
     <h1>背单词（墨墨风格）</h1>
-    <div class="account">
-      <span id="syncBadge" class="pill"><span style="width:10px;height:10px;border-radius:50%;background:#22c55e;display:inline-block"></span> 在线 · 未登录</span>
+    <div class="accountRow">
+      <span id="syncBadge" class="pill">离线 · 未登录</span>
       <button id="accountBtn" class="account-btn" type="button">登录 / 注册</button>
     </div>
   </div>
@@ -108,11 +96,11 @@
     <button id="btnImportJson" type="button">导入 JSON</button>
     <button id="btnImportText" type="button">导入单词（文本）</button>
     <button id="btnExport" class="primary" type="button">导出 JSON</button>
-    <span class="spacer"></span>
-    <button id="btnSync" class="right" type="button">保存 / 加载</button>
+    <div class="spacer"></div>
+    <button id="btnSync" type="button">保存 / 加载</button>
   </div>
 
-  <div id="emptyMsg" class="muted" style="text-align:center;margin:20px 0;display:none">词库为空，请先导入</div>
+  <div id="emptyMsg" class="muted" style="text-align:center;margin:10px 0;display:none">词库为空，请先导入</div>
 
   <div id="word" class="word"></div>
   <div id="meaning" class="meaning"></div>
@@ -149,67 +137,68 @@
   </div>
 </div>
 
+<!-- Toast -->
+<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
 <script>
 /* ========= Supabase =========
- * 表：public.words(user_id uuid, word text, meaning text, memory_level int, created_at timestamptz, updated_at timestamptz, primary key(user_id, word))
+ * 表：public.words(user_id uuid, word text, meaning text, memory_level int, created_at timestamptz, primary key(user_id, word))
  */
-const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';           // ← 换成你的
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';    // ← 换成你的
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+  auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
 });
 
 /* ========= DOM & 状态 ========= */
 const $=id=>document.getElementById(id);
-const els={
+const el={
   word:$('word'), meaning:$('meaning'), progress:$('progress'), empty:$('emptyMsg'),
   btnShow:$('btnShow'), btnKnow:$('btnKnow'), btnDont:$('btnDont'), btnRestart:$('btnRestart'),
   fileInput:$('fileInput'), btnImportJson:$('btnImportJson'), btnImportText:$('btnImportText'),
   btnExport:$('btnExport'), btnSync:$('btnSync'),
   dlgImportText:$('dlgImportText'), textBulk:$('textBulk'), okImportText:$('okImportText'), cancelImportText:$('cancelImportText'),
   accountBtn:$('accountBtn'), sync:$('syncBadge'),
-  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody')
+  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody'),
+  toast:$('toastWrap')
 };
 
 let sessionUser=null, rtChannel=null;
 let dataMap = {};   // { word: { meaning, memoryLevel } }
 let queue = [];     // 学习队列
 let cur = null;     // 当前
-let roundSynced = false;  // 本轮是否已自动同步（只触发一次）
+let syncInFlight = false;          // 防并发
+let loadingFromRealtime = false;   // 避免 upsert 自己触发的 RTT 抢 UI
 
 /* ========= 小工具 ========= */
-function toast(msg){ console.log('[toast]', msg); }
+function toast(msg){ const n=document.createElement('div'); n.className='toast'; n.textContent=msg; el.toast.appendChild(n); setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},1600); setTimeout(()=>n.remove(),2000); }
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const saveLocal=()=>localStorage.setItem('words_local',JSON.stringify(dataMap));
 const loadLocal=()=>{try{dataMap=JSON.parse(localStorage.getItem('words_local')||'{}')||{}}catch{dataMap={}}};
-function updateBadge(){
-  const online = navigator.onLine ? '🟢 在线' : '🔴 离线';
-  const who = sessionUser ? `已登录：${sessionUser.email||'用户'}` : '未登录';
-  els.sync.textContent = `${online} · ${who}`;
-}
-window.addEventListener('online',updateBadge);
-window.addEventListener('offline',updateBadge);
+function updateBadge(text){ const arr=[]; arr.push(navigator.onLine?'🟢 在线':'🔴 离线'); arr.push(sessionUser?`已登录：${sessionUser.email||'用户'}`:'未登录'); if(text) arr.push(text); el.sync.textContent = arr.join(' · '); }
+window.addEventListener('online',()=>updateBadge());
+window.addEventListener('offline',()=>updateBadge());
 
 /* ========= 登录模态 ========= */
 let lastFocus=null;
 function openModal(title,html){
-  els.title.textContent=title;els.body.innerHTML=html;
-  lastFocus=document.activeElement;els.modal.classList.add('show');els.modal.removeAttribute('aria-hidden');
+  el.title.textContent=title;el.body.innerHTML=html;
+  lastFocus=document.activeElement;el.modal.classList.add('show');el.modal.removeAttribute('aria-hidden');
   document.body.style.overflow='hidden';
-  const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
+  const f=el.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
 }
-function closeModal(){ els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow=''; if(lastFocus)lastFocus.focus(); }
-els.backdrop.onclick=closeModal;els.close.onclick=closeModal;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
+function closeModal(){ el.modal.classList.remove('show');el.modal.setAttribute('aria-hidden','true');document.body.style.overflow=''; if(lastFocus)lastFocus.focus(); }
+el.backdrop.onclick=closeModal;el.close.onclick=closeModal;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&el.modal.classList.contains('show'))closeModal()});
 
 function showAuth(){
   openModal('登录 / 注册', `
     <div class="field"><label>邮箱</label><input id="em" type="email" placeholder="you@example.com"></div>
     <div class="field"><label>密码（≥6位）</label><input id="pw" type="password" placeholder="******"></div>
-    <div class="row" style="gap:8px;justify-content:flex-end">
+    <div class="field" id="hint" style="color:#6b7280"></div>
+    <div class="field" style="display:flex;gap:8px;justify-content:flex-end">
       <button id="lg" class="primary" type="button">登录</button>
       <button id="sg" type="button">注册</button>
     </div>
-    <div id="hint" class="muted" style="margin-top:6px"></div>
   `);
   const hint=$('hint');
   $('lg').onclick=async()=>{
@@ -233,88 +222,84 @@ function showAuth(){
 function showAccount(u){
   openModal('账户', `
     <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
-    <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="primary" type="button">退出登录</button></div>
+    <div class="field" style="display:flex;gap:8px;justify-content:flex-end"><button id="lo" class="primary" type="button">退出登录</button></div>
   `);
   $('lo').onclick=async()=>{ await sb.auth.signOut(); toast('已退出'); closeModal(); };
 }
-els.accountBtn.onclick=()=>{sessionUser?showAccount(sessionUser):showAuth()};
+el.accountBtn.onclick=()=>{sessionUser?showAccount(sessionUser):showAuth()};
 
 /* ========= 学习流程 ========= */
 function resetQueue(){
   queue = shuffle(Object.entries(dataMap));
   cur=null;
-  roundSynced=false;                 // 新一轮开始，重置自动同步标志
-  els.progress.style.width='0%';
-  els.meaning.style.display='none';
-  els.btnShow.style.display='inline-block';
-  els.btnKnow.style.display='none';
-  els.btnDont.style.display='none';
-  els.btnRestart.style.display='none';
-  els.empty.style.display = queue.length? 'none':'block';
+  el.progress.style.width='0%';
+  el.meaning.style.display='none';
+  el.btnShow.style.display='inline-block';
+  el.btnKnow.style.display='none';
+  el.btnDont.style.display='none';
+  el.btnRestart.style.display='none';
+  el.empty.style.display = queue.length? 'none':'block';
   next();
 }
 function next(){
   if(queue.length===0){
-    els.word.textContent='恭喜，今日学习完成！';
-    els.meaning.style.display='none';
-    els.btnShow.style.display='none';
-    els.btnKnow.style.display='none';
-    els.btnDont.style.display='none';
-    els.btnRestart.style.display='inline-block';
-
-    // —— 一轮结束：若已登录，自动“保存 / 加载”一次（只触发一次）
-    if(sessionUser && !roundSynced){
-      roundSynced = true;
-      syncSaveThenLoad().then(()=>toast('已自动同步此轮进度')).catch(()=>{});
-    }
+    el.word.textContent='恭喜，今日学习完成！';
+    el.meaning.style.display='none';
+    el.btnShow.style.display='none';
+    el.btnKnow.style.display='none';
+    el.btnDont.style.display='none';
+    el.btnRestart.style.display='inline-block';
+    // 一轮结束后静默同步（不禁用按钮，不扰动 UI）
+    autoSyncAfterRound();
     return;
   }
   cur = queue.pop();
-  els.word.textContent = cur[0];
-  els.meaning.textContent = cur[1].meaning || '';
-  els.meaning.style.display='none';
-  els.btnShow.style.display='inline-block';
-  els.btnKnow.style.display='none';
-  els.btnDont.style.display='none';
-  els.btnRestart.style.display='none';
+  el.word.textContent = cur[0];
+  el.meaning.textContent = cur[1].meaning || '';
+  el.meaning.style.display='none';
+  el.btnShow.style.display='inline-block';
+  el.btnKnow.style.display='none';
+  el.btnDont.style.display='none';
+  el.btnRestart.style.display='none';
   updateProgress();
 }
 function updateProgress(){
   const total = Object.keys(dataMap).length || 1;
   const remain = queue.length;
-  els.progress.style.width = (((total-remain)/total*100).toFixed(1))+'%';
+  el.progress.style.width = (((total-remain)/total*100).toFixed(1))+'%';
 }
-els.btnShow.onclick=()=>{ els.meaning.style.display='block'; els.btnShow.style.display='none'; els.btnKnow.style.display='inline-block'; els.btnDont.style.display='inline-block'; };
-els.btnKnow.onclick=()=>vote(true);
-els.btnDont.onclick=()=>vote(false);
-els.btnRestart.onclick=resetQueue;
+el.btnShow.onclick=()=>{ el.meaning.style.display='block'; el.btnShow.style.display='none'; el.btnKnow.style.display='inline-block'; el.btnDont.style.display='inline-block'; };
+el.btnKnow.onclick=()=>vote(true);
+el.btnDont.onclick=()=>vote(false);
+el.btnRestart.onclick=resetQueue;
 
 function vote(known){
   if(!cur) return;
   const [w, v] = cur;
   v.memoryLevel = (v.memoryLevel||0) + (known?1:-1);
-  if(!known){ queue.unshift([w,v]); }          // 不认识回炉
+  if(!known){ queue.unshift([w,v]); }
   dataMap[w] = v; saveLocal();
+  // 在线就把这一个 upsert 上去（失败无感知，不会阻塞）
   if(sessionUser) updateOne(w).catch(()=>{});
   next();
 }
 
 /* ========= 导入导出 ========= */
-els.btnImportJson.onclick=()=>els.fileInput.click();
-els.fileInput.onchange=async e=>{
+el.btnImportJson.onclick=()=>el.fileInput.click();
+el.fileInput.onchange=async e=>{
   const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); e.target.value='';
   try{
     const obj=JSON.parse(text); // { word:{meaning,memoryLevel} }
     Object.assign(dataMap, obj); saveLocal();
     if(sessionUser) await upsertMany(obj);
-    resetQueue(); alert('导入 JSON 完成');
-  }catch(err){ alert('JSON 解析失败：'+(err?.message||err)) }
+    resetQueue(); toast('导入 JSON 完成');
+  }catch(err){ toast('JSON 解析失败：'+(err?.message||err)) }
 };
 
-els.btnImportText.onclick=()=>{ els.dlgImportText.style.display='flex'; };
-els.cancelImportText.onclick=()=>{ els.dlgImportText.style.display='none'; };
-els.okImportText.onclick=()=>{
-  const lines=(els.textBulk.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+el.btnImportText.onclick=()=>{ el.dlgImportText.style.display='flex'; };
+el.cancelImportText.onclick=()=>{ el.dlgImportText.style.display='none'; };
+el.okImportText.onclick=()=>{
+  const lines=(el.textBulk.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
   const obj={};
   for(const line of lines){
     const [w,...rest]=line.split(/\s+/); const meaning=rest.join(' ');
@@ -322,62 +307,75 @@ els.okImportText.onclick=()=>{
   }
   Object.assign(dataMap,obj); saveLocal();
   if(sessionUser) upsertMany(obj).catch(()=>{});
-  els.textBulk.value=''; els.dlgImportText.style.display='none'; resetQueue();
+  el.textBulk.value=''; el.dlgImportText.style.display='none'; resetQueue();
 };
 
-els.btnExport.onclick=()=>exportJSON();
-
+el.btnExport.onclick=()=>exportJSON().catch(err=>toast('导出失败：'+(err?.message||err)));
 async function exportJSON(){
-  try{
-    if(!sessionUser){ downloadJSON(dataMap,'words_local.json'); return; }
-    const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
-    if(error){ alert('导出失败：'+error.message); return; }
-    const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
-    downloadJSON(map,'words_cloud.json');
-  }catch(err){ alert('导出异常：'+(err?.message||err)); }
+  if(!sessionUser){ downloadJSON(dataMap,'words_local.json'); return; }
+  const map = await loadAllFromCloudMap();
+  downloadJSON(map,'words_cloud.json');
 }
 function downloadJSON(obj, filename){
   const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.style.display='none'; a.download=filename; a.href=url;
-  document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},0);
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},0);
 }
 
-/* ========= 一键“保存 / 加载”（按钮 & 自动） ========= */
-els.btnSync.onclick = async ()=>{ await syncSaveThenLoad().catch(()=>{}); };
+/* ========= 保存 / 加载（刷新同步） ========= */
+el.btnSync.onclick = ()=> syncSaveThenLoad({ silent:false, keepUI:false });
 
-async function syncSaveThenLoad(){
-  if(!sessionUser){ alert('请先登录'); return; }
-  els.btnSync.disabled = true;
+async function autoSyncAfterRound(){
+  // 静默，同步成功就更新本地数据但保留“完成”画面
+  if(!sessionUser) return;
+  try{ await syncSaveThenLoad({ silent:true, keepUI:true }); }catch{}
+}
+
+async function syncSaveThenLoad({ silent=false, keepUI=false }={}){
+  if(!sessionUser){ if(!silent) toast('请先登录'); return; }
+  if(syncInFlight) { if(!silent) toast('正在同步中…'); return; }
+  syncInFlight = true;
+
+  // 手动点击才禁用按钮；静默不禁用
+  if(!silent) el.btnSync.disabled = true;
+  const reEnableTimer = setTimeout(()=>{ el.btnSync.disabled=false; }, 15000); // 兜底 15s
+
+  updateBadge('同步中…');
   try{
-    // A) 本地 → 云端
+    // 1) 本地 → 云端（批量 upsert，onConflict 复合键）
     const rows = Object.entries(dataMap).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
     if(rows.length){
-      const { error } = await sb.from('words').upsert(rows,{ onConflict:'user_id,word' }).select();
+      const { error } = await sb.from('words').upsert(rows,{ onConflict:'user_id,word' }).select(); // .select() 才会返回数据（官方文档说明）
       if(error) throw error;
     }
-    // B) 云端 → 本地
-    await loadAllFromCloud();
-    alert('已保存并加载（同步完成）');
+    // 2) 云端 → 本地
+    const newMap = await loadAllFromCloudMap();
+    dataMap = newMap; saveLocal();
+    if(!keepUI) resetQueue();
+    if(!silent) toast('已保存并加载（同步完成）');
   }catch(err){
-    console.warn('同步失败：', err?.message||err);
-    const msg = (err && err.message && /relation .* does not exist/i.test(err.message))
-      ? '云端表 words 不存在或未授权，请先在 Supabase 创建并开启 RLS。'
-      : '保存失败（可能离线或权限不足）。已保留本地数据，可稍后再试。';
-    alert(msg);
+    const msg = (err && err.message) ? err.message : String(err);
+    if(!silent) toast('同步失败：' + msg);
   }finally{
-    els.btnSync.disabled = false;
+    clearTimeout(reEnableTimer);
+    if(!silent) el.btnSync.disabled = false;
+    syncInFlight = false;
     updateBadge();
   }
 }
 
 /* ========= 云端：CRUD & Realtime ========= */
-async function loadAllFromCloud(){
-  if(!sessionUser) return;
-  const { data, error } = await sb.from('words').select('word,meaning,memory_level').eq('user_id',sessionUser.id).order('created_at',{ascending:true});
-  if(error){ throw error; }
+async function loadAllFromCloudMap(){
+  if(!sessionUser) return {...dataMap};
+  const { data, error } = await sb.from('words')
+    .select('word,meaning,memory_level')
+    .eq('user_id',sessionUser.id)
+    .order('created_at',{ascending:true});
+  if(error) throw error;
   const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
-  dataMap = map; saveLocal(); resetQueue(); updateBadge();
+  return map;
 }
 
 async function upsertMany(obj){
@@ -396,8 +394,20 @@ async function updateOne(word){
 function subscribeRealtime(){
   if(rtChannel) sb.removeChannel(rtChannel);
   if(!sessionUser) return;
-  rtChannel = sb.channel('words-ch')
-    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{ try{ await loadAllFromCloud(); }catch{} })
+  rtChannel = sb
+    .channel('words-ch')
+    .on('postgres_changes',
+        {event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`},
+        async ()=>{ // 只在别人设备改动时刷新；自己发起的 upsert 会立刻又来一次，这里做个轻量保护
+          if(syncInFlight || loadingFromRealtime) return;
+          try{
+            loadingFromRealtime = true;
+            const map = await loadAllFromCloudMap();
+            // 合并不打断当前队列（不丢当前“完成”画面）
+            dataMap = map; saveLocal();
+            updateBadge('已更新');
+          }catch{} finally{ loadingFromRealtime = false; }
+        })
     .subscribe();
 }
 function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
@@ -405,22 +415,28 @@ function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtCh
 /* ========= 认证监听 & 初始化 ========= */
 sb.auth.onAuthStateChange(async (_evt,sess)=>{
   sessionUser = sess?.user || null;
-  els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+  el.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
   updateBadge();
-  if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ console.warn(err?.message||err); } subscribeRealtime(); }
-  else{ unsubscribeRealtime(); loadLocal(); resetQueue(); }
+  if(sessionUser){
+    try{ const map = await loadAllFromCloudMap(); dataMap = map; saveLocal(); resetQueue(); }
+    catch(err){ console.warn(err?.message||err); }
+    subscribeRealtime();
+  }else{
+    unsubscribeRealtime(); loadLocal(); resetQueue();
+  }
 });
 
 (async function init(){
-  // 本地立即可用
   loadLocal(); resetQueue(); updateBadge();
-
-  // 恢复会话
   try{
     const { data:{session} } = await sb.auth.getSession();
     sessionUser = session?.user || null;
-    els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
-    if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ console.warn(err?.message||err); } subscribeRealtime(); }
+    el.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
+    updateBadge();
+    if(sessionUser){
+      const map = await loadAllFromCloudMap(); dataMap = map; saveLocal(); resetQueue();
+      subscribeRealtime();
+    }
   }catch(err){ console.warn('getSession error', err?.message||err); }
 })();
 </script>
