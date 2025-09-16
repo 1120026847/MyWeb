@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>背单词v0.01</title>
+<title>背单词（墨墨风格）</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -37,14 +37,14 @@
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start}
   .word{font-size:clamp(28px,8vw,64px);text-align:center;margin:36px 0 10px}
   .meaning{font-size:clamp(20px,6vw,36px);text-align:center;color:#1e40af;min-height:40px;display:none;margin:18px 0}
-  .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 6px;flex-wrap:wrap}
-
-  /* 进度条在按钮下面，并与按钮拉开距离 */
-  .progress-wrap{display:flex;justify-content:center;margin:18px 0 6px}
+  .actions{display:flex;justify-content:center;gap:12px;margin:26px 0 10px;flex-wrap:wrap}
+  /* 进度条放在按钮下面并留空隙 */
+  .progress-wrap{display:flex;justify-content:center;margin:12px 0 4px}
   .bar{width:86%;height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#60a5fa,#22c55e)}
-
-  /* 模态（登录/注册/退出） */
+  /* 弹出提示 */
+  .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;background:#111827;color:#fff;padding:10px 14px;border-radius:12px}
+  /* 模态（登录/注册/账户） */
   .modal{position:fixed;inset:0;z-index:30000;display:none}
   .modal.show{display:block}
   .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
@@ -59,8 +59,6 @@
   .modal .close-x{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer}
   .modal .title{margin:0 40px 10px 0;font-size:18px}
   .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
-  .panel .btn{height:42px}
-
   textarea,input[type="text"]{width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;font:inherit}
   .m-pop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20000;align-items:center;justify-content:center}
   .m-pop .dialog{background:#fff;padding:16px;border-radius:14px;width:min(92vw,560px)}
@@ -72,7 +70,7 @@
   <div class="container nav">
     <h1>背单词（墨墨风格）</h1>
     <div class="account">
-      <span id="syncBadge" class="pill">未登录</span>
+      <span id="syncBadge" class="pill">离线 · 未登录</span>
       <button id="accountBtn" class="account-btn" type="button">登录 / 注册</button>
     </div>
   </div>
@@ -99,13 +97,14 @@
     <button id="btnRestart" style="display:none" type="button">重新开始</button>
   </div>
 
+  <!-- 进度条在按钮下面 -->
   <div class="progress-wrap"><div class="bar"><i id="progress"></i></div></div>
 </main>
 
 <!-- 文本导入弹窗 -->
 <div id="dlgImportText" class="m-pop">
   <div class="dialog">
-    <h3 style="margin:0 0 8px">批量导入（每行一组：英文 空格/Tab 中文）</h3>
+    <h3 style="margin:0 0 8px">批量导入（每行：英文 空格 中文）</h3>
     <textarea id="textBulk" placeholder="apple 苹果&#10;take off 脱下；起飞"></textarea>
     <div class="actions">
       <button id="okImportText" class="primary" type="button">确定</button>
@@ -124,19 +123,24 @@
   </div>
 </div>
 
-<script>
-/* ========= Supabase =========
- * 表：public.words(user_id uuid, word text, meaning text, memory_level int, created_at, updated_at, primary key(user_id, word))
- * 注意：如换项目，只改下面两常量。
- */
-const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+<div id="toast" class="toast" style="display:none"></div>
 
+<script>
+/* ========= 1) Supabase ========= */
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';        // ← 换成你的
+const SUPABASE_ANON_KEY = 'YOUR_PUBLIC_ANON_KEY';               // ← 换成你的
+// 更稳妥的会话存储（localStorage 不可用时回退至 Cookie）
+const cookieStorage = {
+  getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
+  setItem:(k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
+  removeItem:k=>{document.cookie=`${encodeURIComponent(k)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`}
+};
+function safeStorage(){try{const t='__sb__'+Math.random();localStorage.setItem(t,'1');localStorage.removeItem(t);return localStorage}catch{return cookieStorage}}
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+  auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false, storage: safeStorage(), storageKey:'sb-words-auth' }
 });
 
-/* ========= DOM & 状态 ========= */
+/* ========= 2) DOM & 状态 ========= */
 const $=id=>document.getElementById(id);
 const els={
   word:$('word'), meaning:$('meaning'), progress:$('progress'), empty:$('emptyMsg'),
@@ -145,27 +149,28 @@ const els={
   btnExport:$('btnExport'), btnSync:$('btnSync'),
   dlgImportText:$('dlgImportText'), textBulk:$('textBulk'), okImportText:$('okImportText'), cancelImportText:$('cancelImportText'),
   accountBtn:$('accountBtn'), sync:$('syncBadge'),
-  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody')
+  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),title:$('dialogTitle'),body:$('dialogBody'),
+  toast:$('toast')
 };
-let sessionUser=null;
-
+let sessionUser=null, rtChannel=null;
 let dataMap = {};   // { word: { meaning, memoryLevel } }
 let queue = [];     // 学习队列
 let cur = null;     // 当前
 
-/* ========= 小工具 ========= */
-function toast(msg){ console.log('[toast]', msg); }
+/* ========= 3) 小工具 ========= */
+function showToast(msg, ms=1800){ els.toast.textContent=msg; els.toast.style.display='block'; setTimeout(()=>{els.toast.style.display='none'}, ms); }
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const saveLocal=()=>localStorage.setItem('words_local',JSON.stringify(dataMap));
 const loadLocal=()=>{try{dataMap=JSON.parse(localStorage.getItem('words_local')||'{}')||{}}catch{dataMap={}}};
 function updateBadge(){
-  const parts=[]; parts.push(navigator.onLine?'🟢 在线':'🔴 离线'); parts.push(sessionUser?'已登录':'未登录');
+  const parts=[]; parts.push(navigator.onLine?'🟢 在线':'🔴 离线'); parts.push(sessionUser?`已登录：${sessionUser.email||'用户'}`:'未登录');
   els.sync.textContent = parts.join(' · ');
 }
 window.addEventListener('online',updateBadge);
 window.addEventListener('offline',updateBadge);
+function log(...args){ console.log('[WORDS]', ...args); }
 
-/* ========= 登录模态 ========= */
+/* ========= 4) 登录模态 ========= */
 let lastFocus=null;
 function openModal(title,html){
   els.title.textContent=title;els.body.innerHTML=html;
@@ -187,30 +192,34 @@ function showAuth(){
     <div id="hint" class="muted" style="margin-top:6px"></div>
   `);
   const hint=$('hint');
-  $('lg').onclick=async()=>{ try{
+  $('lg').onclick=async()=>{
+    try{
       const email=$('em').value.trim(),password=$('pw').value;
       if(!email||!password){hint.textContent='请输入邮箱和密码';return}
       const { error } = await sb.auth.signInWithPassword({ email,password });
       if(error){ hint.textContent='登录失败：'+error.message; return; }
-      toast('登录成功'); closeModal();
-    }catch(err){ hint.textContent='登录异常：'+(err?.message||err)} };
-  $('sg').onclick=async()=>{ try{
+      showToast('登录成功'); closeModal();
+    }catch(err){ hint.textContent='登录异常：'+(err?.message||err)}
+  };
+  $('sg').onclick=async()=>{
+    try{
       const email=$('em').value.trim(),password=$('pw').value;
       if(!email||!password){hint.textContent='请输入邮箱和密码';return}
       const { error } = await sb.auth.signUp({ email,password });
       hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱确认后再登录。';
-    }catch(err){ hint.textContent='注册异常：'+(err?.message||err)} };
+    }catch(err){ hint.textContent='注册异常：'+(err?.message||err)}
+  };
 }
 function showAccount(u){
   openModal('账户', `
     <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
     <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="primary" type="button">退出登录</button></div>
   `);
-  $('lo').onclick=async()=>{ await sb.auth.signOut(); toast('已退出'); closeModal(); };
+  $('lo').onclick=async()=>{ await sb.auth.signOut(); showToast('已退出'); closeModal(); };
 }
 els.accountBtn.onclick=()=>{sessionUser?showAccount(sessionUser):showAuth()};
 
-/* ========= 学习流程 ========= */
+/* ========= 5) 学习流程 ========= */
 function resetQueue(){
   queue = shuffle(Object.entries(dataMap));
   cur=null;
@@ -259,20 +268,19 @@ function vote(known){
   v.memoryLevel = (v.memoryLevel||0) + (known?1:-1);
   if(!known){ queue.unshift([w,v]); }
   dataMap[w] = v; saveLocal();
-  // 轻量异步 upsert（不阻塞 UI）
-  if(sessionUser) updateOne(w).catch(e=>console.warn('updateOne',e?.message||e));
+  if(sessionUser) updateOne(w).catch(err=>log('updateOne error', err));
   next();
 }
 
-/* ========= 导入导出 ========= */
+/* ========= 6) 导入导出 ========= */
 els.btnImportJson.onclick=()=>els.fileInput.click();
 els.fileInput.onchange=async e=>{
   const f=e.target.files?.[0]; if(!f) return; const text=await f.text(); e.target.value='';
   try{
-    const obj=JSON.parse(text); // { word:{meaning,memoryLevel} }
+    const obj=JSON.parse(text);
     Object.assign(dataMap, obj); saveLocal();
     if(sessionUser) await upsertMany(obj);
-    resetQueue(); alert('导入 JSON 完成');
+    resetQueue(); showToast('导入 JSON 完成');
   }catch(err){ alert('JSON 解析失败：'+(err?.message||err)) }
 };
 
@@ -282,61 +290,74 @@ els.okImportText.onclick=()=>{
   const lines=(els.textBulk.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
   const obj={};
   for(const line of lines){
-    const parts=line.split(/\s+/);
-    const w=parts.shift();
-    const meaning=parts.join(' ');
+    const [w,...rest]=line.split(/\s+/); const meaning=rest.join(' ');
     if(w && meaning){ obj[w] = { meaning, memoryLevel: dataMap[w]?.memoryLevel||0 }; }
   }
   Object.assign(dataMap,obj); saveLocal();
-  if(sessionUser) upsertMany(obj).catch(e=>console.warn('upsertMany',e?.message||e));
+  if(sessionUser) upsertMany(obj).catch(err=>log('upsertMany error', err));
   els.textBulk.value=''; els.dlgImportText.style.display='none'; resetQueue();
 };
 
-els.btnExport.onclick=()=>{
+els.btnExport.onclick=()=>exportJSON();
+
+async function exportJSON(){
   try{
-    downloadJSON(dataMap, 'words_local.json');
+    if(sessionUser){
+      const { data, error } = await sb.from('words')
+        .select('word,meaning,memory_level')
+        .eq('user_id', sessionUser.id)
+        .order('created_at',{ascending:true});
+      if(error) throw error;
+      const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
+      return downloadJSON(map,'words_cloud.json');
+    }
+    return downloadJSON(dataMap,'words_local.json');
   }catch(err){
     alert('导出失败：'+(err?.message||err));
   }
-};
+}
 function downloadJSON(obj, filename){
   const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.style.display='none'; a.download=filename; a.href=url;
+  const a=document.createElement('a'); a.style.display='none'; a.href=url; a.download=filename;
   document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},0);
 }
 
-/* ========= 一键“保存 / 加载”（先上传 upsert，再把云端全量拉回覆盖） ========= */
+/* ========= 7) 一键保存 / 加载（本地→云 & 云→本地） ========= */
 els.btnSync.onclick = async ()=>{
   if(!sessionUser){ alert('请先登录'); return; }
   els.btnSync.disabled = true;
   try{
-    // 1) 本地 → 云端（批量 upsert，onConflict 复合键）
-    const rows = Object.entries(dataMap).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
+    // 1) 本地 → 云端（批量 upsert）
+    const rows = Object.entries(dataMap).map(([w,v])=>({
+      user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0
+    }));
     if(rows.length){
-      const { error } = await sb.from('words').upsert(rows,{ onConflict:'user_id,word' }).select();
+      log('upsert rows', rows.length);
+      const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' }).select();
       if(error) throw error;
     }
-    // 2) 云端 → 本地（覆盖）
+    // 2) 云端 → 本地（覆盖加载）
     await loadAllFromCloud();
-    alert('已保存并加载（同步完成）');
+    showToast('已保存并加载（同步完成）');
   }catch(err){
-    console.warn('同步失败：', err?.message||err);
-    alert('保存/加载失败：'+(err?.message||err));
+    log('Sync error', err);
+    const msg=(err && err.message)||String(err);
+    alert('保存/加载失败：'+msg+'\n\n请确认已按文档创建表与 RLS 策略（含授权）。');
   }finally{
     els.btnSync.disabled = false;
     updateBadge();
   }
 };
 
-/* ========= 云端：CRUD ========= */
+/* ========= 8) 云端 CRUD ========= */
 async function loadAllFromCloud(){
   if(!sessionUser) return;
   const { data, error } = await sb.from('words')
     .select('word,meaning,memory_level')
     .eq('user_id',sessionUser.id)
     .order('created_at',{ascending:true});
-  if(error) throw error;
+  if(error){ throw error; }
   const map={}; (data||[]).forEach(r=>map[r.word]={meaning:r.meaning,memoryLevel:r.memory_level||0});
   dataMap = map; saveLocal(); resetQueue(); updateBadge();
 }
@@ -344,37 +365,50 @@ async function upsertMany(obj){
   if(!sessionUser) return;
   const rows = Object.entries(obj).map(([w,v])=>({ user_id:sessionUser.id, word:w, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }));
   if(rows.length===0) return;
-  const { error } = await sb.from('words').upsert(rows,{ onConflict:'user_id,word' });
+  const { error } = await sb.from('words').upsert(rows, { onConflict:'user_id,word' });
   if(error) throw error;
 }
 async function updateOne(word){
   if(!sessionUser) return;
   const v=dataMap[word]; if(!v) return;
-  const { error } = await sb.from('words')
-    .upsert({ user_id:sessionUser.id, word, meaning:v.meaning||'', memory_level:v.memoryLevel||0 }, { onConflict:'user_id,word' });
+  const { error } = await sb.from('words').upsert(
+    { user_id:sessionUser.id, word, meaning:v.meaning||'', memory_level:v.memoryLevel||0 },
+    { onConflict:'user_id,word' }
+  );
   if(error) throw error;
 }
 
-/* ========= 认证监听 & 初始化 ========= */
+/* ========= 9) Realtime（可选） ========= */
+function subscribeRealtime(){
+  if(rtChannel) sb.removeChannel(rtChannel);
+  if(!sessionUser) return;
+  rtChannel = sb.channel('words-ch')
+    .on('postgres_changes',{event:'*',schema:'public',table:'words',filter:`user_id=eq.${sessionUser.id}`}, async ()=>{
+      try{ await loadAllFromCloud(); }catch(err){ log('realtime refresh error', err); }
+    })
+    .subscribe();
+}
+function unsubscribeRealtime(){ if(rtChannel){ sb.removeChannel(rtChannel); rtChannel=null; } }
+
+/* ========= 10) 会话监听 & 初始化 ========= */
 sb.auth.onAuthStateChange(async (_evt,sess)=>{
   sessionUser = sess?.user || null;
   els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
   updateBadge();
-  if(sessionUser){
-    try{ await loadAllFromCloud(); }catch(err){ console.warn('loadAll',err?.message||err); }
-  }else{
-    loadLocal(); resetQueue();
-  }
+  if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ log('load cloud error', err); } subscribeRealtime(); }
+  else{ unsubscribeRealtime(); loadLocal(); resetQueue(); }
 });
 
 (async function init(){
+  // 本地先可用
   loadLocal(); resetQueue(); updateBadge();
+  // 恢复会话
   try{
     const { data:{session} } = await sb.auth.getSession();
     sessionUser = session?.user || null;
     els.accountBtn.textContent = sessionUser?`已登录：${sessionUser.email||'用户'}`:'登录 / 注册';
-    if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ console.warn(err?.message||err); } }
-  }catch(err){ console.warn('getSession error', err?.message||err); }
+    if(sessionUser){ try{ await loadAllFromCloud(); }catch(err){ log('getSession cloud error', err); } subscribeRealtime(); }
+  }catch(err){ log('getSession error', err); }
 })();
 </script>
 </body>
