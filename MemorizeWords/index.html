@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>墨墨单词卡 (智能循环版)</title>
+    <title>墨墨单词卡 (负数记忆版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -418,14 +418,14 @@ banana 香蕉,一种水果</code></pre>
         let allWords = [];
         let currentUser = null;
         let isSigningUp = false;
-        let excelImportMode = 'add'; // 'add' or 'overwrite'
+        let excelImportMode = 'add';
 
-        // === 全新学习循环状态 ===
-        let reviewPile = []; // 待学习的新词
-        let failedPile = []; // 答错的词，需要重新学习
-        let currentWord = null; // 当前屏幕上显示的单词对象
-        let initialRoundWordCount = 0; // 本轮开始时的总单词数
-        let learnedWordCount = 0; // 本轮已掌握（点击“我认识”）的单词数
+        // === 学习循环状态 ===
+        let reviewPile = [];
+        let failedPile = [];
+        let currentWord = null;
+        let initialRoundWordCount = 0;
+        let learnedWordCount = 0;
 
         // =================================================
         // 核心功能函数
@@ -468,7 +468,7 @@ banana 香蕉,一种水果</code></pre>
 
         function startNewRound() {
             if (allWords.length === 0) {
-                showNextWord(); // 即使没单词也要调用它来显示空状态
+                showNextWord();
                 return;
             };
 
@@ -510,20 +510,21 @@ banana 香蕉,一种水果</code></pre>
         }
 
         function showNextWord() {
-            // 如果待学习列表空了，就把答错的词拿回来重新学
             if (reviewPile.length === 0 && failedPile.length > 0) {
                 reviewPile = shuffleArray([...failedPile]);
                 failedPile = [];
             }
             
-            // 如果两个列表都空了，说明本轮已完成
             if (reviewPile.length === 0 && failedPile.length === 0) {
                 currentWord = null;
-                displayRoundComplete();
+                if (initialRoundWordCount > 0) {
+                    displayRoundComplete();
+                } else {
+                    displayCurrentWordUI();
+                }
                 return;
             }
             
-            // 从待学习列表中取出一个词
             currentWord = reviewPile.shift();
             displayCurrentWordUI();
         }
@@ -563,29 +564,28 @@ banana 香蕉,一种水果</code></pre>
             if (!currentWord) return;
             
             const change = isKnown ? 1 : -1;
-            const newStrength = Math.max(0, currentWord.memory_strength + change);
+            // ★★★ 核心修改：移除Math.max(0, ...)，允许记忆强度为负数 ★★★
+            const newStrength = currentWord.memory_strength + change;
 
             try {
-                // 更新数据库
                 const { error } = await supabase_client
                     .from('words')
                     .update({ memory_strength: newStrength })
                     .eq('id', currentWord.id);
                 if (error) throw error;
                 
-                // 更新本地主列表中的数据
                 const wordInAllWords = allWords.find(w => w.id === currentWord.id);
                 if(wordInAllWords) {
                     wordInAllWords.memory_strength = newStrength;
                 }
                 
                 if (isKnown) {
-                    learnedWordCount++; // 掌握的单词数+1
+                    learnedWordCount++;
                 } else {
-                    failedPile.push(currentWord); // 放入待巩固列表
+                    failedPile.push(currentWord);
                 }
                 
-                showNextWord(); // 显示下一个单词
+                showNextWord();
 
             } catch (error) {
                 console.error('更新单词失败:', error.message);
