@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>墨墨单词卡 (Excel导入版)</title>
+    <title>墨墨单词卡 (覆盖导入版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -324,7 +324,8 @@
 
         <div class="data-controls">
             <button id="import-text-btn" class="btn-data">粘贴文本导入</button>
-            <button id="import-excel-btn" class="btn-data">从Excel导入</button>
+            <button id="import-excel-add-btn" class="btn-data">从Excel导入(添加)</button>
+            <button id="import-excel-overwrite-btn" class="btn-data">Excel导入(覆盖)</button>
             <input type="file" id="excel-file-input" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden">
             <button id="export-btn" class="btn-data">导出单词</button>
             <button id="delete-btn" class="btn-data btn-danger">删除熟词</button>
@@ -405,7 +406,8 @@ banana 香蕉,一种水果</code></pre>
         const authError = document.getElementById('auth-error');
         // Data control elements
         const importTextBtn = document.getElementById('import-text-btn');
-        const importExcelBtn = document.getElementById('import-excel-btn');
+        const importExcelAddBtn = document.getElementById('import-excel-add-btn');
+        const importExcelOverwriteBtn = document.getElementById('import-excel-overwrite-btn');
         const excelFileInput = document.getElementById('excel-file-input');
         const exportBtn = document.getElementById('export-btn');
         const deleteBtn = document.getElementById('delete-btn');
@@ -421,6 +423,7 @@ banana 香蕉,一种水果</code></pre>
         let currentWordIndex = 0;
         let currentUser = null;
         let isSigningUp = false;
+        let excelImportMode = 'add'; // 'add' or 'overwrite'
 
         // =================================================
         // 核心功能函数
@@ -691,9 +694,6 @@ banana 香蕉,一种水果</code></pre>
             importModal.classList.add('hidden');
         }
         
-        /**
-         * ★★★ 新增：处理Excel文件导入的核心函数 ★★★
-         */
         function handleExcelFile(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -702,13 +702,11 @@ banana 香蕉,一种水果</code></pre>
             reader.onload = async (e) => {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    // 使用 SheetJS 解析文件
                     const workbook = XLSX.read(data, { type: 'array' });
                     
                     const firstSheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheetName];
                     
-                    // 将表格转换为JSON对象数组
                     const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
                     if (jsonData.length === 0) {
@@ -716,16 +714,12 @@ banana 香蕉,一种水果</code></pre>
                         return;
                     }
 
-                    // 智能映射列名
                     const newWords = jsonData.map(row => {
-                        // 尝试多种可能的列名 (英文、中文)
                         const word = row.word || row.Word || row.单词;
                         const meaning = row.meaning || row.Meaning || row.意思 || row.释义;
                         const strength = row.memory_strength || row.strength || row.记忆强度;
 
-                        if (!word || !meaning) {
-                            return null;
-                        }
+                        if (!word || !meaning) return null;
 
                         return {
                             user_id: currentUser.id,
@@ -733,19 +727,29 @@ banana 香蕉,一种水果</code></pre>
                             meaning: String(meaning).trim(),
                             memory_strength: parseInt(strength, 10) || 0
                         };
-                    }).filter(Boolean); // 过滤掉无效行
+                    }).filter(Boolean);
 
                     if (newWords.length > 0) {
+                        if (excelImportMode === 'overwrite') {
+                            const confirmed = confirm(`您确定要覆盖所有云端单词吗？\n此操作将首先删除您所有的旧单词，然后导入新单词。此操作不可撤销！`);
+                            if (!confirmed) return; // 用户取消，则中止操作
+
+                            alert('正在删除云端旧数据...');
+                            const { error: deleteError } = await supabase_client.from('words').delete().eq('user_id', currentUser.id);
+                            if (deleteError) throw deleteError;
+                            
+                            alert('旧数据删除成功，正在上传新数据...');
+                        }
                         await uploadNewWords(newWords);
                     } else {
                         alert('在Excel文件中没有找到有效的单词数据。请确保列名是“单词”、“意思”或"word", "meaning"等。');
                     }
 
                 } catch (error) {
-                    console.error("解析Excel文件失败:", error);
-                    alert("解析Excel文件失败，请确保文件未损坏。");
+                    console.error("解析或处理Excel文件失败:", error);
+                    alert("操作失败：" + error.message);
                 } finally {
-                     event.target.value = ''; // 重置以便再次上传同名文件
+                     event.target.value = '';
                 }
             };
             
@@ -758,15 +762,16 @@ banana 香蕉,一种水果</code></pre>
         }
         
         async function uploadNewWords(newWords) {
+             const actionText = excelImportMode === 'overwrite' ? '覆盖导入' : '添加';
              try {
-                alert(`正在上传 ${newWords.length} 个新单词...`);
+                alert(`正在${actionText} ${newWords.length} 个新单词...`);
                 const { error } = await supabase_client.from('words').insert(newWords);
                 if (error) throw error;
-                alert(`成功导入 ${newWords.length} 个单词！`);
+                alert(`成功${actionText} ${newWords.length} 个单词！`);
                 await fetchWordsAndStart();
             } catch (error) {
-                console.error('导入单词失败:', error.message);
-                alert('导入单词失败，可能是存在重复单词或网络问题。');
+                console.error(`${actionText}失败:`, error.message);
+                alert(`${actionText}失败，可能是网络问题或数据格式错误。`);
             }
         }
 
@@ -776,19 +781,16 @@ banana 香蕉,一种水果</code></pre>
                 return;
             }
             
-            // 将数据转换为SheetJS需要的格式
             const dataToExport = allWords.map(w => ({
                 word: w.word,
                 meaning: w.meaning,
                 memory_strength: w.memory_strength
             }));
             
-            // 创建工作簿和工作表
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "单词列表");
 
-            // 导出文件
             XLSX.writeFile(workbook, "my_words.xlsx");
         }
 
@@ -853,8 +855,20 @@ banana 香蕉,一种水果</code></pre>
         });
 
         importTextBtn.addEventListener('click', handleTextImport);
-        importExcelBtn.addEventListener('click', () => excelFileInput.click());
+        
+        // ** 新增：为两个Excel导入按钮设置不同的模式并触发文件选择 **
+        importExcelAddBtn.addEventListener('click', () => {
+            excelImportMode = 'add';
+            excelFileInput.click();
+        });
+
+        importExcelOverwriteBtn.addEventListener('click', () => {
+            excelImportMode = 'overwrite';
+            excelFileInput.click();
+        });
+
         excelFileInput.addEventListener('change', handleExcelFile);
+
         exportBtn.addEventListener('click', handleExport);
         deleteBtn.addEventListener('click', handleDelete熟词);
         submitImportBtn.addEventListener('click', submitTextImport);
