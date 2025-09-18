@@ -1,426 +1,79 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>墨墨风 · 英语背单词</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS v2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    /* 自定义细节 */
-    .btn { @apply px-4 py-2 rounded-2xl shadow font-medium transition active:scale-[.98]; }
-    .btn-primary { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
-    .btn-ghost { @apply bg-white text-slate-700 hover:bg-slate-100 border border-slate-200; }
-    .btn-danger { @apply bg-rose-600 text-white hover:bg-rose-700; }
-    .chip { @apply text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>墨墨单词卡</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-800">
-  <!-- 顶栏 -->
-  <header class="sticky top-0 z-20 bg-white/70 backdrop-blur shadow-sm">
-    <div class="mx-auto max-w-4xl px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="text-2xl">📘</span>
-        <h1 class="text-lg sm:text-xl font-semibold">墨墨风 · 英语背单词</h1>
-        <span id="studyProgress" class="ml-3 chip hidden"></span>
-      </div>
-      <nav class="flex items-center gap-2">
-        <button id="btnImport" class="btn btn-ghost hidden">导入单词</button>
-        <button id="btnExport" class="btn btn-ghost hidden">导出单词</button>
-        <button id="btnUploadCloud" class="btn btn-ghost hidden">上传到云端</button>
-        <button id="btnDeleteLearned" class="btn btn-danger hidden">删除已掌握</button>
-        <div id="authArea" class="ml-2"></div>
-      </nav>
+<body>
+
+    <header>
+        <div class="logo">墨墨单词卡</div>
+        <nav id="auth-container">
+            <button id="login-btn">登录</button>
+            <button id="signup-btn">注册</button>
+            <div id="user-info" class="hidden">
+                <span id="user-email"></span>
+                <button id="logout-btn">退出</button>
+            </div>
+        </nav>
+    </header>
+
+    <main id="app-container" class="hidden">
+        <div class="word-card">
+            <div id="word-display" class="word">...</div>
+            <div id="meaning-display" class="meaning hidden">...</div>
+        </div>
+
+        <div id="controls-container" class="controls">
+            <button id="show-meaning-btn" class="btn">显示意思</button>
+            <div id="feedback-buttons" class="hidden">
+                <button id="know-btn" class="btn btn-know">我认识</button>
+                <button id="dont-know-btn" class="btn btn-dont-know">不认识</button>
+            </div>
+        </div>
+
+        <div class="data-controls">
+            <button id="import-btn" class="btn-data">导入单词</button>
+            <button id="export-btn" class="btn-data">导出单词</button>
+            <button id="delete-btn" class="btn-data btn-danger">删除熟词 (记忆>5)</button>
+        </div>
+        
+        <div id="progress-indicator"></div>
+    </main>
+    
+    <div id="welcome-message">
+        <h1>欢迎使用墨墨单词卡</h1>
+        <p>请先登录或注册以开始您的学习之旅</p>
     </div>
-  </header>
 
-  <!-- 主体 -->
-  <main class="mx-auto max-w-2xl px-4 py-8">
-    <!-- 学习卡片 -->
-    <section class="bg-white rounded-3xl shadow p-6 sm:p-8">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-sm text-slate-500">当前单词</div>
-          <div id="wordText" class="mt-1 text-3xl sm:text-4xl font-bold tracking-wide">—</div>
+    <div id="auth-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2 id="modal-title">登录</h2>
+            <form id="auth-form">
+                <input type="email" id="auth-email" placeholder="邮箱" required>
+                <input type="password" id="auth-password" placeholder="密码 (至少6位)" required>
+                <button type="submit" id="modal-submit-btn">提交</button>
+                <p id="auth-error" class="error-message"></p>
+            </form>
         </div>
-        <span id="memoryBadge" class="chip">记忆度 0</span>
-      </div>
+    </div>
 
-      <div id="meaningBox" class="mt-5 hidden">
-        <div class="text-sm text-slate-500">中文意思</div>
-        <div id="meaningText" class="mt-1 text-xl sm:text-2xl font-semibold">—</div>
-      </div>
-
-      <div class="mt-8 flex flex-col sm:flex-row gap-3">
-        <button id="btnShowMeaning" class="btn btn-primary w-full">显示意思</button>
-        <button id="btnKnown" class="btn btn-ghost w-full hidden">认识 ✓</button>
-        <button id="btnUnknown" class="btn btn-ghost w-full hidden">不认识 ✗</button>
-      </div>
-
-      <p id="emptyHint" class="mt-6 text-center text-slate-500 hidden">词库为空或没有生词（记忆度 ≤ 5）。请导入单词开始学习～</p>
-    </section>
-
-    <!-- 列表（可选：展示全部词） -->
-    <details class="mt-6 bg-white rounded-2xl shadow p-5">
-      <summary class="cursor-pointer text-slate-700 font-medium select-none">查看全部单词</summary>
-      <div id="listContainer" class="mt-4 space-y-2 text-sm text-slate-600"></div>
-    </details>
-  </main>
-
-  <!-- 导入弹窗 -->
-  <dialog id="importDialog" class="rounded-2xl p-0 w-[95vw] max-w-2xl">
-    <form method="dialog" class="bg-white rounded-2xl shadow-xl">
-      <div class="p-5 sm:p-6 border-b border-slate-200 flex items-center justify-between">
-        <h3 class="font-semibold">批量导入单词（CSV / 每行一条）</h3>
-        <button class="btn btn-ghost" value="cancel">关闭</button>
-      </div>
-      <div class="p-5 sm:p-6 space-y-4">
-        <p class="text-sm text-slate-600">格式支持：
-          <code class="px-1 bg-slate-100 rounded">apple,苹果</code>、
-          <code class="px-1 bg-slate-100 rounded">apple 苹果</code>，或带记忆度：
-          <code class="px-1 bg-slate-100 rounded">apple,苹果,2</code>
-        </p>
-        <textarea id="importTextarea" class="w-full h-56 p-3 bg-slate-50 rounded-xl border border-slate-200" placeholder="每行一条，例如：\nhello,你好\nworld,世界"></textarea>
-        <div class="text-xs text-slate-500">提示：若重复导入，优先以本次内容为准（upsert），可能重置该词记忆度。</div>
-      </div>
-      <div class="p-5 sm:p-6 border-t border-slate-200 flex justify-end gap-2">
-        <button class="btn btn-ghost" value="cancel">取消</button>
-        <button id="btnDoImport" class="btn btn-primary" value="confirm">开始导入</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- 登录/注册弹窗 -->
-  <dialog id="authDialog" class="rounded-2xl p-0 w-[95vw] max-w-md">
-    <form method="dialog" class="bg-white rounded-2xl shadow-xl">
-      <div class="p-5 sm:p-6 border-b border-slate-200 flex items-center justify-between">
-        <h3 id="authTitle" class="font-semibold">登录</h3>
-        <button class="btn btn-ghost" value="cancel">关闭</button>
-      </div>
-      <div class="p-5 sm:p-6 space-y-3">
-        <input id="authEmail" type="email" placeholder="邮箱" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200" required />
-        <input id="authPassword" type="password" placeholder="密码（至少 6 位）" class="w-full p-3 bg-slate-50 rounded-xl border border-slate-200" required />
-        <div class="flex items-center justify-between">
-          <label class="text-sm text-slate-600">
-            <input id="switchRegister" type="checkbox" class="mr-2" /> 没账号？勾选注册
-          </label>
+    <div id="import-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close">&times;</button>
+            <h2>导入单词</h2>
+            <p>每行一组，单词和意思用空格或逗号隔开，例如：</p>
+            <pre><code>apple 苹果
+banana 香蕉,一种水果</code></pre>
+            <textarea id="import-textarea" rows="10" placeholder="在此处粘贴您的单词..."></textarea>
+            <button id="submit-import-btn">确认导入</button>
         </div>
-        <p id="authMsg" class="text-sm text-slate-500"></p>
-      </div>
-      <div class="p-5 sm:p-6 border-t border-slate-200 flex justify-end gap-2">
-        <button class="btn btn-ghost" value="cancel">取消</button>
-        <button id="btnSubmitAuth" class="btn btn-primary" value="confirm">提交</button>
-      </div>
-    </form>
-  </dialog>
+    </div>
 
-  <script>
-    // ====== 配置你提供的 Supabase 项目（可直接使用） ======
-    const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    // ====== 状态 ======
-    let user = null;
-    let words = [];       // 全部词
-    let studyList = [];   // 记忆度 ≤ 5 的生词列表
-    let idx = 0;          // 当前索引
-
-    // ====== DOM ======
-    const wordText = document.getElementById('wordText');
-    const meaningBox = document.getElementById('meaningBox');
-    const meaningText = document.getElementById('meaningText');
-    const memoryBadge = document.getElementById('memoryBadge');
-
-    const btnShowMeaning = document.getElementById('btnShowMeaning');
-    const btnKnown = document.getElementById('btnKnown');
-    const btnUnknown = document.getElementById('btnUnknown');
-
-    const studyProgress = document.getElementById('studyProgress');
-    const emptyHint = document.getElementById('emptyHint');
-    const listContainer = document.getElementById('listContainer');
-
-    const btnImport = document.getElementById('btnImport');
-    const btnExport = document.getElementById('btnExport');
-    const btnUploadCloud = document.getElementById('btnUploadCloud');
-    const btnDeleteLearned = document.getElementById('btnDeleteLearned');
-
-    const importDialog = document.getElementById('importDialog');
-    const importTextarea = document.getElementById('importTextarea');
-    const btnDoImport = document.getElementById('btnDoImport');
-
-    const authArea = document.getElementById('authArea');
-    const authDialog = document.getElementById('authDialog');
-    const authTitle = document.getElementById('authTitle');
-    const switchRegister = document.getElementById('switchRegister');
-    const authEmail = document.getElementById('authEmail');
-    const authPassword = document.getElementById('authPassword');
-    const btnSubmitAuth = document.getElementById('btnSubmitAuth');
-    const authMsg = document.getElementById('authMsg');
-
-    // ====== 工具函数 ======
-    function show(el) { el.classList.remove('hidden'); }
-    function hide(el) { el.classList.add('hidden'); }
-
-    function renderList() {
-      listContainer.innerHTML = '';
-      if (!words.length) {
-        listContainer.innerHTML = '<div class="text-slate-400">暂无数据</div>';
-        return;
-      }
-      for (const w of words) {
-        const row = document.createElement('div');
-        row.className = 'flex items-center justify-between border border-slate-200 rounded-xl p-3';
-        row.innerHTML = `
-          <div class="flex-1">
-            <div class="font-semibold">${escapeHtml(w.word)}</div>
-            <div class="text-xs text-slate-500">${escapeHtml(w.meaning)}</div>
-          </div>
-          <div class="chip">记忆度 ${w.memory}</div>
-        `;
-        listContainer.appendChild(row);
-      }
-    }
-
-    const escapeHtml = (s) => (s+"").replace(/[&<>"])/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-
-    function rebuildStudyList() {
-      studyList = words.filter(w => (w.memory ?? 0) <= 5);
-      idx = 0;
-      updateProgress();
-    }
-
-    function updateProgress() {
-      if (!studyList.length) {
-        hide(studyProgress);
-      } else {
-        studyProgress.textContent = `生词 ${idx + 1}/${studyList.length}`;
-        show(studyProgress);
-      }
-    }
-
-    function renderCurrent() {
-      if (!studyList.length) {
-        wordText.textContent = '—';
-        meaningText.textContent = '—';
-        memoryBadge.textContent = '记忆度 0';
-        hide(meaningBox); hide(btnKnown); hide(btnUnknown);
-        show(btnShowMeaning);
-        show(emptyHint);
-        return;
-      }
-      hide(emptyHint);
-      const cur = studyList[idx];
-      wordText.textContent = cur.word;
-      meaningText.textContent = cur.meaning;
-      memoryBadge.textContent = `记忆度 ${cur.memory}`;
-      hide(meaningBox); hide(btnKnown); hide(btnUnknown);
-      show(btnShowMeaning);
-      updateProgress();
-    }
-
-    function nextWord() {
-      if (!studyList.length) return;
-      idx = (idx + 1) % studyList.length;
-      renderCurrent();
-    }
-
-    btnShowMeaning.addEventListener('click', () => {
-      show(meaningBox);
-      hide(btnShowMeaning);
-      show(btnKnown);
-      show(btnUnknown);
-    });
-
-    btnKnown.addEventListener('click', async () => {
-      await adjustMemory(+1);
-    });
-
-    btnUnknown.addEventListener('click', async () => {
-      await adjustMemory(-1);
-    });
-
-    async function adjustMemory(delta) {
-      if (!studyList.length) return;
-      const cur = studyList[idx];
-      const newVal = (cur.memory ?? 0) + delta;
-      // 更新数据库
-      const { error } = await supabase.from('words').update({ memory: newVal }).eq('id', cur.id);
-      if (error) { alert('更新失败：' + error.message); return; }
-      // 更新本地
-      cur.memory = newVal;
-      const target = words.find(w => w.id === cur.id);
-      if (target) target.memory = newVal;
-      // 若超过 5，就从生词列表移除
-      if (newVal > 5) {
-        rebuildStudyList();
-      } else {
-        nextWord();
-      }
-      renderList();
-    }
-
-    // ====== 导入 / 导出 ======
-    btnImport.addEventListener('click', () => importDialog.showModal());
-
-    btnDoImport.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const lines = importTextarea.value.split(/\n+/).map(s => s.trim()).filter(Boolean);
-      if (!lines.length) { importDialog.close(); return; }
-      const payload = [];
-      for (const line of lines) {
-        let parts = line.split(',');
-        if (parts.length < 2) {
-          parts = line.split('，'); // 兼容中文逗号
-        }
-        if (parts.length < 2) {
-          // 最后尝试按空白拆分：英文 第一段；中文 其余
-          const segs = line.split(/\s+/);
-          if (segs.length >= 2) {
-            parts = [segs[0], segs.slice(1).join(' ')];
-          }
-        }
-        if (parts.length < 2) continue;
-        const word = parts[0].trim();
-        const meaning = parts[1].trim();
-        const memory = parts[2] !== undefined ? parseInt(parts[2], 10) || 0 : 0;
-        payload.push({ word, meaning, memory });
-      }
-      if (!payload.length) { alert('没有可导入的数据'); return; }
-      // upsert：避免重复（基于 user_id + word 的唯一约束）
-      const rows = payload.map(r => ({ ...r, user_id: user.id }));
-      const { error } = await supabase.from('words').upsert(rows, { onConflict: 'user_id,word' }).select();
-      if (error) { alert('导入失败：' + error.message); return; }
-      importDialog.close();
-      importTextarea.value = '';
-      await loadWords();
-      alert('导入完成 ✅');
-    });
-
-    btnExport.addEventListener('click', async () => {
-      const csv = toCSV(words);
-      const filename = `words-${new Date().toISOString().slice(0,10)}.csv`;
-      downloadText(csv, filename);
-    });
-
-    btnUploadCloud.addEventListener('click', async () => {
-      try {
-        const csv = toCSV(words);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-        const filename = `words-${new Date().toISOString().replace(/[:T]/g,'-').slice(0,19)}.csv`;
-        const path = `${user.id}/${filename}`;
-        const { error } = await supabase.storage.from('wordlists').upload(path, blob, { upsert: true, contentType: 'text/csv' });
-        if (error) throw error;
-        alert('已上传到云端 Storage ✅\n（Bucket: wordlists）');
-      } catch (e) {
-        alert('上传失败：' + e.message + '\n请先在 Supabase 创建 wordlists bucket 并设置 RLS 策略');
-      }
-    });
-
-    btnDeleteLearned.addEventListener('click', async () => {
-      if (!confirm('确定删除记忆度 > 5 的单词吗？此操作不可恢复。')) return;
-      const { error } = await supabase.from('words').delete().gt('memory', 5);
-      if (error) { alert('删除失败：' + error.message); return; }
-      await loadWords();
-      alert('已删除记忆度 > 5 的单词 ✅');
-    });
-
-    function toCSV(arr) {
-      const rows = arr.map(r => [r.word, r.meaning, r.memory ?? 0].map(v => escapeCSV(v)).join(','));
-      return 'word,meaning,memory\n' + rows.join('\n');
-    }
-    function escapeCSV(v) {
-      const s = String(v ?? '').replace(/"/g, '""');
-      return /[",\n]/.test(s) ? `"${s}"` : s;
-    }
-    function downloadText(text, filename) {
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    }
-
-    // ====== Auth UI ======
-    function renderAuthArea() {
-      authArea.innerHTML = '';
-      if (!user) {
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-primary';
-        btn.textContent = '登录/注册';
-        btn.onclick = () => authDialog.showModal();
-        authArea.appendChild(btn);
-        hide(btnImport); hide(btnExport); hide(btnUploadCloud); hide(btnDeleteLearned);
-      } else {
-        const emailSpan = document.createElement('span');
-        emailSpan.className = 'chip';
-        emailSpan.textContent = user.email || '已登录';
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-ghost';
-        btn.textContent = '退出登录';
-        btn.onclick = async () => { await supabase.auth.signOut(); };
-        authArea.appendChild(emailSpan);
-        authArea.appendChild(btn);
-        show(btnImport); show(btnExport); show(btnUploadCloud); show(btnDeleteLearned);
-      }
-    }
-
-    // 登录/注册切换
-    switchRegister.addEventListener('change', () => {
-      const isReg = switchRegister.checked;
-      authTitle.textContent = isReg ? '注册' : '登录';
-      btnSubmitAuth.textContent = '提交';
-      authMsg.textContent = isReg ? '注册成功后可能需要邮件验证（取决于项目设置）。' : '';
-    });
-
-    btnSubmitAuth.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const email = authEmail.value.trim();
-      const password = authPassword.value.trim();
-      if (!email || !password) return;
-      try {
-        if (switchRegister.checked) {
-          const { error } = await supabase.auth.signUp({ email, password });
-          if (error) throw error;
-          authMsg.textContent = '注册成功，请检查邮箱进行验证（若已开启）。';
-        } else {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-          authDialog.close();
-        }
-      } catch (err) {
-        authMsg.textContent = '错误：' + err.message;
-      }
-    });
-
-    // ====== 数据加载 ======
-    async function loadWords() {
-      if (!user) return;
-      const { data, error } = await supabase.from('words').select('*').order('created_at', { ascending: true });
-      if (error) { alert('加载失败：' + error.message); return; }
-      words = data || [];
-      rebuildStudyList();
-      renderCurrent();
-      renderList();
-    }
-
-    // ====== 启动 & 监听 ======
-    (async function init() {
-      // 先监听，再获取 session（可避免极端竞态）
-      supabase.auth.onAuthStateChange((_event, session) => {
-        user = session?.user || null;
-        renderAuthArea();
-        if (user) loadWords(); else { words = []; studyList = []; renderCurrent(); renderList(); }
-      });
-      const { data: { session } } = await supabase.auth.getSession();
-      user = session?.user || null;
-      renderAuthArea();
-      if (user) await loadWords(); else renderCurrent();
-    })();
-  </script>
+    <script src="app.js"></script>
 </body>
 </html>
