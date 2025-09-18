@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>墨墨单词卡 (CSV导入版)</title>
+    <title>墨墨单词卡 (修复版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -441,6 +441,7 @@ banana 香蕉,一种水果</code></pre>
          */
         function populateRoundSizeOptions() {
             const total = allWords.length;
+            const currentVal = roundSizeSelect.value;
             roundSizeSelect.innerHTML = ''; // 清空旧选项
 
             const options = [10, 20, 50];
@@ -457,13 +458,20 @@ banana 香蕉,一种水果</code></pre>
             allOption.value = 'all';
             allOption.textContent = `全部 (${total}个)`;
             roundSizeSelect.appendChild(allOption);
-            allOption.selected = true; // 默认选择全部
+            
+            // 尝试恢复之前的选项
+            if (currentVal && roundSizeSelect.querySelector(`option[value="${currentVal}"]`)) {
+                roundSizeSelect.value = currentVal;
+            } else {
+                allOption.selected = true;
+            }
         }
 
         /**
-         * 开始新一轮背诵
+         * 开始新一轮背诵 (并保存状态)
          */
         function startNewRound() {
+            clearSessionState(); // 开始新一轮前清除旧状态
             if (allWords.length === 0) {
                 displayCurrentWord();
                 return;
@@ -480,13 +488,37 @@ banana 香蕉,一种水果</code></pre>
             }
             
             currentWordIndex = 0;
+            
+            // 保存新一轮的状态到 sessionStorage
+            sessionStorage.setItem('currentRoundWords', JSON.stringify(currentRoundWords));
+            sessionStorage.setItem('currentWordIndex', '0');
+
             displayCurrentWord();
         }
 
         /**
-         * 从 Supabase 获取当前用户的单词列表
+         * 仅从数据库获取全部单词并填充UI
          */
-        async function fetchWords() {
+        async function fetchAllWordsAndPopulate() {
+             if (!currentUser) return;
+             try {
+                const { data, error } = await supabase_client
+                    .from('words')
+                    .select('*')
+                    .eq('user_id', currentUser.id);
+
+                if (error) throw error;
+                allWords = data;
+                populateRoundSizeOptions();
+            } catch (error) {
+                 console.error('获取单词列表失败:', error);
+            }
+        }
+
+        /**
+         * 获取单词并开始新一轮
+         */
+        async function fetchWordsAndStart() {
             if (!currentUser) return;
             try {
                 const { data, error } = await supabase_client
@@ -497,8 +529,8 @@ banana 香蕉,一种水果</code></pre>
                 if (error) throw error;
                 
                 allWords = data;
-                populateRoundSizeOptions(); // 根据获取到的单词数生成选项
-                startNewRound(); // 获取数据后开始第一轮
+                populateRoundSizeOptions();
+                startNewRound();
             } catch (error) {
                 console.error('获取单词失败:', error.message);
                 alert('获取单词列表失败，请检查网络连接。');
@@ -540,14 +572,13 @@ banana 香蕉,一种水果</code></pre>
         }
         
         /**
-         * 更新单词的记忆强度 (即时同步到云端)
+         * 更新单词的记忆强度 (即时同步到云端并保存状态)
          */
         async function updateMemoryStrength(change) {
             const word = currentRoundWords[currentWordIndex];
             const newStrength = Math.max(0, word.memory_strength + change);
 
             try {
-                // 立即将更新上传到Supabase
                 const { error } = await supabase_client
                     .from('words')
                     .update({ memory_strength: newStrength })
@@ -558,19 +589,29 @@ banana 香蕉,一种水果</code></pre>
                 word.memory_strength = newStrength;
                 
                 currentWordIndex++;
+                // 更新sessionStorage中的进度
+                sessionStorage.setItem('currentWordIndex', currentWordIndex);
                 displayCurrentWord();
-            } catch (error) {
+            } catch (error)
+            {
                 console.error('更新单词失败:', error.message);
                 alert('更新单词失败，请检查网络后重试。');
             }
         }
 
+        /**
+         * 清除会话状态
+         */
+        function clearSessionState() {
+            sessionStorage.removeItem('currentRoundWords');
+            sessionStorage.removeItem('currentWordIndex');
+        }
 
         // =================================================
         // 认证功能函数
         // =================================================
 
-        function updateUIForAuthState() {
+        async function updateUIForAuthState() {
             if (currentUser) {
                 loginBtn.classList.add('hidden');
                 signupBtn.classList.add('hidden');
@@ -578,7 +619,21 @@ banana 香蕉,一种水果</code></pre>
                 userEmailSpan.textContent = currentUser.email;
                 appContainer.classList.remove('hidden');
                 welcomeMessage.classList.add('hidden');
-                fetchWords();
+                
+                // 页面加载时，尝试恢复会话
+                const savedRound = sessionStorage.getItem('currentRoundWords');
+                const savedIndex = sessionStorage.getItem('currentWordIndex');
+
+                if (savedRound && savedIndex) {
+                    currentRoundWords = JSON.parse(savedRound);
+                    currentWordIndex = parseInt(savedIndex, 10);
+                    // 恢复会话后，仍然需要获取完整的单词列表用于导出等功能
+                    await fetchAllWordsAndPopulate();
+                    displayCurrentWord(); // 直接显示之前的位置
+                } else {
+                    await fetchWordsAndStart(); // 否则，正常开始
+                }
+
             } else {
                 loginBtn.classList.remove('hidden');
                 signupBtn.classList.remove('hidden');
@@ -587,6 +642,7 @@ banana 香蕉,一种水果</code></pre>
                 welcomeMessage.classList.remove('hidden');
                 allWords = [];
                 currentRoundWords = [];
+                clearSessionState();
             }
         }
 
@@ -611,6 +667,7 @@ banana 香蕉,一种水果</code></pre>
         }
 
         async function handleLogout() {
+            clearSessionState(); // 退出前清除会话
             const { error } = await supabase_client.auth.signOut();
             if (error) console.error('退出失败:', error.message);
         }
@@ -667,14 +724,18 @@ banana 香蕉,一种水果</code></pre>
             if (!file) return;
 
             try {
-                const text = await file.text();
+                // 读取文件为ArrayBuffer，以使用TextDecoder处理编码
+                const buffer = await file.arrayBuffer();
+                // 使用 GBK 解码器，这是Windows下中文CSV文件常见的编码
+                const decoder = new TextDecoder('GBK');
+                const text = decoder.decode(buffer);
+
                 const lines = text.trim().split(/\r?\n/);
                 if (lines.length === 0) {
                     alert('CSV文件为空或格式不正确。');
                     return;
                 }
 
-                // 检查并跳过表头
                 const firstLine = lines[0].toLowerCase();
                 if (firstLine.includes('word') && firstLine.includes('meaning')) {
                     lines.shift();
@@ -699,9 +760,9 @@ banana 香蕉,一种水果</code></pre>
                 }
             } catch (error) {
                 console.error('读取或解析CSV文件失败:', error);
-                alert('读取或解析CSV文件失败，请确保文件是UTF-8编码。');
+                alert('读取或解析CSV文件失败，请检查文件编码。');
             } finally {
-                event.target.value = ''; // 重置文件输入，以便可以再次上传同名文件
+                event.target.value = '';
             }
         }
         
@@ -711,7 +772,7 @@ banana 香蕉,一种水果</code></pre>
                 const { error } = await supabase_client.from('words').insert(newWords);
                 if (error) throw error;
                 alert(`成功导入 ${newWords.length} 个单词！`);
-                await fetchWords(); // 上传成功后刷新整个单词列表
+                await fetchWordsAndStart(); // 上传成功后刷新整个单词列表并开始新一轮
             } catch (error) {
                 console.error('导入单词失败:', error.message);
                 alert('导入单词失败，可能是存在重复单词或网络问题。');
@@ -764,7 +825,7 @@ banana 香蕉,一种水果</code></pre>
                     .in('id', idsToDelete);
                 if (error) throw error;
                 alert('删除成功！');
-                await fetchWords();
+                await fetchWordsAndStart();
             } catch(error) {
                 console.error('删除单词失败:', error.message);
                 alert('删除单词失败。');
