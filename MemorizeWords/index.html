@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>墨墨单词卡 (优化版)</title>
+    <title>墨墨单词卡 (功能更新版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -11,7 +11,6 @@
         :root {
             --primary-color: #4a90e2;
             --secondary-color: #f5a623;
-            --sync-color: #8e44ad;
             --background-color: #f4f7f6;
             --card-background: #ffffff;
             --text-color: #333;
@@ -110,8 +109,31 @@
             color: #555;
         }
 
-        .controls, .data-controls {
+        .controls {
             margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .round-settings {
+            margin-top: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        #round-size-select {
+            padding: 0.3rem 0.5rem;
+            border-radius: 5px;
+            border: 1px solid var(--light-gray);
+        }
+
+        .data-controls {
+            margin-top: 1rem;
             display: flex;
             gap: 1rem;
             justify-content: center;
@@ -164,25 +186,6 @@
             background-color: #d3901b;
         }
         
-        #sync-btn {
-            background-color: var(--sync-color);
-        }
-        #sync-btn:hover {
-            background-color: #7d3c98;
-        }
-        /* 红点提示需要同步 */
-        #sync-btn.dirty::after {
-            content: '';
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            width: 8px;
-            height: 8px;
-            background-color: var(--red);
-            border-radius: 50%;
-            border: 1px solid white;
-        }
-
         #progress-indicator {
             margin-top: 1.5rem;
             font-size: 1rem;
@@ -312,8 +315,13 @@
             <button id="restart-btn" class="btn hidden">再来一轮</button>
         </div>
 
+        <div class="round-settings">
+            <label for="round-size-select">每轮单词数:</label>
+            <select id="round-size-select">
+                </select>
+        </div>
+
         <div class="data-controls">
-            <button id="sync-btn" class="btn-data">云同步</button>
             <button id="import-btn" class="btn-data">导入单词</button>
             <button id="export-btn" class="btn-data">导出单词</button>
             <button id="delete-btn" class="btn-data btn-danger">删除熟词</button>
@@ -356,7 +364,7 @@ banana 香蕉,一种水果</code></pre>
         // JavaScript 代码开始
 
         // =================================================
-        // Supabase 配置 (这里是您提供的公共密钥)
+        // Supabase 配置
         // =================================================
         const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
@@ -376,6 +384,7 @@ banana 香蕉,一种水果</code></pre>
         const dontKnowBtn = document.getElementById('dont-know-btn');
         const restartBtn = document.getElementById('restart-btn');
         const progressIndicator = document.getElementById('progress-indicator');
+        const roundSizeSelect = document.getElementById('round-size-select');
         // Auth elements
         const authContainer = document.getElementById('auth-container');
         const loginBtn = document.getElementById('login-btn');
@@ -392,7 +401,6 @@ banana 香蕉,一种水果</code></pre>
         const modalSubmitBtn = document.getElementById('modal-submit-btn');
         const authError = document.getElementById('auth-error');
         // Data control elements
-        const syncBtn = document.getElementById('sync-btn');
         const importBtn = document.getElementById('import-btn');
         const exportBtn = document.getElementById('export-btn');
         const deleteBtn = document.getElementById('delete-btn');
@@ -403,11 +411,11 @@ banana 香蕉,一种水果</code></pre>
         // =================================================
         // 应用状态
         // =================================================
-        let words = []; // 存储所有单词对象的数组
+        let allWords = []; // 存储从数据库获取的所有单词
+        let currentRoundWords = []; // 存储当前这一轮要背的单词
         let currentWordIndex = 0;
         let currentUser = null;
         let isSigningUp = false;
-        let isDataDirty = false; // 标记是否有未同步到云端的数据
 
         // =================================================
         // 核心功能函数
@@ -415,24 +423,57 @@ banana 香蕉,一种水果</code></pre>
 
         /**
          * 打乱数组顺序 (Fisher-Yates 算法)
-         * @param {Array} array 
          */
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [array[i], array[j]] = [array[j], array[i]];
             }
+            return array;
+        }
+
+        /**
+         * 根据单词总数，动态生成每轮数量的选项
+         */
+        function populateRoundSizeOptions() {
+            const total = allWords.length;
+            roundSizeSelect.innerHTML = ''; // 清空旧选项
+
+            const options = [10, 20, 50];
+            options.forEach(opt => {
+                if (total >= opt) {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = opt;
+                    optionEl.textContent = `${opt} 个`;
+                    roundSizeSelect.appendChild(optionEl);
+                }
+            });
+            
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = `全部 (${total}个)`;
+            roundSizeSelect.appendChild(allOption);
+            allOption.selected = true; // 默认选择全部
         }
 
         /**
          * 开始新一轮背诵
          */
         function startNewRound() {
-            if (words.length > 0) {
-                shuffleArray(words);
-                currentWordIndex = 0;
-                displayCurrentWord();
+            if (allWords.length === 0) return;
+
+            const shuffled = shuffleArray([...allWords]);
+            const selectedSize = roundSizeSelect.value;
+            
+            if (selectedSize === 'all') {
+                currentRoundWords = shuffled;
+            } else {
+                const size = parseInt(selectedSize, 10);
+                currentRoundWords = shuffled.slice(0, size);
             }
+            
+            currentWordIndex = 0;
+            displayCurrentWord();
         }
 
         /**
@@ -448,8 +489,9 @@ banana 香蕉,一种水果</code></pre>
 
                 if (error) throw error;
                 
-                words = data;
-                startNewRound(); // 获取数据后直接开始随机的第一轮
+                allWords = data;
+                populateRoundSizeOptions(); // 根据获取到的单词数生成选项
+                startNewRound(); // 获取数据后开始第一轮
             } catch (error) {
                 console.error('获取单词失败:', error.message);
                 alert('获取单词列表失败，请检查网络连接。');
@@ -460,12 +502,11 @@ banana 香蕉,一种水果</code></pre>
          * 显示当前单词卡片
          */
         function displayCurrentWord() {
-            // 先隐藏所有主要按钮
             showMeaningBtn.classList.add('hidden');
             feedbackButtons.classList.add('hidden');
             restartBtn.classList.add('hidden');
 
-            if (words.length === 0) {
+            if (currentRoundWords.length === 0 || allWords.length === 0) {
                 wordDisplay.textContent = '单词库为空';
                 meaningDisplay.textContent = '请点击“导入单词”添加新词。';
                 meaningDisplay.classList.remove('hidden');
@@ -473,42 +514,51 @@ banana 香蕉,一种水果</code></pre>
                 return;
             }
             
-            if (currentWordIndex >= words.length) {
+            if (currentWordIndex >= currentRoundWords.length) {
                 wordDisplay.textContent = '恭喜！';
-                meaningDisplay.textContent = '您已完成本轮所有单词的学习！请记得点击【云同步】保存进度。';
+                meaningDisplay.textContent = '您已完成本轮学习！';
                 meaningDisplay.classList.remove('hidden');
-                restartBtn.classList.remove('hidden'); // 显示“再来一轮”按钮
-                progressIndicator.textContent = `完成 ${words.length} / ${words.length}`;
+                restartBtn.classList.remove('hidden');
+                progressIndicator.textContent = `完成 ${currentRoundWords.length} / ${currentRoundWords.length}`;
                 return;
             }
 
-            const word = words[currentWordIndex];
+            const word = currentRoundWords[currentWordIndex];
             wordDisplay.textContent = word.word;
             meaningDisplay.textContent = word.meaning;
 
-            // 重置UI状态
             meaningDisplay.classList.add('hidden');
             showMeaningBtn.classList.remove('hidden');
-            progressIndicator.textContent = `${currentWordIndex + 1} / ${words.length}`;
+            progressIndicator.textContent = `${currentWordIndex + 1} / ${currentRoundWords.length}`;
         }
         
         /**
-         * 更新本地单词的记忆强度 (不再请求网络)
+         * 更新单词的记忆强度 (即时同步到云端)
          * @param {number} change - 记忆强度的变化值 (+1 或 -1)
          */
-        function updateMemoryStrength(change) {
-            const word = words[currentWordIndex];
-            word.memory_strength = Math.max(0, word.memory_strength + change); // 记忆度最低为0
-            
-            // 标记数据已变更，需要同步
-            if (!isDataDirty) {
-                isDataDirty = true;
-                syncBtn.classList.add('dirty'); // 添加红点提示
-            }
+        async function updateMemoryStrength(change) {
+            const word = currentRoundWords[currentWordIndex];
+            const newStrength = Math.max(0, word.memory_strength + change);
 
-            // 立即切换到下一个单词
-            currentWordIndex++;
-            displayCurrentWord();
+            try {
+                // 立即将更新上传到Supabase
+                const { error } = await supabase_client
+                    .from('words')
+                    .update({ memory_strength: newStrength })
+                    .eq('id', word.id);
+
+                if (error) throw error;
+                
+                // 更新本地数据 (两个数组中的同一个对象都要更新)
+                word.memory_strength = newStrength;
+                
+                // 切换到下一个单词
+                currentWordIndex++;
+                displayCurrentWord();
+            } catch (error) {
+                console.error('更新单词失败:', error.message);
+                alert('更新单词失败，请检查网络后重试。');
+            }
         }
 
 
@@ -522,19 +572,17 @@ banana 香蕉,一种水果</code></pre>
                 signupBtn.classList.add('hidden');
                 userInfo.classList.remove('hidden');
                 userEmailSpan.textContent = currentUser.email;
-                
                 appContainer.classList.remove('hidden');
                 welcomeMessage.classList.add('hidden');
-                
                 fetchWords();
             } else {
                 loginBtn.classList.remove('hidden');
                 signupBtn.classList.remove('hidden');
                 userInfo.classList.add('hidden');
-                
                 appContainer.classList.add('hidden');
                 welcomeMessage.classList.remove('hidden');
-                words = [];
+                allWords = [];
+                currentRoundWords = [];
             }
         }
 
@@ -559,12 +607,6 @@ banana 香蕉,一种水果</code></pre>
         }
 
         async function handleLogout() {
-            if (isDataDirty) {
-                const confirmed = confirm("您有未同步的更改，退出前是否要同步？\n点击“确定”进行同步，点击“取消”直接退出。");
-                if (confirmed) {
-                    await handleSync();
-                }
-            }
             const { error } = await supabase_client.auth.signOut();
             if (error) console.error('退出失败:', error.message);
         }
@@ -585,43 +627,9 @@ banana 香蕉,一种水果</code></pre>
 
 
         // =================================================
-        // 数据导入/导出/同步功能
+        // 数据导入/导出/删除功能
         // =================================================
-        async function handleSync() {
-            if (!isDataDirty) {
-                alert('本地数据已是最新，无需同步。');
-                return;
-            }
-            if (words.length === 0) {
-                 isDataDirty = false;
-                 syncBtn.classList.remove('dirty');
-                 return;
-            }
-
-            // 准备要上传的数据 (只包含id和变化的memory_strength)
-            const updates = words.map(w => ({
-                id: w.id,
-                memory_strength: w.memory_strength
-            }));
-            
-            try {
-                alert('开始同步数据到云端...');
-                const { error } = await supabase_client.from('words').upsert(updates);
-                if (error) throw error;
-                
-                isDataDirty = false;
-                syncBtn.classList.remove('dirty'); // 移除红点
-                alert('同步成功！');
-
-                // 同步成功后，重新从云端拉取最新数据以保证一致性
-                await fetchWords();
-
-            } catch (error) {
-                console.error('同步失败:', error.message);
-                alert('同步失败，请检查网络后重试。');
-            }
-        }
-
+        
         function handleImport() {
             importTextarea.value = '';
             importModal.classList.remove('hidden');
@@ -635,7 +643,6 @@ banana 香蕉,一种水果</code></pre>
             const newWords = lines.map(line => {
                 line = line.trim();
                 if (!line) return null;
-                
                 const separatorIndex = line.search(/[\s,，]/);
                 if (separatorIndex === -1) {
                      return { user_id: currentUser.id, word: line, meaning: '(无释义)' };
@@ -653,7 +660,6 @@ banana 香蕉,一种水果</code></pre>
             try {
                 const { error } = await supabase_client.from('words').insert(newWords);
                 if (error) throw error;
-                
                 alert(`成功导入 ${newWords.length} 个单词！`);
                 importModal.classList.add('hidden');
                 fetchWords();
@@ -664,18 +670,15 @@ banana 香蕉,一种水果</code></pre>
         }
 
         function handleExport() {
-            if (words.length === 0) {
+            if (allWords.length === 0) {
                 alert('当前没有单词可以导出。');
                 return;
             }
-            
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "word,meaning,memory_strength\n";
-            
-            words.forEach(word => {
+            allWords.forEach(word => {
                 csvContent += `${word.word},"${word.meaning.replace(/"/g, '""')}",${word.memory_strength}\n`;
             });
-            
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -687,7 +690,7 @@ banana 香蕉,一种水果</code></pre>
 
         async function handleDelete熟词() {
             const thresholdInput = prompt("请输入要删除的记忆强度阈值（大于等于5）:", "5");
-            if (thresholdInput === null) return; // 用户取消
+            if (thresholdInput === null) return;
 
             const threshold = parseInt(thresholdInput, 10);
             if (isNaN(threshold) || threshold < 5) {
@@ -695,7 +698,7 @@ banana 香蕉,一种水果</code></pre>
                 return;
             }
 
-            const wordsToDelete = words.filter(w => w.memory_strength >= threshold);
+            const wordsToDelete = allWords.filter(w => w.memory_strength >= threshold);
             if (wordsToDelete.length === 0) {
                 alert(`没有记忆强度大于等于 ${threshold} 的单词需要删除。`);
                 return;
@@ -705,15 +708,12 @@ banana 香蕉,一种水果</code></pre>
             if (!confirmed) return;
             
             const idsToDelete = wordsToDelete.map(w => w.id);
-            
             try {
                 const { error } = await supabase_client
                     .from('words')
                     .delete()
                     .in('id', idsToDelete);
-                    
                 if (error) throw error;
-                
                 alert('删除成功！');
                 fetchWords();
             } catch(error) {
@@ -727,7 +727,6 @@ banana 香蕉,一种水果</code></pre>
         // 事件监听器
         // =================================================
 
-        // 核心背词流程
         showMeaningBtn.addEventListener('click', () => {
             meaningDisplay.classList.remove('hidden');
             showMeaningBtn.classList.add('hidden');
@@ -737,8 +736,8 @@ banana 香蕉,一种水果</code></pre>
         knowBtn.addEventListener('click', () => updateMemoryStrength(1));
         dontKnowBtn.addEventListener('click', () => updateMemoryStrength(-1));
         restartBtn.addEventListener('click', startNewRound);
+        roundSizeSelect.addEventListener('change', startNewRound);
 
-        // 认证流程
         loginBtn.addEventListener('click', () => openAuthModal(false));
         signupBtn.addEventListener('click', () => openAuthModal(true));
         logoutBtn.addEventListener('click', handleLogout);
@@ -749,8 +748,6 @@ banana 香蕉,一种水果</code></pre>
             }
         });
 
-        // 数据管理流程
-        syncBtn.addEventListener('click', handleSync);
         importBtn.addEventListener('click', handleImport);
         exportBtn.addEventListener('click', handleExport);
         deleteBtn.addEventListener('click', handleDelete熟词);
@@ -761,7 +758,6 @@ banana 香蕉,一种水果</code></pre>
             }
         });
 
-        // 监听认证状态变化
         supabase_client.auth.onAuthStateChange((_event, session) => {
             currentUser = session ? session.user : null;
             updateUIForAuthState();
