@@ -253,7 +253,7 @@ function setSync(v){
 }
 
 /* ========= 时间与日期 ========= */
-const parseTime=s=>{s=(s||'').trim();if(!s)return null;const a=s.split(':');if(a.length<2||a.length>3)return null;const h=+a[0],m=+a[1],se=a[2]?+a[2]:0;if([h,m,se].some(Number.isNaN))return null; if(h<0||h>47||m<0||m>59||se<0||se>59)return null;return h*3600+m*60+se};
+const parseTime=s=>{s=(s||'').trim().replace(/：/g,':');if(!s)return null;const a=s.split(':');if(a.length<2||a.length>3)return null;const h=+a[0],m=+a[1],se=a[2]?+a[2]:0;if([h,m,se].some(Number.isNaN))return null; if(h<0||h>47||m<0||m>59||se<0||se>59)return null;return h*3600+m*60+se};
 const fmt=sec=>{sec=Math.max(0,sec|0);const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor(sec%3600/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`};
 const dur=(s,e)=>{if(s==null||e==null)return 0;let d=e-s; if(d<0)d+=86400; return d};
 
@@ -412,6 +412,10 @@ function rowDOM(item){
   const saveBtn = tr.querySelector('.save');
 
   const recalc=()=>{
+    // 自动将中文冒号替换为英文冒号
+    sEl.value = sEl.value.replace(/：/g, ':');
+    eEl.value = eEl.value.replace(/：/g, ':');
+    
     const s=parseTime(sEl.value),e=parseTime(eEl.value);const d=dur(s,e);
     item.duration=d;item.start=sEl.value;item.end=eEl.value;dEl.textContent=fmt(d);renderTotal();
     if(!isUnsaved){ saveBtn.classList.add('warning'); saveBtn.classList.remove('secondary'); }
