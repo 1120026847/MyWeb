@@ -1,0 +1,251 @@
+:root {
+    --primary-color: #4a90e2;
+    --secondary-color: #f5a623;
+    --background-color: #f4f7f6;
+    --card-background: #ffffff;
+    --text-color: #333;
+    --light-gray: #e0e0e0;
+    --green: #28a745;
+    --red: #dc3545;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.hidden {
+    display: none !important;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: var(--card-background);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+nav#auth-container button {
+    margin-left: 1rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--primary-color);
+    background-color: transparent;
+    color: var(--primary-color);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+nav#auth-container button:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+#user-info {
+    display: flex;
+    align-items: center;
+}
+
+#user-email {
+    margin-right: 1rem;
+    font-size: 0.9rem;
+}
+
+main#app-container, #welcome-message {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.word-card {
+    background-color: var(--card-background);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 3rem 2rem;
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.word {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.meaning {
+    font-size: 1.5rem;
+    color: #555;
+}
+
+.controls, .data-controls {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    color: white;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+#show-meaning-btn {
+    background-color: var(--primary-color);
+}
+
+.btn-know {
+    background-color: var(--green);
+}
+
+.btn-dont-know {
+    background-color: var(--red);
+}
+
+.btn-data {
+    padding: 0.6rem 1.2rem;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-data:hover {
+    background-color: #5a6268;
+}
+.btn-danger {
+    background-color: var(--secondary-color);
+}
+.btn-danger:hover {
+    background-color: #d3901b;
+}
+
+#progress-indicator {
+    margin-top: 1.5rem;
+    font-size: 1rem;
+    color: #777;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+}
+
+#auth-form input, #import-textarea {
+    width: 100%;
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--light-gray);
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+#modal-submit-btn, #submit-import-btn {
+    width: 100%;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 5px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.error-message {
+    color: var(--red);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+}
+
+/* 手机端适配 */
+@media (max-width: 600px) {
+    .word {
+        font-size: 2rem;
+    }
+    .meaning {
+        font-size: 1.2rem;
+    }
+    .btn {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+    }
+    #feedback-buttons {
+        display: flex;
+        width: 100%;
+    }
+    #feedback-buttons .btn {
+        flex-grow: 1;
+    }
+    header {
+        padding: 1rem;
+    }
+    .logo {
+        font-size: 1.2rem;
+    }
+}
