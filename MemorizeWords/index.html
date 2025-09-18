@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>墨墨单词卡 (功能更新版)</title>
+    <title>墨墨单词卡 (CSV导入版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -322,7 +322,9 @@
         </div>
 
         <div class="data-controls">
-            <button id="import-btn" class="btn-data">导入单词</button>
+            <button id="import-text-btn" class="btn-data">粘贴文本导入</button>
+            <button id="import-csv-btn" class="btn-data">从CSV导入</button>
+            <input type="file" id="csv-file-input" accept=".csv" class="hidden">
             <button id="export-btn" class="btn-data">导出单词</button>
             <button id="delete-btn" class="btn-data btn-danger">删除熟词</button>
         </div>
@@ -351,7 +353,7 @@
     <div id="import-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <button class="modal-close">&times;</button>
-            <h2>导入单词</h2>
+            <h2>粘贴文本导入</h2>
             <p>每行一组，单词和意思用空格或逗号隔开，例如：</p>
             <pre><code>apple 苹果
 banana 香蕉,一种水果</code></pre>
@@ -401,7 +403,9 @@ banana 香蕉,一种水果</code></pre>
         const modalSubmitBtn = document.getElementById('modal-submit-btn');
         const authError = document.getElementById('auth-error');
         // Data control elements
-        const importBtn = document.getElementById('import-btn');
+        const importTextBtn = document.getElementById('import-text-btn');
+        const importCsvBtn = document.getElementById('import-csv-btn');
+        const csvFileInput = document.getElementById('csv-file-input');
         const exportBtn = document.getElementById('export-btn');
         const deleteBtn = document.getElementById('delete-btn');
         const importModal = document.getElementById('import-modal');
@@ -460,7 +464,10 @@ banana 香蕉,一种水果</code></pre>
          * 开始新一轮背诵
          */
         function startNewRound() {
-            if (allWords.length === 0) return;
+            if (allWords.length === 0) {
+                displayCurrentWord();
+                return;
+            };
 
             const shuffled = shuffleArray([...allWords]);
             const selectedSize = roundSizeSelect.value;
@@ -508,7 +515,7 @@ banana 香蕉,一种水果</code></pre>
 
             if (currentRoundWords.length === 0 || allWords.length === 0) {
                 wordDisplay.textContent = '单词库为空';
-                meaningDisplay.textContent = '请点击“导入单词”添加新词。';
+                meaningDisplay.textContent = '请点击导入按钮添加新词。';
                 meaningDisplay.classList.remove('hidden');
                 progressIndicator.textContent = '0 / 0';
                 return;
@@ -534,7 +541,6 @@ banana 香蕉,一种水果</code></pre>
         
         /**
          * 更新单词的记忆强度 (即时同步到云端)
-         * @param {number} change - 记忆强度的变化值 (+1 或 -1)
          */
         async function updateMemoryStrength(change) {
             const word = currentRoundWords[currentWordIndex];
@@ -549,10 +555,8 @@ banana 香蕉,一种水果</code></pre>
 
                 if (error) throw error;
                 
-                // 更新本地数据 (两个数组中的同一个对象都要更新)
                 word.memory_strength = newStrength;
                 
-                // 切换到下一个单词
                 currentWordIndex++;
                 displayCurrentWord();
             } catch (error) {
@@ -630,12 +634,12 @@ banana 香蕉,一种水果</code></pre>
         // 数据导入/导出/删除功能
         // =================================================
         
-        function handleImport() {
+        function handleTextImport() {
             importTextarea.value = '';
             importModal.classList.remove('hidden');
         }
 
-        async function submitImport() {
+        async function submitTextImport() {
             const text = importTextarea.value.trim();
             if (!text) return;
             
@@ -652,20 +656,65 @@ banana 香蕉,一种水果</code></pre>
                 return { user_id: currentUser.id, word, meaning, memory_strength: 0 };
             }).filter(Boolean);
 
-            if (newWords.length === 0) {
-                alert('没有有效的单词可供导入。');
-                return;
+            if (newWords.length > 0) {
+                await uploadNewWords(newWords);
             }
-            
+            importModal.classList.add('hidden');
+        }
+
+        async function handleCsvFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
             try {
+                const text = await file.text();
+                const lines = text.trim().split(/\r?\n/);
+                if (lines.length === 0) {
+                    alert('CSV文件为空或格式不正确。');
+                    return;
+                }
+
+                // 检查并跳过表头
+                const firstLine = lines[0].toLowerCase();
+                if (firstLine.includes('word') && firstLine.includes('meaning')) {
+                    lines.shift();
+                }
+
+                const newWords = lines.map(line => {
+                    const columns = line.split(',');
+                    if (columns.length < 2 || !columns[0].trim()) return null;
+
+                    return {
+                        user_id: currentUser.id,
+                        word: columns[0].trim(),
+                        meaning: columns[1].trim(),
+                        memory_strength: parseInt(columns[2], 10) || 0
+                    };
+                }).filter(Boolean);
+
+                if (newWords.length > 0) {
+                   await uploadNewWords(newWords);
+                } else {
+                   alert('在CSV文件中没有找到有效的单词数据。');
+                }
+            } catch (error) {
+                console.error('读取或解析CSV文件失败:', error);
+                alert('读取或解析CSV文件失败，请确保文件是UTF-8编码。');
+            } finally {
+                event.target.value = ''; // 重置文件输入，以便可以再次上传同名文件
+            }
+        }
+        
+        async function uploadNewWords(newWords) {
+             try {
+                alert(`正在上传 ${newWords.length} 个新单词...`);
                 const { error } = await supabase_client.from('words').insert(newWords);
                 if (error) throw error;
                 alert(`成功导入 ${newWords.length} 个单词！`);
-                importModal.classList.add('hidden');
-                fetchWords();
+                await fetchWords(); // 上传成功后刷新整个单词列表
             } catch (error) {
                 console.error('导入单词失败:', error.message);
-                alert('导入单词失败，请检查数据格式或网络。');
+                alert('导入单词失败，可能是存在重复单词或网络问题。');
             }
         }
 
@@ -715,7 +764,7 @@ banana 香蕉,一种水果</code></pre>
                     .in('id', idsToDelete);
                 if (error) throw error;
                 alert('删除成功！');
-                fetchWords();
+                await fetchWords();
             } catch(error) {
                 console.error('删除单词失败:', error.message);
                 alert('删除单词失败。');
@@ -748,10 +797,12 @@ banana 香蕉,一种水果</code></pre>
             }
         });
 
-        importBtn.addEventListener('click', handleImport);
+        importTextBtn.addEventListener('click', handleTextImport);
+        importCsvBtn.addEventListener('click', () => csvFileInput.click());
+        csvFileInput.addEventListener('change', handleCsvFile);
         exportBtn.addEventListener('click', handleExport);
         deleteBtn.addEventListener('click', handleDelete熟词);
-        submitImportBtn.addEventListener('click', submitImport);
+        submitImportBtn.addEventListener('click', submitTextImport);
         importModal.addEventListener('click', (e) => {
             if (e.target === importModal || e.target.classList.contains('modal-close')) {
                 importModal.classList.add('hidden');
