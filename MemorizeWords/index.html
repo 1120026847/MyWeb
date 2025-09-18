@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>墨墨单词卡 (编码修复版)</title>
+    <title>墨墨单词卡 (终极修复版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -691,30 +691,64 @@ banana 香蕉,一种水果</code></pre>
         }
 
         /**
-         * ★★★ 新增：智能解码函数 ★★★
-         * 自动尝试多种编码来解码文件内容
+         * ★★★ 终极方案：智能解码与解析函数 ★★★
          */
-        async function decodeCsvText(buffer) {
-            const encodingsToTry = ['UTF-8', 'GB18030', 'GBK', 'BIG5'];
-            const chineseCharRegex = /[\u4e00-\u9fa5]/;
 
-            for (const encoding of encodingsToTry) {
-                try {
-                    const decoder = new TextDecoder(encoding, { fatal: true });
-                    const text = decoder.decode(buffer);
-                    // 如果解码后的文本中包含中文字符，就认为解码成功
-                    if (chineseCharRegex.test(text)) {
-                        console.log(`成功使用 ${encoding} 解码`);
-                        return text;
-                    }
-                } catch (e) {
-                    console.log(`使用 ${encoding} 解码失败`);
-                    // 解码失败，继续尝试下一种
+        // 1. 更强大的CSV行解析器，能处理被引号包裹的逗号
+        function parseCsvLine(line) {
+            const columns = [];
+            let currentColumn = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line.charAt(i);
+
+                if (char === '"' && (i === 0 || line.charAt(i - 1) !== '\\')) {
+                    inQuotes = !inQuotes;
+                    continue;
+                }
+
+                if (char === ',' && !inQuotes) {
+                    columns.push(currentColumn.trim());
+                    currentColumn = '';
+                } else {
+                    currentColumn += char;
                 }
             }
-            // 如果所有尝试都失败，返回null或默认的UTF-8解码结果
-            console.log('所有编码尝试均未检测到中文字符，将使用默认UTF-8解码。');
-            return new TextDecoder('utf-8').decode(buffer);
+            columns.push(currentColumn.trim());
+            return columns;
+        }
+
+        // 2. 自动选择最佳编码的解码器
+        async function decodeCsvTextBestEffort(buffer) {
+            const encodingsToTry = ['UTF-8', 'GB18030', 'GBK'];
+            const decodingResults = [];
+            
+            for (const encoding of encodingsToTry) {
+                try {
+                    const decoder = new TextDecoder(encoding, { fatal: false }); // fatal: false 容忍小错误
+                    const text = decoder.decode(buffer);
+                    const chineseChars = text.match(/[\u4e00-\u9fa5]/g) || [];
+                    decodingResults.push({
+                        encoding: encoding,
+                        text: text,
+                        chineseCount: chineseChars.length
+                    });
+                } catch (e) {
+                    console.warn(`使用 ${encoding} 解码时出错:`, e);
+                }
+            }
+
+            if (decodingResults.length === 0) {
+                throw new Error("所有解码尝试均失败。");
+            }
+
+            // 排序，中文数量最多的结果排在最前面
+            decodingResults.sort((a, b) => b.chineseCount - a.chineseCount);
+            
+            console.log("解码分析结果:", decodingResults.map(r => `${r.encoding}: ${r.chineseCount}个中文字符`).join(' | '));
+            
+            // 返回最优结果
+            return decodingResults[0].text;
         }
 
         async function handleCsvFile(event) {
@@ -723,14 +757,8 @@ banana 香蕉,一种水果</code></pre>
 
             try {
                 const buffer = await file.arrayBuffer();
-                // 使用新的智能解码函数
-                const text = await decodeCsvText(buffer);
+                const text = await decodeCsvTextBestEffort(buffer);
 
-                if (!text) {
-                    alert('无法解码文件，请确保文件编码正确。');
-                    return;
-                }
-                
                 const lines = text.trim().split(/\r?\n/);
                 if (lines.length === 0) {
                     alert('CSV文件为空或格式不正确。');
@@ -743,13 +771,16 @@ banana 香蕉,一种水果</code></pre>
                 }
 
                 const newWords = lines.map(line => {
-                    const columns = line.split(',');
-                    if (columns.length < 2 || !columns[0].trim()) return null;
-
+                    if (!line.trim()) return null;
+                    // 使用新的、更强大的解析器
+                    const columns = parseCsvLine(line);
+                    
+                    if (columns.length < 2 || !columns[0]) return null;
+                    
                     return {
                         user_id: currentUser.id,
-                        word: columns[0].trim(),
-                        meaning: columns[1].trim(),
+                        word: columns[0],
+                        meaning: columns[1],
                         memory_strength: parseInt(columns[2], 10) || 0
                     };
                 }).filter(Boolean);
@@ -788,7 +819,10 @@ banana 香蕉,一种水果</code></pre>
             let csvContent = "data:text/csv;charset=utf-8,";
             csvContent += "word,meaning,memory_strength\n";
             allWords.forEach(word => {
-                csvContent += `${word.word},"${word.meaning.replace(/"/g, '""')}",${word.memory_strength}\n`;
+                // 在导出时也处理好引号，确保导出的文件能被正确解析
+                const wordCol = `"${word.word.replace(/"/g, '""')}"`;
+                const meaningCol = `"${word.meaning.replace(/"/g, '""')}"`;
+                csvContent += `${wordCol},${meaningCol},${word.memory_strength}\n`;
             });
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
