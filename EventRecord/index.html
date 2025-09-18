@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>时间记录（Excel风格）</title>
+<title>时间记录</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
-    --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px;
+    --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--warning:#f97316;--radius:16px;
 
     /* 列宽（桌面） */
     --w-start:120px;   /* 开始（缩小） */
@@ -33,6 +34,12 @@
     padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis
   }
+  .header-add-btn{
+    margin-left: 12px; padding: 4px 10px; font-size: 18px; line-height: 1;
+    height: 32px; min-width: 32px; border-radius: 999px;
+    background: var(--accent-weak); color: #1e3a8a; border: 1px solid #c7d2fe;
+    cursor: pointer;
+  }
 
   .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
         padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06)}
@@ -43,10 +50,11 @@
   input:focus,button:focus{border-color:var(--accent)}
   /* iOS 防 1.5 倍放大 */
   input{font-size:16px}
-  .btn{background:var(--accent);color:#fff;border:none}
+  .btn{background:var(--accent);color:#fff;border:none; cursor:pointer;}
   .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
   .btn.ghost{background:transparent}
   .btn.danger{background:var(--danger)}
+  .btn.warning{background:var(--warning); color:#fff; border-color:var(--warning);}
   .btn:disabled{opacity:.6;cursor:not-allowed}
   .right{margin-left:auto}
 
@@ -129,20 +137,18 @@
 <body>
 <header>
   <div class="container nav">
-    <h1>时间记录（Excel风格）</h1>
+    <h1>时间记录</h1>
+    <button id="headerAddRow" class="header-add-btn" aria-label="新增一行">+</button>
     <div class="account"><button id="accountBtn" class="account-btn">登录 / 注册</button></div>
   </div>
 </header>
 
-<!-- Toast -->
 <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
-<!-- 未登录提示 -->
 <div class="container" id="guestCard">
   <div class="card"><div class="row"><strong>请先登录</strong><span class="muted">点击右上角「登录 / 注册」进入你的账户</span></div></div>
 </div>
 
-<!-- 主体 -->
 <main class="container" id="app" style="display:none">
   <div class="card">
     <div class="toolbar">
@@ -151,9 +157,9 @@
         <input id="dateInput" type="date" />
       </div>
       <button id="addRow" class="btn">+ 新增一行</button>
-      <button id="exportCsv" class="btn secondary">导出 CSV</button>
-      <input id="csvFile" type="file" accept=".csv" style="display:none">
-      <button id="importCsv" class="btn secondary">导入 CSV</button>
+      <button id="exportCsv" class="btn secondary">导出数据</button>
+      <input id="csvFile" type="file" accept=".xlsx, .xls, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
+      <button id="importCsv" class="btn secondary">Excel导入</button>
       <button id="toggleCols" class="btn secondary">隐藏备注与时长</button>
       <div class="right" style="display:flex;gap:10px;align-items:center">
         <div id="syncState" class="muted" style="display:none">
@@ -187,7 +193,6 @@
   </div>
 </main>
 
-<!-- 模态：登录/注册/账户 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="panel" role="document">
@@ -235,7 +240,8 @@ const els={
   sync:$('syncState'),account:$('accountBtn'),
   modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),
   title:$('dialogTitle'),body:$('dialogBody'),
-  toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols')
+  toast:document.getElementById('toastWrap'), grid:$('grid'), toggle:$('toggleCols'),
+  headerAdd:$('headerAddRow'),
 };
 
 const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
@@ -392,20 +398,35 @@ function restoreDraft(){
 function rowDOM(item){
   ensureCid(item);
   const tr=document.createElement('div');tr.className='trow';
+  const isUnsaved = !item.id || item._dirty;
+  const saveBtnClass = isUnsaved ? 'btn warning save' : 'btn secondary save';
+
   tr.innerHTML=`<div class="cell"><input type="text" value="${item.start||''}" placeholder="07:30"></div>
                 <div class="cell"><input type="text" value="${item.end||''}" placeholder="08:45"></div>
                 <div class="cell"><input type="text" value="${item.content||''}" placeholder="内容"></div>
                 <div class="cell"><input type="text" value="${item.note||''}" placeholder="备注"></div>
                 <div class="cell duration">${fmt(item.duration||0)}</div>
-                <div class="cell actions"><button class="btn secondary save">保存</button><button class="btn danger del">删除</button></div>`;
-  const [sEl,eEl,cEl,nEl]=tr.querySelectorAll('input');const dEl=tr.querySelector('.duration');
-  const recalc=()=>{const s=parseTime(sEl.value),e=parseTime(eEl.value);const d=dur(s,e);
-    item.duration=d;item.start=sEl.value;item.end=eEl.value;dEl.textContent=fmt(d);renderTotal();markDirty(item);saveDraft();};
+                <div class="cell actions"><button class="${saveBtnClass}">保存</button><button class="btn danger del">删除</button></div>`;
+  const [sEl,eEl,cEl,nEl]=tr.querySelectorAll('input');
+  const dEl=tr.querySelector('.duration');
+  const saveBtn = tr.querySelector('.save');
+
+  const recalc=()=>{
+    const s=parseTime(sEl.value),e=parseTime(eEl.value);const d=dur(s,e);
+    item.duration=d;item.start=sEl.value;item.end=eEl.value;dEl.textContent=fmt(d);renderTotal();
+    if(!isUnsaved){ saveBtn.classList.add('warning'); saveBtn.classList.remove('secondary'); }
+    markDirty(item);saveDraft();
+  };
+  const makeDirty = () => {
+    if(!isUnsaved){ saveBtn.classList.add('warning'); saveBtn.classList.remove('secondary'); }
+    markDirty(item); saveDraft();
+  }
+
   sEl.oninput=eEl.oninput=recalc;
-  cEl.oninput=()=>{ item.content=cEl.value; markDirty(item); saveDraft(); };
-  nEl.oninput=()=>{ item.note=nEl.value;    markDirty(item); saveDraft(); };
+  cEl.oninput=()=>{ item.content=cEl.value; makeDirty(); };
+  nEl.oninput=()=>{ item.note=nEl.value;    makeDirty(); };
   tr.querySelector('.del').onclick=()=>{ removeRow(item); saveDraft(); };
-  tr.querySelector('.save').onclick=()=>saveRow(item,tr.querySelector('.save'));
+  saveBtn.onclick=()=>saveRow(item,saveBtn);
   return tr;
 }
 function renderBody(){
@@ -476,6 +497,8 @@ async function saveRow(item, btn){
     dirty = rows.some(r=>r._dirty);
     try{ localStorage.removeItem(draftKey()); }catch{}
     toast('✅ 已保存并同步到云端');
+    btn.classList.remove('warning');
+    btn.classList.add('secondary');
   }catch(err){ toast('保存异常：' + (err?.message||err),'error'); }
   finally{ setSync(false); btn.disabled=false; }
 }
@@ -492,36 +515,61 @@ async function removeRow(item){
   finally{ setSync(false); }
 }
 
-/* ========= CSV ========= */
-function toCSV(){
-  const header=[COL_DATE,COL_START,COL_END,COL_CONTENT,COL_NOTE];
-  const lines=[header.join(',')];
-  const day=$('dateInput').value;
-  for(const it of rows) lines.push([day,it.start||'',it.end||'',(it.content||'').replace(/,/g,'，'),(it.note||'').replace(/,/g,'，')].join(','));
-  return lines.join('\n');
+/* ========= Excel (XLSX) ========= */
+function exportXLSX() {
+    const day = $('dateInput').value;
+    // Prepare data in a format suitable for SheetJS (array of objects)
+    const data = rows.map(it => ({
+        '日期': day,
+        '开始时间': it.start || '',
+        '结束时间': it.end || '',
+        '内容': it.content || '',
+        '备注': it.note || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "时间记录");
+
+    // Trigger download
+    XLSX.writeFile(workbook, `timelog_${day}.xlsx`, { bookType: 'xlsx', type: 'binary' });
 }
-function download(name,text){
-  const blob=new Blob([text],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);
+
+function parseXLSX(data) {
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) return [];
+
+    const worksheet = workbook.Sheets[sheetName];
+    const json = XLSX.utils.sheet_to_json(worksheet, { raw: false }); // raw:false helps with dates
+
+    const out = [];
+    const cur = $('dateInput').value;
+    for (const row of json) {
+        const startKey = Object.keys(row).find(k => /start|开始/i.test(k));
+        const endKey = Object.keys(row).find(k => /end|结束/i.test(k));
+        const contentKey = Object.keys(row).find(k => /content|内容/i.test(k));
+        const noteKey = Object.keys(row).find(k => /note|备注/i.test(k));
+        const dateKey = Object.keys(row).find(k => /date|日期/i.test(k));
+
+        let entryDate = dateKey ? String(row[dateKey]) : cur;
+        // Simple check for Excel's numeric date format, convert if needed
+        if (!isNaN(entryDate) && Number(entryDate) > 25569) {
+            const excelDate = new Date((Number(entryDate) - 25569) * 86400 * 1000);
+            entryDate = toDayString(excelDate);
+        } else if (/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(entryDate)) { // Handle MM/DD/YYYY etc.
+            entryDate = toDayString(new Date(entryDate));
+        }
+
+        if (entryDate !== cur) continue;
+
+        const s = startKey ? String(row[startKey] || '') : '';
+        const e = endKey ? String(row[endKey] || '') : '';
+        out.push(ensureCid({ id: null, start: s, end: e, content: contentKey ? String(row[contentKey] || '') : '', note: noteKey ? String(row[noteKey] || '') : '', duration: dur(parseTime(s), parseTime(e)) }));
+    }
+    return out;
 }
-function parseCSV(text){
-  const lines=text.split(/\r?\n/).filter(Boolean); if(lines.length===0) return [];
-  const head=lines[0].split(','); const idx={
-    date: head.findIndex(h=>/date|日期|entry/i.test(h)),
-    start: head.findIndex(h=>/start/i.test(h)||/开始/.test(h)),
-    end: head.findIndex(h=>/end/i.test(h)||/结束/.test(h)),
-    content: head.findIndex(h=>/content|内容/i.test(h)),
-    note: head.findIndex(h=>/note|备注/i.test(h)),
-  };
-  const out=[]; const cur=$('dateInput').value;
-  for(let i=1;i<lines.length;i++){
-    const c=lines[i].split(',');
-    const d=c[idx.date]||cur; if(d!==cur) continue;
-    const s=c[idx.start]||'', e=c[idx.end]||'';
-    out.push(ensureCid({id:null,start:s,end:e,content:(c[idx.content]||'').replace(/，/g,','),note:(c[idx.note]||'').replace(/，/g,','),duration:dur(parseTime(s),parseTime(e))}));
-  }
-  return out;
-}
+
 
 /* ========= 历史 ========= */
 async function loadHistory(){
@@ -564,16 +612,38 @@ function applyCompactUI(on){
 }
 
 /* ========= 事件 ========= */
-$('addRow').onclick=()=>{rows.push(ensureCid({id:null,start:'',end:'',content:'',note:'',duration:0,_dirty:true})); dirty=true; renderBody(); saveDraft();};
-$('exportCsv').onclick=()=>download(`timelog_${$('dateInput').value}.csv`,toCSV());
-$('importCsv').onclick = () => $('csvFile').click();
-$('csvFile').onchange=async e=>{
-  const f=e.target.files[0]; if(!f) return;
-  const text=await f.text(); const list=parseCSV(text);
-  if(list.length===0) return toast('CSV 没有可导入的当前日期数据','error');
-  rows.push(...list.map(it=>({...ensureCid(it),_dirty:true}))); renderBody(); saveDraft();
-  toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
+function addNewRowAndNotify(){
+  rows.push(ensureCid({id:null,start:'',end:'',content:'',note:'',duration:0,_dirty:true}));
+  dirty=true;
+  renderBody();
+  saveDraft();
+  toast('已新增一行');
 };
+els.add.onclick = addNewRowAndNotify;
+els.headerAdd.onclick = addNewRowAndNotify;
+
+$('exportCsv').onclick=exportXLSX;
+$('importCsv').onclick = () => $('csvFile').click();
+$('csvFile').onchange=e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+        const data = new Uint8Array(event.target.result);
+        const list = parseXLSX(data);
+        if (list.length === 0) return toast('Excel 文件中没有可导入的当前日期数据', 'error');
+        rows.push(...list.map(it => ({ ...ensureCid(it), _dirty: true }))); renderBody(); saveDraft();
+        toast(`已加入 ${list.length} 行，记得点“保存”写入云端`);
+    } catch (err) {
+        console.error("Import error:", err);
+        toast('文件解析失败，请确保是有效的 Excel 文件', 'error');
+    }
+  };
+  reader.onerror = () => toast('读取文件失败', 'error');
+  reader.readAsArrayBuffer(f);
+  e.target.value = '';
+};
+
 $('refreshBtn').onclick=()=>fetchRowsByDate($('dateInput').value,{mode:'merge', tip:true});
 els.rehist.onclick=loadHistory;
 $('toggleCols').onclick=()=>applyCompactUI(!$('grid').classList.contains('compact'));
