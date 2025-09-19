@@ -80,8 +80,34 @@
     const messageDiv = document.getElementById('message');
     const loadingDiv = document.getElementById('loading');
 
-    // 【核心修改1】引入加载锁 (loading lock)
     let isLoadingFiles = false;
+
+    // 【核心修改1】新增一个辅助函数，根据文件名后缀获取正确的MIME类型
+    function getMimeType(fileName) {
+        const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
+        const mimeTypes = {
+            '7z': 'application/x-7z-compressed',
+            'zip': 'application/zip',
+            'rar': 'application/vnd.rar',
+            'tar': 'application/x-tar',
+            'gz': 'application/gzip',
+            'tgz': 'application/gzip',
+            'pdf': 'application/pdf',
+            'txt': 'text/plain',
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'svg': 'image/svg+xml',
+            'mp3': 'audio/mpeg',
+            'mp4': 'video/mp4',
+            'apk': 'application/vnd.android.package-archive',
+            // 可根据需要添加更多类型
+        };
+        // 如果在我们的列表中找到了对应的类型，就返回它
+        // 否则，返回一个通用的二进制文件类型，这是最安全的选择
+        return mimeTypes[extension] || 'application/octet-stream';
+    }
 
     function showMessage(text, type = 'success') {
         messageDiv.textContent = text;
@@ -107,6 +133,7 @@
     }
 
     async function handleRegister() {
+        // ... (代码无变化)
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const { data, error } = await supabaseClient.auth.signUp({ email, password });
@@ -115,6 +142,7 @@
     }
 
     async function handleLogin() {
+        // ... (代码无变化)
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -124,6 +152,7 @@
     logoutButton.addEventListener('click', () => supabaseClient.auth.signOut());
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
+        // ... (代码无变化)
         if (session) {
             authView.classList.add('hidden');
             fileView.classList.remove('hidden');
@@ -137,27 +166,21 @@
     });
     
     async function loadInitialFiles() {
-        // 【核心修改2】检查锁，如果正在加载，则直接退出
-        if (isLoadingFiles) {
-            return;
-        }
-        // 【核心修改3】上锁
+        // ... (代码无变化)
+        if (isLoadingFiles) return;
         isLoadingFiles = true;
-
         loadingDiv.classList.remove('hidden');
         fileList.innerHTML = '';
         try {
             const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
             if (sessionError) throw sessionError;
             if (!session) return;
-
             const { data, error } = await supabaseClient
                 .from('files')
                 .select('*')
                 .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false });
             if (error) throw error;
-
             if (data.length === 0) {
                 fileList.innerHTML = '<li>你还没有上传任何文件。</li>';
             } else {
@@ -169,7 +192,6 @@
         } catch (error) {
             showMessage(`加载文件列表失败: ${error.message}`, 'error');
         } finally {
-            // 【核心修改4】解锁，并隐藏加载提示
             isLoadingFiles = false;
             loadingDiv.classList.add('hidden');
         }
@@ -185,12 +207,25 @@
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) throw new Error('用户未登录，无法上传。');
-            const fileExt = file.name.split('.').pop();
+            
             const originalFileName = file.name;
+            const fileExt = originalFileName.split('.').pop();
             const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `${session.user.id}/${safeFileName}`;
-            const { error: uploadError } = await supabaseClient.storage.from('user_files').upload(filePath, file);
+            
+            // 【核心修改2】调用辅助函数获取正确的MIME类型
+            const mimeType = getMimeType(originalFileName);
+
+            // 【核心修改3】在上传文件到Storage时，明确指定contentType
+            const { error: uploadError } = await supabaseClient.storage
+                .from('user_files')
+                .upload(filePath, file, {
+                    contentType: mimeType, // 在这里指定正确的MIME类型
+                });
+
             if (uploadError) throw uploadError;
+
+            // 【核心修改4】将我们自己判断的、更可靠的MIME类型存入数据库
             const { data: newFileRecord, error: dbError } = await supabaseClient
                 .from('files')
                 .insert({
@@ -198,7 +233,7 @@
                     file_name: originalFileName,
                     file_path: filePath,
                     file_size: file.size,
-                    mime_type: file.type
+                    mime_type: mimeType, // 存入我们判断的MIME类型，而不是不可靠的 file.type
                 })
                 .select()
                 .single();
@@ -240,6 +275,7 @@
     });
 
     async function downloadFile(filePath, originalFileName) {
+        // ... (代码无变化)
         try {
             const { data, error } = await supabaseClient.storage.from('user_files').createSignedUrl(filePath, 60);
             if (error) throw error;
@@ -254,6 +290,7 @@
         }
     }
     async function deleteFile(fileId, filePath) {
+        // ... (代码无变化)
         if (!confirm('确定要删除这个文件吗？此操作无法撤销。')) return;
         try {
             const { error: dbError } = await supabaseClient.from('files').delete().eq('id', fileId);
