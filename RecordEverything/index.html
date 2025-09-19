@@ -1,371 +1,291 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>备忘录</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  :root{
-    --bg:#f7f9fc;--card:#fff;--line:#e5e7eb;--text:#0b1220;--muted:#6b7280;
-    --accent:#2563eb;--accent-weak:#eef2ff;--danger:#dc2626;--radius:16px;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-       font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,PingFang SC,Microsoft YaHei,sans-serif}
-
-  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line)}
-  .container{padding:12px 16px}
-  .nav{display:flex;align-items:center;gap:10px}
-  h1{margin:0;font-size:clamp(18px,4.5vw,22px)}
-  .account{margin-left:auto}
-  .account-btn{
-    display:inline-flex;align-items:center;gap:8px;
-    background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe;
-    padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
-  }
-
-  .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
-        padding:16px;box-shadow:0 6px 26px rgba(0,0,0,.06)}
-  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .muted{color:var(--muted)}
-
-  textarea,button{border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit;background:#fff}
-  textarea{width:100%;min-height:260px;resize:vertical;font-size:16px;outline:none}
-  textarea:focus,button:focus{border-color:var(--accent)}
-  .btn{background:var(--accent);color:#fff;border:none}
-  .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
-  .btn.ghost{background:transparent}
-  .btn.danger{background:var(--danger)}
-  .btn:disabled{opacity:.6;cursor:not-allowed}
-
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .toolbar .btn{height:40px}
-
-  /* 冲突提示条 */
-  .conflict{
-    display:none;align-items:center;gap:8px;margin-top:10px;
-    padding:10px;border:1px dashed #c7d2fe;border-radius:12px;background:#f8faff;color:#1e3a8a
-  }
-
-  /* Toast */
-  .toast-wrap{position:fixed;top:16px;left:0;right:0;display:flex;justify-content:center;z-index:20000;pointer-events:none}
-  .toast{pointer-events:auto;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.25);opacity:.98}
-  .toast.ok{background:#065f46}.toast.err{background:#7f1d1d}
-  @keyframes spin{to{transform:rotate(360deg)}}
-
-  /* 模态（登录/注册/退出） */
-  .modal{position:fixed;inset:0;z-index:30000;display:none}
-  .modal.show{display:block}
-  .modal .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
-  .modal .panel{
-    position:absolute;left:50%;top:10%;transform:translateX(-50%);
-    width:min(92vw,480px);max-height:80vh;overflow:auto;
-    background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);padding:16px
-  }
-  @media (max-width:680px){
-    .modal .panel{
-      left:12px;right:12px;top:auto;bottom:12px;transform:none;width:auto;max-height:84vh;
-      border-radius:16px 16px 12px 12px
-    }
-  }
-  .modal .close-x{
-    position:absolute;right:10px;top:10px;width:36px;height:36px;
-    border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer
-  }
-  .modal .title{margin:0 40px 10px 0;font-size:18px}
-  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
-  .field label{font-size:12px;color:var(--muted)}
-  .panel .btn{height:42px}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨设备文件传输</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 800px; margin: auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #444; }
+        .auth-form, .file-area { display: flex; flex-direction: column; gap: 15px; }
+        input[type="email"], input[type="password"], input[type="file"], button { padding: 12px; border-radius: 5px; border: 1px solid #ddd; font-size: 16px; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #0056b3; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        #user-info { text-align: center; margin-bottom: 20px; font-weight: bold; }
+        #file-list { list-style-type: none; padding: 0; }
+        #file-list li { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        #file-list li:last-child { border-bottom: none; }
+        .file-actions { display: flex; gap: 10px; }
+        .hidden { display: none !important; }
+        #message { text-align: center; padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loader { text-align: center; font-style: italic; color: #555; }
+    </style>
 </head>
 <body>
-<header>
-  <div class="container nav">
-    <h1>备忘录</h1>
-    <div class="account"><button id="accountBtn" class="account-btn">登录 / 注册</button></div>
-  </div>
-</header>
 
-<!-- Toast -->
-<div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+    <div class="container">
+        <h1>跨设备文件传输</h1>
 
-<!-- 未登录提示 -->
-<div class="container" id="guestCard">
-  <div class="card"><div class="row"><strong>请先登录</strong><span class="muted">点击右上角「登录 / 注册」进入你的账户</span></div></div>
-</div>
+        <div id="message" class="hidden"></div>
 
-<!-- 主体 -->
-<main class="container" id="app" style="display:none">
-  <div class="card">
-    <div class="toolbar" style="justify-content:flex-end;">
-      <div id="syncState" class="muted" style="display:none">
-        <span style="display:inline-block;width:14px;height:14px;border:2px solid #cfe3ff;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
-        正在同步…
-      </div>
-      <button id="refreshBtn" class="btn secondary">刷新</button>
+        <div id="auth-view">
+            <h2>登录或注册</h2>
+            <form id="auth-form" class="auth-form">
+                <input type="email" id="email" placeholder="邮箱" required>
+                <input type="password" id="password" placeholder="密码 (至少6位)" required>
+                <button type="button" onclick="handleRegister()">注册</button>
+                <button type="button" onclick="handleLogin()">登录</button>
+            </form>
+        </div>
+
+        <div id="file-view" class="hidden">
+            <div id="user-info"></div>
+            <button id="logout-button" class="secondary">退出登录</button>
+            <hr>
+            <h2>我的文件</h2>
+            <div class="file-area">
+                <input type="file" id="file-input">
+                <button onclick="uploadFile()">上传文件</button>
+            </div>
+            <div id="loading" class="loader hidden">正在加载文件列表...</div>
+            <ul id="file-list"></ul>
+        </div>
     </div>
 
-    <textarea id="memoInput" placeholder="写点什么…（登录后自动与云端同步保存）"></textarea>
+    <script>
+        // =================================================================
+        // == 请在这里填入你的 Supabase 项目 URL 和 anon public key ==
+        // =================================================================
+        const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co'; // 替换为你的 Supabase URL
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY'; // 替换为你的 Supabase anon key
+        // =================================================================
 
-    <!-- 云端 vs 本地 冲突提示条 -->
-    <div id="conflictBar" class="conflict">
-      <span>已保留本地草稿，同时检测到与云端内容不一致。</span>
-      <button id="useCloud" class="btn secondary">用云端覆盖</button>
-      <button id="appendCloud" class="btn secondary">把云端追加到末尾</button>
-    </div>
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <div class="row" style="margin-top:10px;gap:10px">
-      <button id="saveBtn" class="btn">保存</button>
-      <button id="clearBtn" class="btn secondary">清空</button>
-      <button id="copyBtn" class="btn secondary">复制</button>
-    </div>
-  </div>
-</main>
+        // DOM 元素
+        const authView = document.getElementById('auth-view');
+        const fileView = document.getElementById('file-view');
+        const userInfo = document.getElementById('user-info');
+        const logoutButton = document.getElementById('logout-button');
+        const fileList = document.getElementById('file-list');
+        const fileInput = document.getElementById('file-input');
+        const messageDiv = document.getElementById('message');
+        const loadingDiv = document.getElementById('loading');
 
-<!-- 模态：登录/注册/账户 -->
-<div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
-  <div class="backdrop" id="modalBackdrop"></div>
-  <div class="panel" role="document">
-    <button class="close-x" id="modalClose" aria-label="关闭">✕</button>
-    <h3 id="dialogTitle" class="title">登录 / 注册</h3>
-    <div id="dialogBody"></div>
-  </div>
-</div>
+        // 显示提示消息
+        function showMessage(text, type = 'success') {
+            messageDiv.textContent = text;
+            messageDiv.className = type;
+            setTimeout(() => { messageDiv.className = 'hidden'; }, 3000);
+        }
 
-<script>
-/* ========= Supabase ========= */
-const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+        // 注册
+        async function handleRegister() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) {
+                showMessage(`注册失败: ${error.message}`, 'error');
+            } else {
+                showMessage('注册成功！请检查你的邮箱进行验证。');
+            }
+        }
 
-const TABLE = 'memos';
-const { createClient } = supabase;
+        // 登录
+        async function handleLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                showMessage(`登录失败: ${error.message}`, 'error');
+            }
+            // 登录成功后，onAuthStateChange 会自动处理 UI 更新
+        }
 
-/* 安全会话存储（localStorage 不可用时用 Cookie） */
-const cookieStorage = {
-  getItem:k=>{const m=document.cookie.match(new RegExp('(?:^|; )'+encodeURIComponent(k)+'=([^;]*)'));return m?decodeURIComponent(m[1]):null},
-  setItem:(k,v)=>{const e=new Date();e.setFullYear(e.getFullYear()+1);document.cookie=`${encodeURIComponent(k)}=${encodeURIComponent(v)}; Path=/; Expires=${e.toUTCString()}; SameSite=Lax; Secure`},
-  removeItem:k=>{document.cookie=`${encodeURIComponent(k)}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`}
-};
-function safeStorage(){try{const t='__sb__'+Math.random();localStorage.setItem(t,'1');localStorage.removeItem(t);return localStorage}catch{return cookieStorage}}
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storage:safeStorage(),storageKey:'sb-memo-auth'}
-});
+        // 退出登录
+        logoutButton.addEventListener('click', async () => {
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) {
+                showMessage(`退出失败: ${error.message}`, 'error');
+            }
+        });
 
-/* ========= 状态 & DOM ========= */
-let session=null, syncing=0, dirty=false;
-let serverCache = ''; // 最近一次云端内容，用于冲突提示
-const $=id=>document.getElementById(id);
-const els={
-  app:$('app'),guest:$('guestCard'),memo:$('memoInput'),
-  save:$('saveBtn'),clear:$('clearBtn'),copy:$('copyBtn'),
-  refresh:$('refreshBtn'),sync:$('syncState'),account:$('accountBtn'),
-  modal:$('modal'),backdrop:$('modalBackdrop'),close:$('modalClose'),
-  title:$('dialogTitle'),body:$('dialogBody'),
-  toast:document.getElementById('toastWrap'),
-  conflict:$('conflictBar'), useCloud:$('useCloud'), appendCloud:$('appendCloud')
-};
-const toast=(m,t='ok',ms=1600)=>{const n=document.createElement('div');n.className='toast '+(t==='error'?'err':'ok');n.textContent=m;els.toast.appendChild(n);setTimeout(()=>{n.style.transition='opacity .35s';n.style.opacity='0'},ms);setTimeout(()=>n.remove(),ms+400)};
-function setSync(v){
-  syncing += v ? 1 : -1; if (syncing < 0) syncing = 0;
-  els.sync.style.display = syncing > 0 ? '' : 'none';
-  if (v) setTimeout(() => { if (syncing > 0) { syncing = 0; els.sync.style.display = 'none'; } }, 15000);
-}
+        // 监听认证状态变化
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (session) {
+                // 用户已登录
+                authView.classList.add('hidden');
+                fileView.classList.remove('hidden');
+                userInfo.textContent = `欢迎, ${session.user.email}`;
+                loadUserFiles();
+            } else {
+                // 用户未登录
+                authView.classList.remove('hidden');
+                fileView.classList.add('hidden');
+                fileList.innerHTML = '';
+            }
+        });
 
-/* ========= 草稿：本地持久化（localStorage） ========= */
-const draftKey = ()=> {
-  const uid = session?.user?.id || 'guest';
-  return `memo-draft:${uid}`;
-};
-const hasDraft   = ()=>{ try{return !!localStorage.getItem(draftKey())}catch{return false}};
-const readDraft  = ()=>{ try{const t=localStorage.getItem(draftKey()); return t?JSON.parse(t):null}catch{return null}};
-const writeDraft = ()=>{ try{localStorage.setItem(draftKey(), JSON.stringify({content: els.memo.value || '', ts: Date.now()}));}catch{} };
-const clearDraft = ()=>{ try{localStorage.removeItem(draftKey())}catch{} };
+        // 加载用户文件列表
+        async function loadUserFiles() {
+            loadingDiv.classList.remove('hidden');
+            fileList.innerHTML = '';
 
-function markDirty(){ dirty = true; writeDraft(); showConflictIfNeeded(); }
-function restoreDraft(tip=true){
-  const d = readDraft();
-  if(d && typeof d.content === 'string' && d.content !== els.memo.value){
-    els.memo.value = d.content;
-    dirty = true;
-    if(tip) toast('已恢复本地草稿（未覆盖云端）');
-    showConflictIfNeeded();
-    return true;
-  }
-  return false;
-}
+            const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+            if (sessionError || !sessionData.session) {
+                loadingDiv.classList.add('hidden');
+                return;
+            }
 
-/* ========= 冲突提示 ========= */
-function showConflictIfNeeded(){
-  // 与最近云端内容不同且有会话时才提示
-  const conflict = session && els.memo.value !== (serverCache || '');
-  els.conflict.style.display = conflict ? 'flex' : 'none';
-}
+            const user = sessionData.session.user;
+            const { data, error } = await supabaseClient
+                .from('files')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
 
-/* ========= 模态（登录 / 注册 / 账户） ========= */
-let lastFocus=null;
-function openModal(title,html){
-  els.title.textContent=title;els.body.innerHTML=html;
-  lastFocus=document.activeElement;els.modal.classList.add('show');els.modal.removeAttribute('aria-hidden');
-  document.body.style.overflow='hidden';
-  const f=els.body.querySelector('input,button');if(f)setTimeout(()=>f.focus(),0);
-}
-function closeModal(){
-  els.modal.classList.remove('show');els.modal.setAttribute('aria-hidden','true');document.body.style.overflow='';
-  if(lastFocus)lastFocus.focus();
-}
-els.backdrop.onclick=closeModal;els.close.onclick=closeModal;
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&els.modal.classList.contains('show'))closeModal()});
+            loadingDiv.classList.add('hidden');
 
-function showAuth(){
-  openModal('登录 / 注册', `
-    <div class="field"><label>邮箱</label><input id="em" type="email" placeholder="you@example.com"></div>
-    <div class="field"><label>密码（≥6位）</label><input id="pw" type="password" placeholder="******"></div>
-    <div class="row" style="gap:8px;justify-content:flex-end"><button id="lg" class="btn">登录</button><button id="sg" class="btn secondary">注册</button></div>
-    <div id="hint" class="muted" style="margin-top:6px"></div>
-  `);
-  const hint=document.getElementById('hint');
-  document.getElementById('lg').onclick=async()=>{
-    const email=document.getElementById('em').value.trim(),password=document.getElementById('pw').value;
-    if(!email||!password) return hint.textContent='请输入邮箱和密码';
-    setSync(true);
-    try{
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(error){ hint.textContent='登录失败：'+error.message; }
-      else { hint.textContent=''; toast('登录成功'); closeModal(); fetchMemo({mode:'overwrite', tip:true}).then(()=>restoreDraft(false)); }
-    }catch(err){ hint.textContent='登录异常：'+(err?.message||err); }
-    finally{ setSync(false); }
-  };
-  document.getElementById('sg').onclick=async()=>{
-    const email=document.getElementById('em').value.trim(),password=document.getElementById('pw').value;
-    if(!email||!password) return hint.textContent='请输入邮箱和密码';
-    setSync(true);
-    try{
-      const { error } = await sb.auth.signUp({ email, password });
-      hint.textContent = error ? ('注册失败：'+error.message) : '注册成功。如开启邮箱验证，请到邮箱确认后再登录。';
-    }catch(err){ hint.textContent='注册异常：'+(err?.message||err); }
-    finally{ setSync(false); }
-  };
-}
-function showAccount(u){
-  openModal('账户', `
-    <div class="field"><div class="muted">邮箱：${u.email||''}</div></div>
-    <div class="row" style="gap:8px;justify-content:flex-end"><button id="lo" class="btn">退出登录</button></div>
-  `);
-  document.getElementById('lo').onclick=async()=>{ setSync(true); try{ await sb.auth.signOut(); toast('您已退出登录'); closeModal(); applySessionUI(); } finally{ setSync(false);} };
-}
-els.account.onclick=()=>{session?.user?showAccount(session.user):showAuth()};
+            if (error) {
+                showMessage(`加载文件列表失败: ${error.message}`, 'error');
+                return;
+            }
 
-/* ========= 读写备忘录（含草稿合并策略） ========= */
-async function fetchMemo({ mode='auto', tip=false } = {}){
-  if(!session){ els.memo.value=''; serverCache=''; showConflictIfNeeded(); return; }
-  setSync(true);
-  try{
-    const { data, error } = await sb.from(TABLE).select('id, content').eq('user_id', session.user.id).limit(1).maybeSingle();
-    if(error){ toast('拉取失败：'+error.message,'error'); return; }
-    const content = data?.content || '';
-    serverCache = content;
-    // 合并策略
-    if(mode === 'overwrite'){
-      // 用云端填充，但如果有草稿，稍后 restoreDraft() 会把本地覆盖回来
-      els.memo.value = content;
-      dirty = false;
-    }else{
-      // auto / merge：保留本地输入，不覆盖；只提示冲突
-      if(!dirty && !hasDraft()){
-        // 只有在本地“干净”时才覆盖 UI
-        els.memo.value = content;
-      }
-      // 如果本地和云端不同，展示冲突条
-    }
-    showConflictIfNeeded();
-    if(tip) toast('已从云端同步（本地草稿已保留）');
-  }catch(err){ toast('同步异常：'+(err?.message||err),'error'); }
-  finally{ setSync(false); }
-}
+            if (data.length === 0) {
+                fileList.innerHTML = '<li>你还没有上传任何文件。</li>';
+                return;
+            }
 
-async function saveMemo(){
-  if(!session) return toast('请先登录','error');
-  const payload = { user_id: session.user.id, content: els.memo.value };
-  setSync(true);
-  try{
-    // 单行覆盖写入（user_id 唯一）：upsert + onConflict
-    const { error } = await sb.from(TABLE).upsert(payload, { onConflict: 'user_id' }).select();
-    if(error){ toast('保存失败：'+error.message,'error'); return; }
-    serverCache = els.memo.value;
-    dirty = false; clearDraft();
-    showConflictIfNeeded();
-    toast('✅ 已保存并同步到云端');
-  }catch(err){ toast('保存异常：'+(err?.message||err),'error'); }
-  finally{ setSync(false); }
-}
+            data.forEach(file => {
+                const li = document.createElement('li');
+                const fileSizeMB = (file.file_size / (1024 * 1024)).toFixed(2);
+                li.innerHTML = `
+                    <span>${file.file_name} (${fileSizeMB} MB)</span>
+                    <div class="file-actions">
+                        <button onclick="downloadFile('${file.file_path}')">下载</button>
+                        <button class="danger" onclick="deleteFile('${file.id}', '${file.file_path}')">删除</button>
+                    </div>
+                `;
+                fileList.appendChild(li);
+            });
+        }
 
-async function clearMemo(){
-  els.memo.value = '';
-  markDirty();
-  await saveMemo();
-}
+        // 上传文件
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showMessage('请先选择一个文件。', 'error');
+                return;
+            }
 
-async function copyMemo(){
-  try{
-    await navigator.clipboard.writeText(els.memo.value || '');
-    toast('📋 已复制到剪贴板');
-  }catch(err){
-    toast('复制失败：'+(err?.message||err),'error');
-  }
-}
+            const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+            if (sessionError || !sessionData.session) {
+                 showMessage('用户未登录，无法上传。', 'error');
+                return;
+            }
+            const user = sessionData.session.user;
 
-/* ========= 绑定事件 ========= */
-// 输入 -> 标记脏 & 节流写草稿
-let draftTimer=null;
-els.memo.addEventListener('input', ()=>{
-  dirty = true;
-  if(draftTimer) clearTimeout(draftTimer);
-  draftTimer = setTimeout(()=>{ writeDraft(); showConflictIfNeeded(); }, 250);
-});
-els.save.onclick = saveMemo;
-els.clear.onclick = clearMemo;
-els.copy.onclick = copyMemo;
-// 手动刷新：仅同步云端，不覆盖本地，必要时给出冲突按钮
-els.refresh.onclick = ()=> fetchMemo({ mode:'merge', tip:true });
+            // 文件路径格式为: user_id/original_filename
+            const filePath = `${user.id}/${file.name}`;
+            
+            showMessage('正在上传...', 'success');
 
-// 冲突处理按钮
-els.useCloud.onclick = ()=>{ els.memo.value = serverCache || ''; markDirty(); showConflictIfNeeded(); toast('已用云端覆盖当前文本（尚未保存）'); };
-els.appendCloud.onclick = ()=>{ 
-  const nl = els.memo.value && !els.memo.value.endsWith('\n') ? '\n' : '';
-  els.memo.value = (els.memo.value || '') + nl + (serverCache || '');
-  markDirty(); showConflictIfNeeded(); toast('已将云端内容追加到文本末尾（尚未保存）'); 
-};
+            // 1. 上传文件到 Supabase Storage
+            const { error: uploadError } = await supabaseClient.storage
+                .from('user_files')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: true // 如果文件已存在则覆盖
+                });
 
-/* ========= 会话监听 & 初始化 ========= */
-sb.auth.onAuthStateChange((_evt,sess)=>{session=sess;applySessionUI(); if(session){ fetchMemo({mode:'overwrite'}).then(()=>restoreDraft(false)); }});
+            if (uploadError) {
+                showMessage(`上传失败: ${uploadError.message}`, 'error');
+                return;
+            }
 
-function applySessionUI(){
-  els.account.textContent = session?.user?`已登录：${session.user.email||'用户'}`:'登录 / 注册';
-  $('app').style.display=session?'':'none';
-  $('guestCard').style.display=session?'none':'';
-  showConflictIfNeeded();
-}
+            // 2. 将文件元数据存入数据库
+            const { error: dbError } = await supabaseClient
+                .from('files')
+                .insert({
+                    user_id: user.id,
+                    file_name: file.name,
+                    file_path: filePath,
+                    file_size: file.size,
+                    mime_type: file.type
+                });
+            
+            if (dbError) {
+                 // 如果数据库插入失败，尝试删除刚刚上传的文件以保持数据一致性
+                await supabaseClient.storage.from('user_files').remove([filePath]);
+                showMessage(`文件元数据记录失败: ${dbError.message}`, 'error');
+                return;
+            }
+            
+            showMessage('上传成功！', 'success');
+            fileInput.value = ''; // 清空选择
+            loadUserFiles(); // 重新加载文件列表
+        }
 
-(async function init(){
-  const { data } = await sb.auth.getSession();
-  session = data.session || null;
-  applySessionUI();
-  if(session){ await fetchMemo({mode:'overwrite'}); }
-  // 首次进入尝试恢复草稿（优先本地）
-  restoreDraft(false);
+        // 下载文件
+        async function downloadFile(filePath) {
+            const { data, error } = await supabaseClient.storage
+                .from('user_files')
+                .createSignedUrl(filePath, 60); // 创建一个60秒有效的临时下载链接
 
-  /* 页面可见性 & 生命周期：
-     - 隐藏/切后台/锁屏：保存草稿
-     - 返回/恢复（bfcache 或刷新）：尝试恢复草稿，并重新对比云端 */
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'hidden'){ writeDraft(); }  // 页面不可见时立即落盘
-    else { restoreDraft(false); showConflictIfNeeded(); }        // 回到前台尝试恢复
-  });
-  window.addEventListener('pagehide', writeDraft);              // 移动端更可靠
-  window.addEventListener('pageshow', ()=>{ restoreDraft(false); showConflictIfNeeded(); }); // 前进/后退/刷新恢复
-})();
-</script>
+            if (error) {
+                showMessage(`创建下载链接失败: ${error.message}`, 'error');
+                return;
+            }
+            
+            // 通过创建一个隐藏的 a 标签来触发浏览器下载
+            const link = document.createElement('a');
+            link.href = data.signedUrl;
+            link.download = filePath.split('/').pop(); // 从路径中获取文件名
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 删除文件
+        async function deleteFile(fileId, filePath) {
+            if (!confirm('确定要删除这个文件吗？此操作无法撤销。')) {
+                return;
+            }
+            
+            // 1. 从数据库中删除元数据记录
+            const { error: dbError } = await supabaseClient
+                .from('files')
+                .delete()
+                .eq('id', fileId);
+
+            if (dbError) {
+                showMessage(`删除数据库记录失败: ${dbError.message}`, 'error');
+                return;
+            }
+
+            // 2. 从 Storage 中删除实际文件
+            const { error: storageError } = await supabaseClient.storage
+                .from('user_files')
+                .remove([filePath]);
+
+            if (storageError) {
+                showMessage(`删除存储文件失败: ${storageError.message}`, 'error');
+                // 注意：此时数据库记录已删除，但文件可能还存在，需要考虑补偿逻辑
+            }
+
+            showMessage('文件已删除。', 'success');
+            loadUserFiles(); // 重新加载文件列表
+        }
+
+    </script>
 </body>
 </html>
