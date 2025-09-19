@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨设备文件传输</title>
+    <title>跨设备文件传输V0.1</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
@@ -92,7 +92,7 @@
     // 工具函数：根据文件对象创建一个列表项 (li element)
     function createFileListItem(file) {
         const li = document.createElement('li');
-        li.id = `file-${file.id}`; // 为每个li设置唯一ID，方便删除
+        li.id = `file-${file.id}`;
         const fileSizeMB = (file.file_size / (1024 * 1024)).toFixed(2);
         const safeFileName = file.file_name.replace(/'/g, "\\'");
         li.innerHTML = `
@@ -123,13 +123,14 @@
 
     logoutButton.addEventListener('click', () => supabaseClient.auth.signOut());
 
-    // 监听认证状态变化 (程序的入口)
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    // 【核心修改1】onAuthStateChange 回调本身不再是 async
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
             authView.classList.add('hidden');
             fileView.classList.remove('hidden');
             userInfo.textContent = `欢迎, ${session.user.email}`;
-            await loadInitialFiles(session.user);
+            // 直接调用独立的 async 函数
+            loadInitialFiles();
         } else {
             authView.classList.remove('hidden');
             fileView.classList.add('hidden');
@@ -137,15 +138,23 @@
         }
     });
     
-    // 【核心修改1】只在初始加载时从服务器获取完整列表
-    async function loadInitialFiles(user) {
+    // 【核心修改2】函数不再接收参数，而是在内部自己获取 session
+    async function loadInitialFiles() {
         loadingDiv.classList.remove('hidden');
         fileList.innerHTML = '';
         try {
+            // 在函数内部重新获取最新的 session，确保身份信息万无一失
+            const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+            if (sessionError) throw sessionError;
+            if (!session) {
+                // 如果此时没有 session，则不执行任何操作
+                return;
+            }
+
             const { data, error } = await supabaseClient
                 .from('files')
                 .select('*')
-                .eq('user_id', user.id)
+                .eq('user_id', session.user.id) // 使用最新获取的 user id
                 .order('created_at', { ascending: false });
             if (error) throw error;
 
@@ -160,11 +169,12 @@
         } catch (error) {
             showMessage(`加载文件列表失败: ${error.message}`, 'error');
         } finally {
+            // 无论成功或失败，最后都隐藏加载提示
             loadingDiv.classList.add('hidden');
         }
     }
 
-    // 核心上传逻辑
+    // 核心上传逻辑 (无变动)
     async function handleFileUpload(file) {
         if (!file) {
             showMessage('未找到有效文件。', 'error');
@@ -186,7 +196,6 @@
             const { error: uploadError } = await supabaseClient.storage.from('user_files').upload(filePath, file);
             if (uploadError) throw uploadError;
 
-            // 【核心修改2】上传成功后，将新记录插入数据库并【返回】该记录
             const { data: newFileRecord, error: dbError } = await supabaseClient
                 .from('files')
                 .insert({
@@ -197,20 +206,18 @@
                     mime_type: file.type
                 })
                 .select()
-                .single(); // .select().single() 会返回刚插入的数据
-
+                .single();
             if (dbError) {
                 await supabaseClient.storage.from('user_files').remove([filePath]);
                 throw dbError;
             }
 
-            // 【核心修改3】不再调用loadUserFiles()，而是直接将新项添加到列表顶部
             const noFileMessage = fileList.querySelector('li');
             if (noFileMessage && noFileMessage.textContent === '你还没有上传任何文件。') {
-                fileList.innerHTML = ''; // 如果存在提示信息，则清空列表
+                fileList.innerHTML = '';
             }
             const newLi = createFileListItem(newFileRecord);
-            fileList.prepend(newLi); // prepend会添加到最前面
+            fileList.prepend(newLi);
 
             showMessage('上传成功！', 'success');
             fileInput.value = '';
@@ -221,7 +228,7 @@
         }
     }
     
-    // 按钮和粘贴事件的触发器
+    // 触发器 (无变动)
     function triggerUpload() {
         const file = fileInput.files[0];
         if (!file) {
@@ -240,7 +247,7 @@
         }
     });
 
-    // 下载文件
+    // 下载和删除逻辑 (无变动)
     async function downloadFile(filePath, originalFileName) {
         try {
             const { data, error } = await supabaseClient.storage.from('user_files').createSignedUrl(filePath, 60);
@@ -255,30 +262,18 @@
             showMessage(`创建下载链接失败: ${error.message}`, 'error');
         }
     }
-
-    // 删除文件
     async function deleteFile(fileId, filePath) {
         if (!confirm('确定要删除这个文件吗？此操作无法撤销。')) return;
-        
         try {
             const { error: dbError } = await supabaseClient.from('files').delete().eq('id', fileId);
             if (dbError) throw dbError;
-
             const { error: storageError } = await supabaseClient.storage.from('user_files').remove([filePath]);
-            // 即使存储删除失败，我们UI上也认为它删了，因为数据库记录已经没了
             if (storageError) console.error("Storage deletion failed but DB record removed:", storageError);
-
-            // 【核心修改4】不再调用loadUserFiles()，而是直接从DOM中移除对应项
             const itemToRemove = document.getElementById(`file-${fileId}`);
-            if (itemToRemove) {
-                itemToRemove.remove();
-            }
-
-            // 如果列表空了，显示提示信息
+            if (itemToRemove) itemToRemove.remove();
             if (fileList.children.length === 0) {
                 fileList.innerHTML = '<li>你还没有上传任何文件。</li>';
             }
-            
             showMessage('文件已删除。', 'success');
         } catch (error) {
              showMessage(`删除失败: ${error.message}`, 'error');
