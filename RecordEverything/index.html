@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>跨设备文件传输V0.1</title>
+    <title>跨设备文件传输</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f9; color: #333; }
@@ -80,7 +80,9 @@
     const messageDiv = document.getElementById('message');
     const loadingDiv = document.getElementById('loading');
 
-    // 工具函数：显示消息
+    // 【核心修改1】引入加载锁 (loading lock)
+    let isLoadingFiles = false;
+
     function showMessage(text, type = 'success') {
         messageDiv.textContent = text;
         messageDiv.className = type;
@@ -89,7 +91,6 @@
         }
     }
     
-    // 工具函数：根据文件对象创建一个列表项 (li element)
     function createFileListItem(file) {
         const li = document.createElement('li');
         li.id = `file-${file.id}`;
@@ -105,7 +106,6 @@
         return li;
     }
 
-    // 认证逻辑
     async function handleRegister() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
@@ -123,13 +123,11 @@
 
     logoutButton.addEventListener('click', () => supabaseClient.auth.signOut());
 
-    // 【核心修改1】onAuthStateChange 回调本身不再是 async
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
             authView.classList.add('hidden');
             fileView.classList.remove('hidden');
             userInfo.textContent = `欢迎, ${session.user.email}`;
-            // 直接调用独立的 async 函数
             loadInitialFiles();
         } else {
             authView.classList.remove('hidden');
@@ -138,23 +136,25 @@
         }
     });
     
-    // 【核心修改2】函数不再接收参数，而是在内部自己获取 session
     async function loadInitialFiles() {
+        // 【核心修改2】检查锁，如果正在加载，则直接退出
+        if (isLoadingFiles) {
+            return;
+        }
+        // 【核心修改3】上锁
+        isLoadingFiles = true;
+
         loadingDiv.classList.remove('hidden');
         fileList.innerHTML = '';
         try {
-            // 在函数内部重新获取最新的 session，确保身份信息万无一失
             const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
             if (sessionError) throw sessionError;
-            if (!session) {
-                // 如果此时没有 session，则不执行任何操作
-                return;
-            }
+            if (!session) return;
 
             const { data, error } = await supabaseClient
                 .from('files')
                 .select('*')
-                .eq('user_id', session.user.id) // 使用最新获取的 user id
+                .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false });
             if (error) throw error;
 
@@ -169,33 +169,28 @@
         } catch (error) {
             showMessage(`加载文件列表失败: ${error.message}`, 'error');
         } finally {
-            // 无论成功或失败，最后都隐藏加载提示
+            // 【核心修改4】解锁，并隐藏加载提示
+            isLoadingFiles = false;
             loadingDiv.classList.add('hidden');
         }
     }
 
-    // 核心上传逻辑 (无变动)
     async function handleFileUpload(file) {
         if (!file) {
             showMessage('未找到有效文件。', 'error');
             return;
         }
-
         uploadButton.disabled = true;
         showMessage('检测到文件，正在上传...', 'info');
-
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) throw new Error('用户未登录，无法上传。');
-
             const fileExt = file.name.split('.').pop();
             const originalFileName = file.name;
             const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `${session.user.id}/${safeFileName}`;
-
             const { error: uploadError } = await supabaseClient.storage.from('user_files').upload(filePath, file);
             if (uploadError) throw uploadError;
-
             const { data: newFileRecord, error: dbError } = await supabaseClient
                 .from('files')
                 .insert({
@@ -211,14 +206,12 @@
                 await supabaseClient.storage.from('user_files').remove([filePath]);
                 throw dbError;
             }
-
             const noFileMessage = fileList.querySelector('li');
             if (noFileMessage && noFileMessage.textContent === '你还没有上传任何文件。') {
                 fileList.innerHTML = '';
             }
             const newLi = createFileListItem(newFileRecord);
             fileList.prepend(newLi);
-
             showMessage('上传成功！', 'success');
             fileInput.value = '';
         } catch (error) {
@@ -228,7 +221,6 @@
         }
     }
     
-    // 触发器 (无变动)
     function triggerUpload() {
         const file = fileInput.files[0];
         if (!file) {
@@ -247,7 +239,6 @@
         }
     });
 
-    // 下载和删除逻辑 (无变动)
     async function downloadFile(filePath, originalFileName) {
         try {
             const { data, error } = await supabaseClient.storage.from('user_files').createSignedUrl(filePath, 60);
