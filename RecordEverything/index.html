@@ -82,7 +82,6 @@
 
     let isLoadingFiles = false;
 
-    // 【核心修改1】新增一个辅助函数，根据文件名后缀获取正确的MIME类型
     function getMimeType(fileName) {
         const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
         const mimeTypes = {
@@ -102,10 +101,7 @@
             'mp3': 'audio/mpeg',
             'mp4': 'video/mp4',
             'apk': 'application/vnd.android.package-archive',
-            // 可根据需要添加更多类型
         };
-        // 如果在我们的列表中找到了对应的类型，就返回它
-        // 否则，返回一个通用的二进制文件类型，这是最安全的选择
         return mimeTypes[extension] || 'application/octet-stream';
     }
 
@@ -133,7 +129,7 @@
     }
 
     async function handleRegister() {
-        // ... (代码无变化)
+        // ... (无变化)
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const { data, error } = await supabaseClient.auth.signUp({ email, password });
@@ -142,7 +138,7 @@
     }
 
     async function handleLogin() {
-        // ... (代码无变化)
+        // ... (无变化)
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
@@ -152,7 +148,7 @@
     logoutButton.addEventListener('click', () => supabaseClient.auth.signOut());
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
-        // ... (代码无变化)
+        // ... (无变化)
         if (session) {
             authView.classList.add('hidden');
             fileView.classList.remove('hidden');
@@ -166,7 +162,7 @@
     });
     
     async function loadInitialFiles() {
-        // ... (代码无变化)
+        // ... (无变化)
         if (isLoadingFiles) return;
         isLoadingFiles = true;
         loadingDiv.classList.remove('hidden');
@@ -198,6 +194,7 @@
     }
 
     async function handleFileUpload(file) {
+        // ... (无变化)
         if (!file) {
             showMessage('未找到有效文件。', 'error');
             return;
@@ -207,25 +204,15 @@
         try {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) throw new Error('用户未登录，无法上传。');
-            
             const originalFileName = file.name;
             const fileExt = originalFileName.split('.').pop();
             const safeFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `${session.user.id}/${safeFileName}`;
-            
-            // 【核心修改2】调用辅助函数获取正确的MIME类型
             const mimeType = getMimeType(originalFileName);
-
-            // 【核心修改3】在上传文件到Storage时，明确指定contentType
             const { error: uploadError } = await supabaseClient.storage
                 .from('user_files')
-                .upload(filePath, file, {
-                    contentType: mimeType, // 在这里指定正确的MIME类型
-                });
-
+                .upload(filePath, file, { contentType: mimeType });
             if (uploadError) throw uploadError;
-
-            // 【核心修改4】将我们自己判断的、更可靠的MIME类型存入数据库
             const { data: newFileRecord, error: dbError } = await supabaseClient
                 .from('files')
                 .insert({
@@ -233,7 +220,7 @@
                     file_name: originalFileName,
                     file_path: filePath,
                     file_size: file.size,
-                    mime_type: mimeType, // 存入我们判断的MIME类型，而不是不可靠的 file.type
+                    mime_type: mimeType,
                 })
                 .select()
                 .single();
@@ -257,6 +244,7 @@
     }
     
     function triggerUpload() {
+        // ... (无变化)
         const file = fileInput.files[0];
         if (!file) {
             showMessage('请先选择一个文件。', 'error');
@@ -265,6 +253,7 @@
         handleFileUpload(file);
     }
     document.addEventListener('paste', (e) => {
+        // ... (无变化)
         const items = e.clipboardData.items;
         for (const item of items) {
             if (item.kind === 'file') {
@@ -274,11 +263,20 @@
         }
     });
 
+    // 【核心修改】只修改这个函数
     async function downloadFile(filePath, originalFileName) {
-        // ... (代码无变化)
         try {
-            const { data, error } = await supabaseClient.storage.from('user_files').createSignedUrl(filePath, 60);
+            // 在调用 createSignedUrl 时，添加第三个参数：一个包含 download 属性的对象
+            // 这个属性的值就是我们希望强制服务器使用的文件名
+            const { data, error } = await supabaseClient.storage
+                .from('user_files')
+                .createSignedUrl(filePath, 60, { // 60秒有效期
+                    download: originalFileName // 强制服务器指定下载文件名为原始文件名
+                });
+
             if (error) throw error;
+            
+            // 下面的代码保持不变，作为后备
             const link = document.createElement('a');
             link.href = data.signedUrl;
             link.download = originalFileName;
@@ -290,7 +288,7 @@
         }
     }
     async function deleteFile(fileId, filePath) {
-        // ... (代码无变化)
+        // ... (无变化)
         if (!confirm('确定要删除这个文件吗？此操作无法撤销。')) return;
         try {
             const { error: dbError } = await supabaseClient.from('files').delete().eq('id', fileId);
