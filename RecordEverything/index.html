@@ -85,22 +85,11 @@
     function getMimeType(fileName) {
         const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase();
         const mimeTypes = {
-            '7z': 'application/x-7z-compressed',
-            'zip': 'application/zip',
-            'rar': 'application/vnd.rar',
-            'tar': 'application/x-tar',
-            'gz': 'application/gzip',
-            'tgz': 'application/gzip',
-            'pdf': 'application/pdf',
-            'txt': 'text/plain',
-            'png': 'image/png',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'gif': 'image/gif',
-            'svg': 'image/svg+xml',
-            'mp3': 'audio/mpeg',
-            'mp4': 'video/mp4',
-            'apk': 'application/vnd.android.package-archive',
+            '7z': 'application/x-7z-compressed', 'zip': 'application/zip', 'rar': 'application/vnd.rar',
+            'tar': 'application/x-tar', 'gz': 'application/gzip', 'tgz': 'application/gzip',
+            'pdf': 'application/pdf', 'txt': 'text/plain', 'png': 'image/png',
+            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'gif': 'image/gif', 'svg': 'image/svg+xml',
+            'mp3': 'audio/mpeg', 'mp4': 'video/mp4', 'apk': 'application/vnd.android.package-archive',
         };
         return mimeTypes[extension] || 'application/octet-stream';
     }
@@ -180,10 +169,7 @@
             if (data.length === 0) {
                 fileList.innerHTML = '<li>你还没有上传任何文件。</li>';
             } else {
-                data.forEach(file => {
-                    const li = createFileListItem(file);
-                    fileList.appendChild(li);
-                });
+                data.forEach(file => fileList.appendChild(createFileListItem(file)));
             }
         } catch (error) {
             showMessage(`加载文件列表失败: ${error.message}`, 'error');
@@ -216,11 +202,8 @@
             const { data: newFileRecord, error: dbError } = await supabaseClient
                 .from('files')
                 .insert({
-                    user_id: session.user.id,
-                    file_name: originalFileName,
-                    file_path: filePath,
-                    file_size: file.size,
-                    mime_type: mimeType,
+                    user_id: session.user.id, file_name: originalFileName, file_path: filePath,
+                    file_size: file.size, mime_type: mimeType,
                 })
                 .select()
                 .single();
@@ -232,8 +215,7 @@
             if (noFileMessage && noFileMessage.textContent === '你还没有上传任何文件。') {
                 fileList.innerHTML = '';
             }
-            const newLi = createFileListItem(newFileRecord);
-            fileList.prepend(newLi);
+            fileList.prepend(createFileListItem(newFileRecord));
             showMessage('上传成功！', 'success');
             fileInput.value = '';
         } catch (error) {
@@ -246,47 +228,64 @@
     function triggerUpload() {
         // ... (无变化)
         const file = fileInput.files[0];
-        if (!file) {
-            showMessage('请先选择一个文件。', 'error');
-            return;
-        }
+        if (!file) { showMessage('请先选择一个文件。', 'error'); return; }
         handleFileUpload(file);
     }
     document.addEventListener('paste', (e) => {
         // ... (无变化)
         const items = e.clipboardData.items;
         for (const item of items) {
-            if (item.kind === 'file') {
-                handleFileUpload(item.getAsFile());
-                return;
-            }
+            if (item.kind === 'file') { handleFileUpload(item.getAsFile()); return; }
         }
     });
 
-    // 【核心修改】只修改这个函数
+    // ======================================================================
+    // == 【核心修改】整个 downloadFile 函数被重写为“代理下载”模式 ==
+    // ======================================================================
     async function downloadFile(filePath, originalFileName) {
         try {
-            // 在调用 createSignedUrl 时，添加第三个参数：一个包含 download 属性的对象
-            // 这个属性的值就是我们希望强制服务器使用的文件名
+            showMessage(`正在准备下载: ${originalFileName}`, 'info');
+
+            // 1. 获取访问文件的临时签名 URL
             const { data, error } = await supabaseClient.storage
                 .from('user_files')
-                .createSignedUrl(filePath, 60, { // 60秒有效期
-                    download: originalFileName // 强制服务器指定下载文件名为原始文件名
-                });
+                .createSignedUrl(filePath, 60); // 链接有效期60秒
 
             if (error) throw error;
-            
-            // 下面的代码保持不变，作为后备
+
+            // 2.【关键步骤】使用 fetch API 在后台下载文件的内容
+            // fetch 会忽略服务器建议的文件名，只获取原始数据
+            const response = await fetch(data.signedUrl);
+            if (!response.ok) {
+                throw new Error(`下载失败，服务器响应: ${response.statusText}`);
+            }
+
+            // 3. 将下载的原始数据转换为 Blob (文件包)
+            const blob = await response.blob();
+
+            // 4. 为这个 Blob 创建一个临时的、本地的 URL
+            const blobUrl = URL.createObjectURL(blob);
+
+            // 5. 创建一个隐藏的 <a> 标签，链接指向这个本地 URL
             const link = document.createElement('a');
-            link.href = data.signedUrl;
-            link.download = originalFileName;
+            link.href = blobUrl;
+            link.download = originalFileName; // 在这里，我们拥有100%的控制权来指定文件名
+
+            // 6. 模拟点击，触发下载
             document.body.appendChild(link);
             link.click();
+
+            // 7. 清理：从 DOM 中移除 <a> 标签，并释放 Blob URL 占用的内存
             document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+
+            showMessage('下载已开始！', 'success');
+
         } catch (error) {
-            showMessage(`创建下载链接失败: ${error.message}`, 'error');
+            showMessage(`下载文件时出错: ${error.message}`, 'error');
         }
     }
+
     async function deleteFile(fileId, filePath) {
         // ... (无变化)
         if (!confirm('确定要删除这个文件吗？此操作无法撤销。')) return;
