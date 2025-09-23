@@ -17,8 +17,8 @@
   h1{margin:0;font-size:clamp(18px,4.5vw,22px)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
   .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  input,button{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none}
-  input:focus,button:focus{border-color:var(--accent)}
+  input,button,textarea{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;outline:none} /* 新增 textarea */
+  input:focus,button:focus,textarea:focus{border-color:var(--accent)} /* 新增 textarea */
   .btn{background:var(--accent);color:#fff;border:none}
   .btn.secondary{background:var(--accent-weak);color:#1e3a8a;border:1px solid #c7d2fe}
   .btn.danger{background:var(--danger)}
@@ -31,10 +31,12 @@
   .add-wrap{display:flex;gap:10px}
   .add-wrap input{flex:1;min-width:200px}
   .list{margin-top:12px;display:grid;gap:10px}
-  .item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .item{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px; cursor: pointer;} /* 新增 cursor:pointer */
+  .item:hover{background-color: #f9fafb;} /* 新增 hover 效果 */
   .item.done .title{color:#94a3b8;text-decoration:line-through}
   .title{flex:1;min-width:120px}
-  input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent)}
+  .item-buttons{display: flex; gap: 6px;} /* 新增：用于包裹按钮 */
+  input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent); cursor: pointer;} /* 新增 cursor:pointer */
   .account{margin-left:auto}
   .account-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent-weak);color:#1e3a8a;
                border:1px solid #c7d2fe;padding:8px 12px;border-radius:999px;font-weight:600;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -94,6 +96,7 @@
       <div id="summary" class="muted">—</div>
       <div class="right sync">
         <div id="syncState" class="muted" style="display:none"><span class="spinner"></span> 正在同步…</div>
+        <button id="exportBtn" class="btn secondary">导出为 CSV</button>
         <button id="refreshBtn" class="btn secondary">刷新</button>
         <button id="clearCompleted" class="btn secondary">清空已完成</button>
       </div>
@@ -108,7 +111,6 @@
   </div>
 </div>
 
-<!-- 统一模态 -->
 <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-hidden="true">
   <div class="backdrop" id="modalBackdrop"></div>
   <div class="dialog" role="document">
@@ -175,6 +177,7 @@ const els = {
   app: $('app'), guestCard: $('guestCard'), list: $('list'),
   newTodo: $('newTodo'), addBtn: $('addBtn'), summary: $('summary'),
   clearCompleted: $('clearCompleted'), refreshBtn: $('refreshBtn'),
+  exportBtn: $('exportBtn'), // 新增
   tabs: Array.from(document.querySelectorAll('.tab')),
   accountBtn: $('accountBtn'),
   toastWrap: $('toastWrap'), syncState: $('syncState'),
@@ -262,6 +265,28 @@ function showAccountModal(user){
 }
 $('accountBtn').onclick = ()=>{ session?.user ? showAccountModal(session.user) : showAuthModal(); };
 
+// 新增：显示任务备注/详情的模态框
+function showNotesModal(todo) {
+  openModal('任务备注 / 详情', `
+    <div class="field">
+      <label class="hint">任务名称</label>
+      <p style="margin:0; padding: 8px 12px; background: #f3f4f6; border-radius: 8px;">${todo.title.replace(/</g,'&lt;')}</p>
+    </div>
+    <div class="field">
+      <label class="hint">备注（可填写完成情况等）</label>
+      <textarea id="todoNotes" rows="5" style="font-size: 15px; padding: 10px 12px;">${todo.notes ? todo.notes.replace(/</g,'&lt;') : ''}</textarea>
+    </div>
+    <div class="row">
+      <button id="saveNotesBtn" class="btn">保存备注</button>
+    </div>
+  `);
+  $('saveNotesBtn').onclick = async () => {
+    const newNotes = $('todoNotes').value;
+    await updateNotes(todo, newNotes);
+    closeModal();
+  };
+}
+
 /* ========= 数据：CRUD + 反馈 ========= */
 async function fetchTodos(showToast=false){
   if(!session){ todos=[]; render(); return; }
@@ -275,7 +300,8 @@ async function addTodo(title){
   if(!session) return toast('请先登录','error');
   title = (title||'').trim(); if(!title) return;
   els.addBtn.disabled = true; setSyncing(true);
-  const { error } = await sb.from('todos').insert({ user_id: session.user.id, title, completed:false });
+  // 修改：插入数据时，增加 notes 字段
+  const { error } = await sb.from('todos').insert({ user_id: session.user.id, title, completed:false, notes: '' });
   setSyncing(false); els.addBtn.disabled = false;
   if(error) return toast('添加失败：'+error.message,'error');
   els.newTodo.value=''; await fetchTodos(); toast('✅ 已添加并同步到云端');
@@ -293,6 +319,17 @@ async function renameTodo(todo, newTitle){
   setSyncing(false); if(error) return toast('重命名失败：'+error.message,'error');
   await fetchTodos(); toast('名称已更新并同步');
 }
+// 新增：更新备注的函数
+async function updateNotes(todo, newNotes) {
+  newNotes = (newNotes || '').trim();
+  if (newNotes === (todo.notes || '').trim()) return; // 内容未变，则不更新
+  setSyncing(true);
+  const { error } = await sb.from('todos').update({ notes: newNotes }).eq('id', todo.id);
+  setSyncing(false);
+  if (error) return toast('备注更新失败：' + error.message, 'error');
+  await fetchTodos();
+  toast('备注已保存并同步');
+}
 async function removeTodo(todo, btn){
   btn.disabled = true; setSyncing(true);
   const { error } = await sb.from('todos').delete().eq('id', todo.id);
@@ -308,8 +345,62 @@ async function clearCompleted(){
   if(error) return toast('清空失败：'+error.message,'error');
   await fetchTodos(); toast('已清空已完成并同步');
 }
+// 新增：导出为 CSV 的功能
+function exportTodosToCSV() {
+  if (todos.length === 0) {
+    return toast('没有可导出的任务', 'info');
+  }
+  // Helper to escape CSV fields
+  const escapeCSV = (field) => {
+    if (field === null || field === undefined) field = '';
+    const str = String(field);
+    // If the field contains a comma, a double quote, or a newline, enclose it in double quotes.
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      // Escape existing double quotes by doubling them
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headers = ['任务名称', '是否完成', '备注'];
+  const rows = todos.map(t => [
+    escapeCSV(t.title),
+    t.completed ? '是' : '否',
+    escapeCSV(t.notes)
+  ].join(','));
+  
+  const csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n' + rows.join('\n');
+  
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  const date = new Date().toISOString().split('T')[0];
+  link.setAttribute("download", `todos-export-${date}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast('任务已开始导出');
+}
+
 
 /* ========= 渲染 ========= */
+// 新增：一个辅助函数，用于将标题变为可编辑状态
+function makeTitleEditable(todo, titleEl) {
+    const row = titleEl.parentElement;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = todo.title;
+    input.style.width = '100%';
+    input.style.flex = '1';
+
+    input.onblur = () => renameTodo(todo, input.value);
+    input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); };
+    
+    row.replaceChild(input, titleEl);
+    input.focus();
+    input.select();
+}
+
 function render(){
   renderSummary();
   els.tabs.forEach(btn=>btn.classList.toggle('active', btn.dataset.filter===currentFilter));
@@ -322,20 +413,37 @@ function render(){
   })){
     const row = document.createElement('div');
     row.className = 'item' + (t.completed ? ' done' : '');
+    
+    // 修改：innerHTML 结构，增加了修改按钮和按钮容器
     row.innerHTML = `
       <input type="checkbox" ${t.completed?'checked':''} aria-label="完成">
       <div class="title" title="双击可重命名">${t.title.replace(/</g,'&lt;')}</div>
-      <div><button class="btn danger">删除</button></div>
+      <div class="item-buttons">
+        <button class="btn secondary edit-btn">修改</button>
+        <button class="btn danger remove-btn">删除</button>
+      </div>
     `;
-    const chk = row.querySelector('input[type="checkbox"]'); chk.onchange = ()=>toggleTodo(t, chk);
+
+    // 修改：事件监听逻辑
+    const chk = row.querySelector('input[type="checkbox"]');
     const titleEl = row.querySelector('.title');
-    titleEl.ondblclick = ()=>{
-      const input=document.createElement('input'); input.type='text'; input.value=t.title; input.style.width='100%';
-      input.onblur = ()=>renameTodo(t, input.value);
-      input.onkeydown = (e)=>{ if(e.key==='Enter') input.blur(); };
-      row.replaceChild(input, titleEl); input.focus(); input.select();
+    const editBtn = row.querySelector('.edit-btn');
+    const delBtn = row.querySelector('.remove-btn');
+
+    // 整个任务项的点击事件，用于弹出备注模态框
+    row.onclick = (e) => {
+      // 检查点击的是否是按钮或复选框，如果是，则不触发备注弹窗
+      if (e.target === chk || e.target === editBtn || e.target === delBtn) {
+        return;
+      }
+      showNotesModal(t);
     };
-    const del = row.querySelector('.btn.danger'); del.onclick = ()=>removeTodo(t, del);
+
+    chk.onchange = ()=>toggleTodo(t, chk);
+    titleEl.ondblclick = ()=> makeTitleEditable(t, titleEl);
+    editBtn.onclick = ()=> makeTitleEditable(t, titleEl);
+    delBtn.onclick = ()=>removeTodo(t, delBtn);
+    
     frag.appendChild(row);
   }
   els.list.appendChild(frag);
@@ -347,6 +455,7 @@ els.newTodo.onkeydown = (e)=>{ if(e.key==='Enter') addTodo(els.newTodo.value); }
 els.clearCompleted.onclick = clearCompleted;
 els.refreshBtn.onclick = ()=>fetchTodos(true);
 els.tabs.forEach(btn=> btn.onclick = ()=>{ currentFilter = btn.dataset.filter; render(); });
+els.exportBtn.onclick = exportTodosToCSV; // 新增
 
 /* ========= 认证监听 & 初始化 ========= */
 /* 监听登录/退出 → 立刻切 UI，然后拉数据（避免慢网时 UI 不更新） */
@@ -354,7 +463,7 @@ sb.auth.onAuthStateChange((_evt, sess)=>{
   session = sess;
   applySessionUI();   // 立刻切换 UI
   fetchTodos();       // 然后拉取云端
-});  // 监听说明见文档。
+});
 
 (async function init(){
   const { data } = await sb.auth.getSession(); // 读取持久化会话
