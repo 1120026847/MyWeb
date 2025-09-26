@@ -40,7 +40,6 @@
         .prose blockquote { border-left-color: #3b82f6; }
         
         /* 侧边栏动画 */
-        .sidebar-hidden { transform: translateX(-100%); }
         #sidebar { transition: transform 0.3s ease-in-out; }
 
         /* 文件夹折叠图标动画 */
@@ -539,8 +538,16 @@
             dom.moveModal.classList.add('hidden');
         }
 
-        function openSidebar() { dom.sidebar.classList.remove('sidebar-hidden'); dom.sidebarOverlay.classList.remove('hidden'); }
-        function closeSidebar() { dom.sidebar.classList.add('sidebar-hidden'); dom.sidebarOverlay.classList.add('hidden'); }
+        function openSidebar() {
+            dom.sidebar.classList.remove('-translate-x-full');
+            dom.sidebar.classList.add('translate-x-0');
+            dom.sidebarOverlay.classList.remove('hidden');
+        }
+        function closeSidebar() {
+            dom.sidebar.classList.remove('translate-x-0');
+            dom.sidebar.classList.add('-translate-x-full');
+            dom.sidebarOverlay.classList.add('hidden');
+        }
 
         function initEventListeners() {
             dom.loginForm.addEventListener('submit', handleLogin);
@@ -585,7 +592,7 @@
             
             dom.toggleSidebarButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (dom.sidebar.classList.contains('sidebar-hidden')) openSidebar();
+                if (dom.sidebar.classList.contains('-translate-x-full')) openSidebar();
                 else closeSidebar();
             });
             dom.sidebarOverlay.addEventListener('click', closeSidebar);
