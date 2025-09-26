@@ -43,8 +43,8 @@
     <!-- 主容器 -->
     <div id="app" class="h-screen w-screen flex overflow-hidden">
 
-        <!-- 认证页面 -->
-        <div id="auth-view" class="w-full h-full flex items-center justify-center p-4 bg-gray-50">
+        <!-- 认证页面 (初始隐藏) -->
+        <div id="auth-view" class="w-full h-full flex items-center justify-center p-4 bg-gray-50 hidden">
             <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
                 <div class="text-center mb-8">
                     <h1 class="text-3xl font-bold text-gray-800">日记</h1>
@@ -159,8 +159,8 @@
             </main>
         </div>
         
-        <!-- 全局加载动画 -->
-        <div id="loader" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <!-- 全局加载动画 (初始显示) -->
+        <div id="loader" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
             <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
         
@@ -233,7 +233,6 @@
             modalBody.innerHTML = body;
             modalConfirmBtn.textContent = confirmText;
             
-            // Clone and replace buttons to remove old event listeners
             const newConfirmBtn = modalConfirmBtn.cloneNode(true);
             modalConfirmBtn.parentNode.replaceChild(newConfirmBtn, modalConfirmBtn);
             
@@ -250,7 +249,7 @@
 
         const renderFileList = () => {
             const fileListContainer = document.getElementById('file-list');
-            fileListContainer.innerHTML = ''; // Clear current list
+            fileListContainer.innerHTML = ''; 
 
             folders.forEach(folder => {
                 const folderEl = document.createElement('div');
@@ -314,34 +313,24 @@
             console.log('Fetching data for user:', currentUser.id);
             showLoader();
             try {
-                console.log('--> Step 1: Fetching folders...');
-                const { data: foldersData, error: foldersError } = await supabase
-                    .from('folders')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('name');
+                console.log('--> Step 1: Preparing to fetch folders and articles in parallel...');
                 
-                console.log('--> Step 1a: Folders query completed.');
-                if (foldersError) {
-                    console.error('Folders fetch error:', foldersError);
-                    throw foldersError;
-                }
+                const [foldersResponse, articlesResponse] = await Promise.all([
+                    supabase.from('folders').select('*').eq('user_id', currentUser.id).order('name'),
+                    supabase.from('articles').select('id, title, folder_id, updated_at').eq('user_id', currentUser.id)
+                ]);
+
+                console.log('--> Step 2: Both queries have completed.');
+
+                const { data: foldersData, error: foldersError } = foldersResponse;
+                if (foldersError) throw foldersError;
                 folders = foldersData;
-                console.log('--> Step 2: Folders fetched successfully.', folders);
+                console.log('--> Step 3: Folders processed successfully.', folders);
 
-                console.log('--> Step 3: Fetching articles...');
-                const { data: articlesData, error: articlesError } = await supabase
-                    .from('articles')
-                    .select('id, title, folder_id, updated_at')
-                    .eq('user_id', currentUser.id);
-
-                console.log('--> Step 3a: Articles query completed.');
-                if (articlesError) {
-                    console.error('Articles fetch error:', articlesError);
-                    throw articlesError;
-                }
+                const { data: articlesData, error: articlesError } = articlesResponse;
+                if (articlesError) throw articlesError;
                 articles = articlesData;
-                console.log('--> Step 4: Articles fetched successfully.', articles);
+                console.log('--> Step 4: Articles processed successfully.', articles);
 
                 console.log('--> Step 5: Rendering file list...');
                 renderFileList();
@@ -567,6 +556,7 @@
                 mainView.classList.add('hidden');
                 renderFileList();
                 renderEditor();
+                hideLoader(); // Hide loader for logged out users
             }
         });
         
