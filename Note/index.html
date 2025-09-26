@@ -1,568 +1,509 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown 日记</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Markdown Parser (Marked.js) -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Icons (Lucide) -->
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <style>
-        /* 自定义滚动条样式，使其更精致 */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
-        /* 自定义 Prose 样式以适应白色背景 */
-        .prose {
-            --tw-prose-body: #374151;
-            --tw-prose-headings: #111827;
-            --tw-prose-lead: #4b5563;
-            --tw-prose-links: #1d4ed8;
-            --tw-prose-bold: #111827;
-            --tw-prose-counters: #6b7280;
-            --tw-prose-bullets: #d1d5db;
-            --tw-prose-hr: #e5e7eb;
-            --tw-prose-quotes: #111827;
-            --tw-prose-quote-borders: #e5e7eb;
-            --tw-prose-captions: #6b7280;
-            --tw-prose-code: #111827;
-            --tw-prose-pre-code: #e5e7eb;
-            --tw-prose-pre-bg: #1f2937;
-            --tw-prose-th-borders: #d1d5db;
-            --tw-prose-td-borders: #e5e7eb;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Markdown 日记</title>
+
+  <!-- 外部依赖（如在国内网络，建议改为自托管或可达性更好的镜像） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <style>
+    /* 细节样式省略：与你原文件一致 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+    .prose {
+      --tw-prose-body:#374151; --tw-prose-headings:#111827; --tw-prose-lead:#4b5563; --tw-prose-links:#1d4ed8;
+      --tw-prose-bold:#111827; --tw-prose-counters:#6b7280; --tw-prose-bullets:#d1d5db; --tw-prose-hr:#e5e7eb;
+      --tw-prose-quotes:#111827; --tw-prose-quote-borders:#e5e7eb; --tw-prose-captions:#6b7280; --tw-prose-code:#111827;
+      --tw-prose-pre-code:#e5e7eb; --tw-prose-pre-bg:#1f2937; --tw-prose-th-borders:#d1d5db; --tw-prose-td-borders:#e5e7eb;
+    }
+  </style>
 </head>
 <body class="bg-white font-sans antialiased text-gray-800">
-    <!-- 主容器 -->
-    <div id="app" class="h-screen w-screen flex overflow-hidden">
+  <div id="app" class="h-screen w-screen flex overflow-hidden">
 
-        <!-- 认证页面 (初始隐藏) -->
-        <div id="auth-view" class="w-full h-full flex items-center justify-center p-4 bg-gray-50 hidden">
-            <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
-                <div class="text-center mb-8">
-                    <h1 class="text-3xl font-bold text-gray-800">日记</h1>
-                    <p class="text-gray-500 mt-2">记录你的想法与生活</p>
-                </div>
-
-                <!-- 登录/注册切换 -->
-                <div class="flex border border-gray-200 rounded-lg p-1 mb-6">
-                    <button id="show-login-btn" class="w-1/2 p-2 rounded-md text-sm font-semibold bg-blue-500 text-white">登录</button>
-                    <button id="show-register-btn" class="w-1/2 p-2 rounded-md text-sm font-semibold text-gray-600">注册</button>
-                </div>
-
-                <!-- 表单 -->
-                <form id="login-form" class="space-y-4">
-                    <div>
-                        <label for="login-email" class="block text-sm font-medium text-gray-600 mb-1">邮箱</label>
-                        <input type="email" id="login-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
-                    </div>
-                    <div>
-                        <label for="login-password" class="block text-sm font-medium text-gray-600 mb-1">密码</label>
-                        <input type="password" id="login-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">登录</button>
-                </form>
-
-                <form id="register-form" class="space-y-4 hidden">
-                    <div>
-                        <label for="register-email" class="block text-sm font-medium text-gray-600 mb-1">邮箱</label>
-                        <input type="email" id="register-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
-                    </div>
-                    <div>
-                        <label for="register-password" class="block text-sm font-medium text-gray-600 mb-1">密码</label>
-                        <input type="password" id="register-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
-                    </div>
-                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">注册并登录</button>
-                </form>
-                <p id="auth-error" class="text-red-500 text-sm mt-4 text-center"></p>
-            </div>
+    <!-- 认证页（初始隐藏） -->
+    <div id="auth-view" class="w-full h-full flex items-center justify-center p-4 bg-gray-50 hidden">
+      <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+        <div class="text-center mb-8">
+          <h1 class="text-3xl font-bold text-gray-800">日记</h1>
+          <p class="text-gray-500">登录或注册以继续</p>
         </div>
 
-        <!-- 主应用界面 (登录后可见) -->
-        <div id="main-view" class="w-full h-full flex hidden">
-            <!-- 侧边栏 -->
-            <aside id="sidebar" class="w-full md:w-80 h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative absolute z-20">
-                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-                    <h2 class="text-xl font-bold text-gray-800">文件列表</h2>
-                    <button id="sidebar-close-btn" class="md:hidden p-1 rounded-full hover:bg-gray-200">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                <div class="p-2 space-y-2">
-                    <button id="new-article-btn" class="w-full flex items-center justify-center gap-2 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-all">
-                        <i data-lucide="file-plus-2" class="w-4 h-4"></i> 新建文章
-                    </button>
-                     <button id="new-folder-btn" class="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all">
-                        <i data-lucide="folder-plus" class="w-4 h-4"></i> 新建文件夹
-                    </button>
-                </div>
-                <div id="file-list" class="flex-1 overflow-y-auto p-2">
-                    <!-- 文件和文件夹将在这里动态渲染 -->
-                </div>
-                 <div class="p-4 border-t border-gray-200">
-                    <div id="user-info" class="text-sm text-gray-500 truncate mb-2"></div>
-                    <button id="logout-btn" class="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-all">
-                        <i data-lucide="log-out" class="w-4 h-4"></i> 退出登录
-                    </button>
-                </div>
-            </aside>
-
-            <!-- 主内容区 -->
-            <main class="flex-1 h-full flex flex-col bg-white">
-                <div id="editor-view" class="flex-1 flex flex-col h-full hidden">
-                    <!-- 编辑器头部 -->
-                    <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
-                        <div class="flex items-center gap-4">
-                           <button id="sidebar-open-btn" class="md:hidden p-1 rounded-full hover:bg-gray-200">
-                                <i data-lucide="menu" class="w-5 h-5"></i>
-                            </button>
-                            <input type="text" id="article-title" placeholder="输入文章标题..." class="text-lg font-semibold bg-transparent focus:outline-none w-full">
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button id="save-btn" class="px-4 py-1.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all flex items-center gap-1.5">
-                                <i data-lucide="save" class="w-4 h-4"></i> 保存
-                            </button>
-                            <button id="move-btn" title="移动文章" class="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                                <i data-lucide="folder-git-2" class="w-4 h-4"></i>
-                            </button>
-                             <button id="export-btn" title="导出为 Markdown" class="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                                <i data-lucide="download" class="w-4 h-4"></i>
-                            </button>
-                            <button id="delete-btn" title="删除文章" class="p-2 hover:bg-red-200 text-red-600 rounded-lg transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 编辑/预览区 -->
-                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
-                        <div class="h-full border-r border-gray-200">
-                             <textarea id="markdown-editor" class="w-full h-full p-6 resize-none focus:outline-none text-base leading-relaxed" placeholder="在这里开始用 Markdown 书写..."></textarea>
-                        </div>
-                        <div id="preview-area" class="prose max-w-none w-full h-full p-6 overflow-y-auto bg-gray-50">
-                        </div>
-                    </div>
-                </div>
-                <div id="welcome-view" class="flex-1 flex items-center justify-center text-center text-gray-400">
-                    <div>
-                        <i data-lucide="notebook-tabs" class="w-24 h-24 mx-auto"></i>
-                        <p class="mt-4 text-lg">选择一篇文章或新建一篇日记</p>
-                    </div>
-                </div>
-            </main>
-        </div>
-        
-        <!-- 全局加载动画 (初始显示) -->
-        <div id="loader" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
-            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-        
-        <!-- 自定义提示框 -->
-        <div id="custom-alert" class="fixed top-5 right-5 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-[100] hidden transition-transform translate-x-full">
-          <strong class="font-bold">错误!</strong>
-          <span id="alert-message" class="block sm:inline"></span>
-        </div>
-        
-        <!-- 自定义模态框 -->
-        <div id="custom-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[90] hidden">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md m-4">
-                <h3 id="modal-title" class="text-lg font-medium leading-6 text-gray-900 mb-4"></h3>
-                <div id="modal-body" class="mb-6"></div>
-                <div class="flex justify-end gap-3">
-                    <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
-                    <button id="modal-confirm-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">确认</button>
-                </div>
-            </div>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+          <button id="show-login-btn" class="px-4 py-2 rounded-lg bg-blue-500 text-white">登录</button>
+          <button id="show-register-btn" class="px-4 py-2 rounded-lg bg-gray-100">注册</button>
         </div>
 
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label for="login-email" class="block text-sm font-medium text-gray-600 mb-1">邮箱</label>
+            <input type="email" id="login-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+          </div>
+          <div>
+            <label for="login-password" class="block text-sm font-medium text-gray-600 mb-1">密码</label>
+            <input type="password" id="login-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+          </div>
+          <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">登录</button>
+        </form>
+
+        <form id="register-form" class="space-y-4 hidden">
+          <div>
+            <label for="register-email" class="block text-sm font-medium text-gray-600 mb-1">邮箱</label>
+            <input type="email" id="register-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+          </div>
+          <div>
+            <label for="register-password" class="block text-sm font-medium text-gray-600 mb-1">密码</label>
+            <input type="password" id="register-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+          </div>
+          <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">注册并登录</button>
+        </form>
+
+        <p id="auth-error" class="text-red-500 text-sm mt-4 text-center"></p>
+      </div>
     </div>
 
-    <script type="module">
-        const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+    <!-- 主应用（登录后显示） -->
+    <div id="main-view" class="w-full h-full flex hidden">
+      <!-- 侧边栏 -->
+      <aside id="sidebar" class="w-full md:w-80 h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative absolute z-20">
+        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h2 class="text-xl font-bold text-gray-800">文件列表</h2>
+          <button id="sidebar-close-btn" class="md:hidden p-1 rounded-full hover:bg-gray-200"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-2 space-y-2">
+          <button id="new-article-btn" class="w-full flex items-center justify-center gap-2 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-all"><i data-lucide="file-plus-2" class="w-4 h-4"></i> 新建文章</button>
+          <button id="new-folder-btn" class="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all"><i data-lucide="folder-plus" class="w-4 h-4"></i> 新建文件夹</button>
+        </div>
+        <div id="file-list" class="flex-1 overflow-y-auto p-2"></div>
+        <div class="p-4 border-t border-gray-200">
+          <div id="user-info" class="text-sm text-gray-500 truncate mb-2"></div>
+          <button id="logout-btn" class="w-full py-2 px-4 bg-gray-800 text-white rounded-lg hover:bg-black transition">退出登录</button>
+        </div>
+      </aside>
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      <!-- 主工作区 -->
+      <main class="flex-1 flex flex-col">
+        <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button id="sidebar-open-btn" class="md:hidden p-2 hover:bg-gray-200 rounded-lg transition-colors"><i data-lucide="menu" class="w-5 h-5"></i></button>
+            <input type="text" id="article-title" placeholder="输入文章标题." class="text-lg font-semibold bg-transparent focus:outline-none w-full">
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="save-btn" class="px-4 py-1.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all flex items-center gap-1.5"><i data-lucide="save" class="w-4 h-4"></i> 保存</button>
+            <button id="move-btn" title="移动文章" class="p-2 hover:bg-gray-200 rounded-lg transition-colors"><i data-lucide="folder-git-2" class="w-4 h-4"></i></button>
+            <button id="export-btn" title="导出为 Markdown" class="p-2 hover:bg-gray-200 rounded-lg transition-colors"><i data-lucide="download" class="w-4 h-4"></i></button>
+            <button id="delete-btn" title="删除文章" class="p-2 hover:bg-red-200 text-red-600 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+        </div>
 
-        // DOM Elements
-        const authView = document.getElementById('auth-view');
-        const mainView = document.getElementById('main-view');
-        const editorView = document.getElementById('editor-view');
-        const welcomeView = document.getElementById('welcome-view');
-        const loader = document.getElementById('loader');
-        const customModal = document.getElementById('custom-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalBody = document.getElementById('modal-body');
-        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        <!-- 编辑/预览 -->
+        <div class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
+          <div class="h-full border-r border-gray-200">
+            <textarea id="markdown-editor" class="w-full h-full p-6 resize-none focus:outline-none text-base leading-relaxed" placeholder="在这里开始用 Markdown 书写."></textarea>
+          </div>
+          <div id="preview-area" class="prose max-w-none w-full h-full p-6 overflow-y-auto bg-gray-50"></div>
+        </div>
 
+        <div id="welcome-view" class="flex-1 flex items-center justify-center text-center text-gray-400 hidden">
+          <div>
+            <i data-lucide="notebook-tabs" class="w-24 h-24 mx-auto"></i>
+            <p class="mt-4 text-lg">选择一篇文章或新建一篇日记</p>
+          </div>
+        </div>
+      </main>
+    </div>
 
-        // State
-        let folders = [];
-        let articles = [];
-        let activeArticle = null;
-        let currentUser = null;
+    <!-- 全局加载动画（初始显示） -->
+    <div id="loader" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50">
+      <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
 
-        // ----- UI Functions -----
-        const showLoader = () => loader.classList.remove('hidden');
-        const hideLoader = () => loader.classList.add('hidden');
-        
-        function showAlert(message) {
-            const customAlert = document.getElementById('custom-alert');
-            const alertMessage = document.getElementById('alert-message');
-            alertMessage.textContent = ' ' + message;
-            customAlert.classList.remove('hidden', 'translate-x-full');
-            customAlert.classList.add('translate-x-0');
-            setTimeout(() => {
-                customAlert.classList.remove('translate-x-0');
-                customAlert.classList.add('translate-x-full');
-                setTimeout(() => customAlert.classList.add('hidden'), 300);
-            }, 3000);
-        }
-        
-        const hideModal = () => customModal.classList.add('hidden');
-        
-        const showModal = ({ title, body, onConfirm, confirmText = '确认' }) => {
-            modalTitle.textContent = title;
-            modalBody.innerHTML = body;
-            modalConfirmBtn.textContent = confirmText;
-            
-            const newConfirmBtn = modalConfirmBtn.cloneNode(true);
-            modalConfirmBtn.parentNode.replaceChild(newConfirmBtn, modalConfirmBtn);
-            
-            const newCancelBtn = modalCancelBtn.cloneNode(true);
-            modalCancelBtn.parentNode.replaceChild(newCancelBtn, modalCancelBtn);
+    <!-- 自定义提示框 -->
+    <div id="custom-alert" class="fixed top-5 right-5 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-[100] hidden transition-transform translate-x-full">
+      <strong class="font-bold">错误!</strong>
+      <span id="alert-message" class="block sm:inline"></span>
+    </div>
 
-            newConfirmBtn.onclick = () => onConfirm(modalBody);
-            newCancelBtn.onclick = hideModal;
+    <!-- 自定义模态框 -->
+    <div id="custom-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[90] hidden">
+      <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+        <h3 id="modal-title" class="text-lg font-medium leading-6 text-gray-900 mb-4"></h3>
+        <div id="modal-body" class="mb-6"></div>
+        <div class="flex justify-end gap-3">
+          <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
+          <button id="modal-confirm-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">确认</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-            customModal.classList.remove('hidden');
-            const firstInput = modalBody.querySelector('input, select');
-            if (firstInput) firstInput.focus();
-        };
+  <!-- 应用脚本 -->
+  <script type="module">
+    // ===================== 基础配置 =====================
+    const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
-        const renderFileList = () => {
-            const fileListContainer = document.getElementById('file-list');
-            fileListContainer.innerHTML = ''; 
+    // DOM
+    const $ = (id) => document.getElementById(id);
+    const authView = $('auth-view');
+    const mainView = $('main-view');
+    const editorView = $('editor-view');     // 由逻辑控制 hidden/显示
+    const welcomeView = $('welcome-view');
+    const loader = $('loader');
+    const customModal = $('custom-modal');
+    const modalTitle = $('modal-title');
+    const modalBody = $('modal-body');
+    const modalConfirmBtn = $('modal-confirm-btn');
+    const modalCancelBtn = $('modal-cancel-btn');
 
-            folders.forEach(folder => {
-                const folderEl = document.createElement('div');
-                folderEl.innerHTML = `
-                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-200 cursor-pointer folder-item" data-id="${folder.id}">
-                        <div class="flex items-center gap-2">
-                           <i data-lucide="folder" class="w-4 h-4 text-yellow-600"></i>
-                           <span class="font-semibold text-sm">${folder.name}</span>
-                        </div>
-                        <div>
-                            <button class="edit-folder-btn p-1 rounded hover:bg-gray-300" data-id="${folder.id}" data-name="${folder.name}"><i data-lucide="file-pen-line" class="w-3.5 h-3.5 text-gray-500"></i></button>
-                            <button class="delete-folder-btn p-1 rounded hover:bg-gray-300" data-id="${folder.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i></button>
-                        </div>
-                    </div>
-                    <div id="folder-articles-${folder.id}" class="pl-4 border-l-2 border-gray-200 ml-2"></div>
-                `;
-                fileListContainer.appendChild(folderEl);
-            });
+    // Loader helpers
+    const showLoader = () => loader?.classList.remove('hidden');
+    const hideLoader = () => loader?.classList.add('hidden');
 
-            articles.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-            articles.forEach(article => {
-                const parentContainer = article.folder_id 
-                    ? document.getElementById(`folder-articles-${article.folder_id}`)
-                    : fileListContainer;
+    // FIX: 任何异常都兜底关闭 loader，防止无限转圈
+    const loaderKillSwitch = setTimeout(() => hideLoader(), 12000);
+    window.addEventListener('error', () => hideLoader());
+    window.addEventListener('unhandledrejection', () => hideLoader());
 
-                if (parentContainer) {
-                    const articleEl = document.createElement('div');
-                    articleEl.className = `flex items-center p-2 rounded-lg cursor-pointer article-item ${activeArticle?.id === article.id ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'}`;
-                    articleEl.dataset.id = article.id;
-                    articleEl.innerHTML = `
-                        <i data-lucide="file-text" class="w-4 h-4 mr-2 flex-shrink-0"></i>
-                        <span class="text-sm truncate">${article.title || '无标题文章'}</span>
-                    `;
-                    parentContainer.appendChild(articleEl);
-                }
-            });
-            lucide.createIcons();
-        };
+    // 依赖检测
+    function depsReady() {
+      return !!(window.supabase && window.marked && window.lucide);
+    }
+    if (!depsReady()) {
+      const el = $('auth-error');
+      if (el) el.textContent = '静态资源加载失败（可能被网络拦截）。请刷新或更换网络，或改为本地托管依赖。';
+      hideLoader(); // FIX: CDN 失败时立即把遮罩关掉
+      // 不再向下执行，避免后续脚本引用未加载依赖
+    } else {
+      // ===================== 应用状态 =====================
+      let folders = [];
+      let articles = [];
+      let activeArticle = null;
+      let currentUser = null;
 
-        const renderEditor = () => {
-            if (activeArticle) {
-                editorView.classList.remove('hidden');
-                welcomeView.classList.add('hidden');
-                document.getElementById('article-title').value = activeArticle.title;
-                const editor = document.getElementById('markdown-editor');
-                editor.value = activeArticle.content || '';
-                updatePreview(editor.value);
-            } else {
-                editorView.classList.add('hidden');
-                welcomeView.classList.remove('hidden');
-            }
-        };
+      // ===================== 工具函数（保持与原版一致） =====================
+      function showAlert(message) {
+        const customAlert = $('custom-alert');
+        const alertMessage = $('alert-message');
+        alertMessage.textContent = ' ' + message;
+        customAlert.classList.remove('hidden', 'translate-x-full');
+        customAlert.classList.add('translate-x-0');
+        setTimeout(() => {
+          customAlert.classList.remove('translate-x-0');
+          customAlert.classList.add('translate-x-full');
+          setTimeout(() => customAlert.classList.add('hidden'), 300);
+        }, 3000);
+      }
+      const hideModal = () => customModal.classList.add('hidden');
+      const showModal = ({ title, body, onConfirm, confirmText = '确认' }) => {
+        modalTitle.textContent = title;
+        modalBody.innerHTML = body;
+        modalConfirmBtn.textContent = confirmText;
 
-        const updatePreview = (markdown) => {
-            document.getElementById('preview-area').innerHTML = marked.parse(markdown || '');
-        };
-        
-        // ----- Data Functions -----
-        const fetchData = async () => {
-            if (!currentUser) return;
-            console.log('Fetching data for user:', currentUser.id);
-            showLoader();
-            try {
-                console.log('--> Step 1: Preparing to fetch folders and articles in parallel...');
-                
-                const [foldersResponse, articlesResponse] = await Promise.all([
-                    supabase.from('folders').select('*').eq('user_id', currentUser.id).order('name'),
-                    supabase.from('articles').select('id, title, folder_id, updated_at').eq('user_id', currentUser.id)
-                ]);
+        const newConfirmBtn = modalConfirmBtn.cloneNode(true);
+        modalConfirmBtn.parentNode.replaceChild(newConfirmBtn, modalConfirmBtn);
+        const newCancelBtn = modalCancelBtn.cloneNode(true);
+        modalCancelBtn.parentNode.replaceChild(newCancelBtn, modalCancelBtn);
 
-                console.log('--> Step 2: Both queries have completed.');
+        newConfirmBtn.onclick = () => onConfirm(modalBody);
+        newCancelBtn.onclick = hideModal;
 
-                const { data: foldersData, error: foldersError } = foldersResponse;
-                if (foldersError) throw foldersError;
-                folders = foldersData;
-                console.log('--> Step 3: Folders processed successfully.', folders);
+        customModal.classList.remove('hidden');
+        const firstInput = modalBody.querySelector('input, select');
+        if (firstInput) firstInput.focus();
+      };
 
-                const { data: articlesData, error: articlesError } = articlesResponse;
-                if (articlesError) throw articlesError;
-                articles = articlesData;
-                console.log('--> Step 4: Articles processed successfully.', articles);
+      // 预览渲染
+      const updatePreview = (markdown) => { $('preview-area').innerHTML = marked.parse(markdown || ''); };
 
-                console.log('--> Step 5: Rendering file list...');
-                renderFileList();
-                console.log('--> Step 6: File list rendered.');
-
-            } catch (error) {
-                console.error('!!! Critical error in fetchData:', error);
-                showAlert(`数据加载失败: ${error.message}`);
-            } finally {
-                console.log('--> Step 7: Executing finally block, hiding loader.');
-                hideLoader();
-            }
-        };
-
-        // ----- Event Handlers -----
-        
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            showLoader();
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
-            hideLoader();
-            if (error) document.getElementById('auth-error').textContent = "登录失败: " + error.message;
-            else document.getElementById('auth-error').textContent = '';
+      // 文件列表渲染（与你现有逻辑等价）
+      const renderFileList = () => {
+        const fileListContainer = $('file-list');
+        fileListContainer.innerHTML = '';
+        // 文件夹
+        folders.forEach(folder => {
+          const folderEl = document.createElement('div');
+          folderEl.innerHTML = `
+            <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-200 cursor-pointer folder-item" data-id="${folder.id}">
+              <div class="flex items-center gap-2">
+                <i data-lucide="folder" class="w-4 h-4 text-yellow-600"></i>
+                <span class="font-semibold text-sm">${folder.name}</span>
+              </div>
+              <div>
+                <button class="edit-folder-btn p-1 rounded hover:bg-gray-300" data-id="${folder.id}" data-name="${folder.name}"><i data-lucide="file-pen-line" class="w-3.5 h-3.5 text-gray-500"></i></button>
+                <button class="delete-folder-btn p-1 rounded hover:bg-gray-300" data-id="${folder.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i></button>
+              </div>
+            </div>
+            <div id="folder-articles-${folder.id}" class="pl-4 border-l-2 border-gray-200 ml-2"></div>
+          `;
+          fileListContainer.appendChild(folderEl);
         });
-        
-        document.getElementById('register-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
-            showLoader();
-            const { error } = await supabase.auth.signUp({ email, password });
-            hideLoader();
-            if (error) document.getElementById('auth-error').textContent = "注册失败: " + error.message;
-            else document.getElementById('auth-error').textContent = '';
+        // 文章（按更新时间倒序）
+        articles.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+        articles.forEach(article => {
+          const parentContainer = article.folder_id ? document.getElementById(`folder-articles-${article.folder_id}`) : fileListContainer;
+          if (parentContainer) {
+            const articleEl = document.createElement('div');
+            articleEl.className = `flex items-center p-2 rounded-lg cursor-pointer article-item ${activeArticle?.id === article.id ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'}`;
+            articleEl.dataset.id = article.id;
+            articleEl.innerHTML = `
+              <i data-lucide="file-text" class="w-4 h-4 mr-2 flex-shrink-0"></i>
+              <span class="text-sm truncate">${article.title || '无标题文章'}</span>
+            `;
+            parentContainer.appendChild(articleEl);
+          }
         });
-        
-        document.getElementById('logout-btn').addEventListener('click', async () => supabase.auth.signOut());
-
-        document.getElementById('new-folder-btn').addEventListener('click', () => {
-            showModal({
-                title: '新建文件夹',
-                body: '<input type="text" id="folder-name-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="文件夹名称..." required>',
-                onConfirm: async (bodyEl) => {
-                    const input = bodyEl.querySelector('#folder-name-input');
-                    const name = input.value.trim();
-                    if (name) {
-                        hideModal();
-                        showLoader();
-                        const { error } = await supabase.from('folders').insert({ name, user_id: currentUser.id });
-                        hideLoader();
-                        if (error) showAlert('创建文件夹失败: ' + error.message);
-                        else await fetchData();
-                    } else {
-                        input.focus();
-                        showAlert("文件夹名称不能为空。");
-                    }
-                }
-            });
-        });
-
-        document.getElementById('new-article-btn').addEventListener('click', () => {
-            const today = new Date().toISOString().slice(0, 10);
-            activeArticle = { id: null, title: `日记 ${today}`, content: `# 日记 ${today}\n\n`, folder_id: null, user_id: currentUser.id };
-            renderEditor();
-            renderFileList();
-        });
-        
-        document.getElementById('file-list').addEventListener('click', async (e) => {
-            const articleItem = e.target.closest('.article-item');
-            const editFolderBtn = e.target.closest('.edit-folder-btn');
-            const deleteFolderBtn = e.target.closest('.delete-folder-btn');
-
-            if (articleItem) {
-                const articleId = articleItem.dataset.id;
-                if (activeArticle?.id === articleId) return;
-                showLoader();
-                const { data, error } = await supabase.from('articles').select('*').eq('id', articleId).single();
-                hideLoader();
-                if (error) showAlert('加载文章失败: ' + error.message);
-                else { activeArticle = data; renderEditor(); renderFileList(); }
-            }
-
-            if (editFolderBtn) {
-                e.stopPropagation();
-                const folderId = editFolderBtn.dataset.id;
-                const oldName = editFolderBtn.dataset.name;
-                showModal({
-                    title: '重命名文件夹',
-                    body: `<input type="text" id="folder-name-input" value="${oldName}" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>`,
-                    onConfirm: async (bodyEl) => {
-                        const newName = bodyEl.querySelector('#folder-name-input').value.trim();
-                        if (newName && newName !== oldName) {
-                            hideModal();
-                            showLoader();
-                            const { error } = await supabase.from('folders').update({ name: newName }).eq('id', folderId);
-                            hideLoader();
-                            if (error) showAlert('更新文件夹失败: ' + error.message);
-                            else await fetchData();
-                        }
-                    }
-                });
-            }
-
-            if (deleteFolderBtn) {
-                e.stopPropagation();
-                const folderId = deleteFolderBtn.dataset.id;
-                showModal({
-                    title: '删除文件夹',
-                    body: '<p>确定要删除此文件夹及其中的所有文章吗？此操作不可撤销。</p>',
-                    confirmText: '确认删除',
-                    onConfirm: async () => {
-                        hideModal();
-                        showLoader();
-                        const { error } = await supabase.from('folders').delete().eq('id', folderId);
-                        hideLoader();
-                        if (error) showAlert('删除文件夹失败: ' + error.message);
-                        else {
-                            if (activeArticle?.folder_id === folderId) { activeArticle = null; renderEditor(); }
-                            await fetchData();
-                        }
-                    }
-                });
-            }
-        });
-        
-        document.getElementById('markdown-editor').addEventListener('input', (e) => { if(activeArticle) { activeArticle.content = e.target.value; updatePreview(e.target.value); } });
-        document.getElementById('article-title').addEventListener('input', (e) => { if(activeArticle) activeArticle.title = e.target.value; });
-        
-        document.getElementById('save-btn').addEventListener('click', async () => {
-            if (!activeArticle) return;
-            showLoader();
-            const articleData = { title: activeArticle.title || '无标题文章', content: activeArticle.content, user_id: currentUser.id, folder_id: activeArticle.folder_id, updated_at: new Date().toISOString() };
-            let error, data;
-            if (activeArticle.id) { ({ error, data } = await supabase.from('articles').update(articleData).eq('id', activeArticle.id).select().single()); } 
-            else { ({ error, data } = await supabase.from('articles').insert(articleData).select().single()); }
-            hideLoader();
-            if (error) showAlert('保存失败: ' + error.message);
-            else { activeArticle = data; await fetchData(); }
-        });
-
-        document.getElementById('delete-btn').addEventListener('click', () => {
-            if (!activeArticle || !activeArticle.id) return;
-            showModal({
-                title: '删除文章',
-                body: '<p>你确定要删除这篇文章吗?</p>',
-                confirmText: '确认删除',
-                onConfirm: async () => {
-                    hideModal();
-                    showLoader();
-                    const { error } = await supabase.from('articles').delete().eq('id', activeArticle.id);
-                    hideLoader();
-                    if (error) showAlert('删除失败: ' + error.message);
-                    else { activeArticle = null; renderEditor(); await fetchData(); }
-                }
-            });
-        });
-        
-        document.getElementById('export-btn').addEventListener('click', () => {
-             if (!activeArticle) return;
-             const blob = new Blob([activeArticle.content], { type: 'text/markdown;charset=utf-8' });
-             const url = URL.createObjectURL(blob);
-             const a = document.createElement('a');
-             a.href = url;
-             a.download = `${activeArticle.title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
-             document.body.appendChild(a); a.click(); document.body.removeChild(a);
-             URL.revokeObjectURL(url);
-        });
-        
-        document.getElementById('move-btn').addEventListener('click', () => {
-            if (!activeArticle || !activeArticle.id) return;
-            let options = '<option value="root">根目录 (无文件夹)</option>';
-            folders.forEach(f => { options += `<option value="${f.id}" ${activeArticle.folder_id === f.id ? 'selected' : ''}>${f.name}</option>`; });
-            showModal({
-                title: '移动文章',
-                body: `<p class="mb-2">选择要将文章移动到的文件夹:</p><select id="move-folder-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg">${options}</select>`,
-                onConfirm: async (bodyEl) => {
-                    const selectedId = bodyEl.querySelector('#move-folder-select').value;
-                    const newFolderId = selectedId === 'root' ? null : selectedId;
-                    if (newFolderId === activeArticle.folder_id) { hideModal(); return; }
-                    hideModal();
-                    showLoader();
-                    const { error } = await supabase.from('articles').update({ folder_id: newFolderId }).eq('id', activeArticle.id);
-                    hideLoader();
-                    if (error) showAlert('移动失败: ' + error.message);
-                    else { activeArticle.folder_id = newFolderId; await fetchData(); }
-                }
-            });
-        });
-        
-        // Responsive sidebar toggles & Auth UI toggle
-        const sidebar = document.getElementById('sidebar');
-        document.getElementById('sidebar-open-btn').addEventListener('click', () => sidebar.classList.remove('-translate-x-full'));
-        document.getElementById('sidebar-close-btn').addEventListener('click', () => sidebar.classList.add('-translate-x-full'));
-        document.getElementById('show-login-btn').addEventListener('click', (e) => {
-            document.getElementById('login-form').classList.remove('hidden');
-            document.getElementById('register-form').classList.add('hidden');
-            e.target.classList.add('bg-blue-500', 'text-white');
-            document.getElementById('show-register-btn').classList.remove('bg-blue-500', 'text-white');
-        });
-        document.getElementById('show-register-btn').addEventListener('click', (e) => {
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('register-form').classList.remove('hidden');
-            e.target.classList.add('bg-blue-500', 'text-white');
-            document.getElementById('show-login-btn').classList.remove('bg-blue-500', 'text-white');
-        });
-
-        // ----- Initialization -----
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('Auth state changed:', event);
-            if (session) {
-                console.log('User session found:', session.user.email);
-                currentUser = session.user;
-                document.getElementById('user-info').textContent = `用户: ${currentUser.email}`;
-                authView.classList.add('hidden');
-                mainView.classList.remove('hidden');
-                await fetchData();
-            } else {
-                console.log('User session not found.');
-                currentUser = null; folders = []; articles = []; activeArticle = null;
-                authView.classList.remove('hidden');
-                mainView.classList.add('hidden');
-                renderFileList();
-                renderEditor();
-                hideLoader(); // Hide loader for logged out users
-            }
-        });
-        
-        console.log('App initialized.');
         lucide.createIcons();
-    </script>
+      };
+
+      const renderEditor = () => {
+        if (activeArticle) {
+          editorView?.classList.remove('hidden');
+          welcomeView?.classList.add('hidden');
+          $('article-title').value = activeArticle.title || '';
+          const editor = $('markdown-editor');
+          editor.value = activeArticle.content || '';
+          updatePreview(editor.value);
+        } else {
+          editorView?.classList.add('hidden');
+          welcomeView?.classList.remove('hidden');
+        }
+      };
+
+      // ===================== Supabase 客户端 =====================
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // 数据获取
+      const fetchData = async () => {
+        if (!currentUser) return;
+        showLoader();
+        try {
+          const [foldersResponse, articlesResponse] = await Promise.all([
+            supabase.from('folders').select('*').eq('user_id', currentUser.id).order('name'),
+            supabase.from('articles').select('id, title, folder_id, updated_at').eq('user_id', currentUser.id)
+          ]);
+          const { data: foldersData, error: foldersError } = foldersResponse;
+          if (foldersError) throw foldersError;
+          folders = foldersData;
+
+          const { data: articlesData, error: articlesError } = articlesResponse;
+          if (articlesError) throw articlesError;
+          articles = articlesData;
+
+          renderFileList();
+        } catch (err) {
+          console.error('fetchData error:', err);
+          showAlert(`数据加载失败: ${err.message}`);
+        } finally {
+          hideLoader();
+        }
+      };
+
+      // ===================== 事件绑定（登录/注册/登出等） =====================
+      $('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = $('login-email').value;
+        const password = $('login-password').value;
+        showLoader();
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        hideLoader();
+        $('auth-error').textContent = error ? ('登录失败: ' + error.message) : '';
+      });
+
+      $('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = $('register-email').value;
+        const password = $('register-password').value;
+        showLoader();
+        const { error } = await supabase.auth.signUp({ email, password });
+        hideLoader();
+        $('auth-error').textContent = error ? ('注册失败: ' + error.message) : '';
+      });
+
+      $('logout-btn').addEventListener('click', async () => supabase.auth.signOut());
+
+      $('new-folder-btn').addEventListener('click', () => {
+        showModal({
+          title: '新建文件夹',
+          body: '<input type="text" id="folder-name-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="文件夹名称." required>',
+          onConfirm: async (bodyEl) => {
+            const input = bodyEl.querySelector('#folder-name-input');
+            const name = input.value.trim();
+            if (name) {
+              hideModal(); showLoader();
+              const { error } = await supabase.from('folders').insert({ name, user_id: currentUser.id });
+              hideLoader();
+              if (error) showAlert('创建文件夹失败: ' + error.message);
+              else await fetchData();
+            } else {
+              input.focus(); showAlert('文件夹名称不能为空。');
+            }
+          }
+        });
+      });
+
+      $('new-article-btn').addEventListener('click', () => {
+        const today = new Date().toISOString().slice(0, 10);
+        activeArticle = { id: null, title: `日记 ${today}`, content: `# 日记 ${today}\n\n`, folder_id: null, user_id: currentUser.id };
+        renderEditor(); renderFileList();
+      });
+
+      $('file-list').addEventListener('click', async (e) => {
+        const articleItem = e.target.closest('.article-item');
+        const editFolderBtn = e.target.closest('.edit-folder-btn');
+        const deleteFolderBtn = e.target.closest('.delete-folder-btn');
+
+        if (articleItem) {
+          const articleId = articleItem.dataset.id;
+          if (activeArticle?.id === articleId) return;
+          showLoader();
+          const { data, error } = await supabase.from('articles').select('*').eq('id', articleId).single();
+          hideLoader();
+          if (error) showAlert('加载文章失败: ' + error.message);
+          else { activeArticle = data; renderEditor(); renderFileList(); }
+        }
+
+        if (editFolderBtn) {
+          e.stopPropagation();
+          const folderId = editFolderBtn.dataset.id;
+          const oldName = editFolderBtn.dataset.name;
+          showModal({
+            title: '重命名文件夹',
+            body: `<input type="text" id="folder-name-input" value="${oldName}" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>`,
+            onConfirm: async (bodyEl) => {
+              const newName = bodyEl.querySelector('#folder-name-input').value.trim();
+              if (newName && newName !== oldName) {
+                hideModal(); showLoader();
+                const { error } = await supabase.from('folders').update({ name: newName }).eq('id', folderId);
+                hideLoader();
+                if (error) showAlert('更新文件夹失败: ' + error.message);
+                else await fetchData();
+              }
+            }
+          });
+        }
+
+        if (deleteFolderBtn) {
+          e.stopPropagation();
+          const folderId = deleteFolderBtn.dataset.id;
+          showModal({
+            title: '删除文件夹',
+            body: '<p>确定要删除此文件夹及其中的所有文章吗？此操作不可撤销。</p>',
+            confirmText: '确认删除',
+            onConfirm: async () => {
+              hideModal(); showLoader();
+              const { error } = await supabase.from('folders').delete().eq('id', folderId);
+              hideLoader();
+              if (error) showAlert('删除文件夹失败: ' + error.message);
+              else {
+                if (activeArticle?.folder_id === folderId) { activeArticle = null; renderEditor(); }
+                await fetchData();
+              }
+            }
+          });
+        }
+      });
+
+      $('markdown-editor').addEventListener('input', (e) => { if (activeArticle) { activeArticle.content = e.target.value; updatePreview(e.target.value); } });
+      $('article-title').addEventListener('input', (e) => { if (activeArticle) activeArticle.title = e.target.value; });
+
+      $('save-btn').addEventListener('click', async () => {
+        if (!activeArticle) return;
+        showLoader();
+        const articleData = { title: activeArticle.title || '无标题文章', content: activeArticle.content, user_id: currentUser.id, folder_id: activeArticle.folder_id, updated_at: new Date().toISOString() };
+        let error, data;
+        if (activeArticle.id) { ({ error, data } = await supabase.from('articles').update(articleData).eq('id', activeArticle.id).select().single()); }
+        else { ({ error, data } = await supabase.from('articles').insert(articleData).select().single()); }
+        hideLoader();
+        if (error) showAlert('保存失败: ' + error.message);
+        else { activeArticle = data; await fetchData(); }
+      });
+
+      $('delete-btn').addEventListener('click', () => {
+        if (!activeArticle || !activeArticle.id) return;
+        showModal({
+          title: '删除文章',
+          body: '<p>你确定要删除这篇文章吗?</p>',
+          confirmText: '确认删除',
+          onConfirm: async () => {
+            hideModal(); showLoader();
+            const { error } = await supabase.from('articles').delete().eq('id', activeArticle.id);
+            hideLoader();
+            if (error) showAlert('删除失败: ' + error.message);
+            else { activeArticle = null; renderEditor(); await fetchData(); }
+          }
+        });
+      });
+
+      $('export-btn').addEventListener('click', () => {
+        if (!activeArticle) return;
+        const blob = new Blob([activeArticle.content || ''], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `${(activeArticle.title || '未命名').replace(/[\\/:*?"<>|]/g, '_')}.md`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      // 侧边栏显隐
+      const sidebar = $('sidebar');
+      $('sidebar-open-btn').addEventListener('click', () => sidebar.classList.remove('-translate-x-full'));
+      $('sidebar-close-btn').addEventListener('click', () => sidebar.classList.add('-translate-x-full'));
+
+      // ===================== 认证流程 =====================
+      // FIX: 首帧会话主动检查，保证一定会关闭 loader
+      (async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            currentUser = session.user;
+            $('user-info').textContent = `用户: ${currentUser.email}`;
+            authView.classList.add('hidden');
+            mainView.classList.remove('hidden');
+            await fetchData();
+          } else {
+            currentUser = null;
+            authView.classList.remove('hidden');
+            mainView.classList.add('hidden');
+          }
+        } catch (e) {
+          console.error(e);
+          showAlert('初始化失败：' + e.message);
+        } finally {
+          hideLoader(); // 无论如何关掉遮罩
+          clearTimeout(loaderKillSwitch);
+        }
+      })();
+
+      // 保留原有监听：处理后续登录/登出切换
+      supabase.auth.onAuthStateChange(async (_event, session) => {
+        if (session) {
+          currentUser = session.user;
+          $('user-info').textContent = `用户: ${currentUser.email}`;
+          authView.classList.add('hidden');
+          mainView.classList.remove('hidden');
+          await fetchData();
+        } else {
+          currentUser = null; folders = []; articles = []; activeArticle = null;
+          authView.classList.remove('hidden');
+          mainView.classList.add('hidden');
+          renderFileList();
+          renderEditor();
+          hideLoader();
+        }
+      });
+
+      // 图标渲染
+      lucide.createIcons();
+      console.log('App initialized.');
+    }
+  </script>
 </body>
 </html>
-
