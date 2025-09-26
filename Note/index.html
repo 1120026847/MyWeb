@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown 日记</title>
+    <title>15615615</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -207,8 +207,13 @@
             if (!emailInput.value || !passwordInput.value) return setAuthMessage('邮箱和密码不能为空。', true);
             showLoading(true);
             const { error } = await supabaseClient.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
-            showLoading(false);
-            if (error) setAuthMessage(`登录失败: ${error.message}`, true);
+            
+            // **FIX**: Only hide spinner and show message on ERROR.
+            // On success, the onAuthStateChange listener will handle the UI transition.
+            if (error) {
+                showLoading(false);
+                setAuthMessage(`登录失败: ${error.message}`, true);
+            }
         };
 
         const updateAuthUI = () => {
