@@ -1,531 +1,740 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <title>Markdown 日记本</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Markdown 渲染库 -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <!-- 日期工具 -->
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  <style>
-    :root {
-      --bg: #ffffff;
-      --text: #111827;
-      --muted: #6b7280;
-      --primary: #111827;
-      --border: #e5e7eb;
-      --hover: #f3f4f6;
-      --accent: #2563eb;
-      --danger: #ef4444;
-      --ok: #059669;
-      --radius: 14px;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-    a { color: var(--accent); text-decoration: none; }
-    .app { display: flex; height: 100vh; overflow: hidden; }
-    .sidebar {
-      width: 300px; min-width: 260px; max-width: 420px; height: 100%;
-      border-right: 1px solid var(--border); background: #fff; display: flex; flex-direction: column;
-    }
-    .side-top {
-      padding: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
-    }
-    .brand { font-weight: 700; font-size: 16px; flex: 1; }
-    .btn, button {
-      display: inline-flex; align-items: center; justify-content: center;
-      height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border);
-      background: #fff; cursor: pointer; transition: background .15s, border-color .15s;
-      font-size: 13px;
-    }
-    .btn:hover { background: var(--hover); }
-    .btn.primary { border-color: var(--accent); color: #fff; background: var(--accent); }
-    .btn.danger { border-color: var(--danger); color: #fff; background: var(--danger); }
-    .btn.ghost { border: none; background: transparent; }
-    .search { margin: 10px 12px; }
-    .search input {
-      width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px;
-    }
-    .tree { padding: 8px 8px 80px; overflow: auto; flex: 1; }
-    .folder {
-      border-radius: 10px; padding: 6px; margin-bottom: 6px;
-    }
-    .folder-header {
-      display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; cursor: pointer;
-    }
-    .folder-header:hover { background: var(--hover); }
-    .folder-title { font-weight: 600; flex: 1; }
-    .row-actions { display: flex; gap: 6px; }
-    .article-list { padding-left: 10px; margin-top: 6px; }
-    .date-group { margin: 4px 0 8px; color: var(--muted); font-size: 12px; padding-left: 6px; }
-    .article {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      padding: 6px 8px; border-radius: 8px; cursor: pointer;
-    }
-    .article:hover { background: var(--hover); }
-    .article.active { background: #eef2ff; }
-    .article-title { font-size: 13px; }
-    .main {
-      flex: 1; display: flex; flex-direction: column; height: 100%;
-    }
-    .topbar {
-      display: flex; gap: 8px; align-items: center; padding: 10px; border-bottom: 1px solid var(--border);
-    }
-    .menu-button { display: none; }
-    .titlebar { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
-    .titlebar input {
-      flex: 1; height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px;
-    }
-    .select { height: 40px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; background: #fff; }
-    .editor {
-      flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: calc(100% - 0px);
-    }
-    .pane { height: 100%; }
-    .pane-header { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 12px; }
-    .pane-body { height: calc(100% - 41px); }
-    #content { width: 100%; height: 100%; border: none; outline: none; padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; resize: none; }
-    #preview { padding: 12px; overflow: auto; height: 100%; }
-    .auth {
-      position: fixed; inset: 0; background: #f8fafc; display: grid; place-items: center; z-index: 10;
-    }
-    .card {
-      width: min(480px, 92vw); background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.06);
-    }
-    .card h2 { margin: 0 0 12px; }
-    .grid { display: grid; gap: 10px; }
-    .grid.two { grid-template-columns: 1fr 1fr; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .spacer { flex: 1; }
-    .hidden { display: none !important; }
-
-    @media (max-width: 980px) {
-      .editor { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 780px) {
-      .sidebar { position: fixed; z-index: 20; left: 0; top: 0; bottom: 0; transform: translateX(-100%); transition: transform .2s; background: #fff; }
-      .sidebar.open { transform: translateX(0); }
-      .menu-button { display: inline-flex; }
-    }
-  </style>
-</head>
-<body>
-<div id="auth" class="auth">
-  <div class="card">
-    <h2>登录你的日记本</h2>
-    <div class="grid">
-      <input id="email" type="email" placeholder="邮箱" />
-      <input id="password" type="password" placeholder="密码（至少 6 位）" />
-      <div class="grid two">
-        <button id="loginBtn" class="btn primary">登录</button>
-        <button id="signupBtn" class="btn">注册并登录</button>
-      </div>
-      <div id="authMsg" class="muted"></div>
-    </div>
-  </div>
-</div>
-
-<div class="app">
-  <aside id="sidebar" class="sidebar">
-    <div class="side-top">
-      <div class="brand">📓 日记本</div>
-      <button id="newFolderBtn" class="btn">新建文件夹</button>
-    </div>
-    <div class="search"><input id="searchInput" placeholder="搜索文章标题…" /></div>
-    <div id="tree" class="tree"></div>
-  </aside>
-
-  <main class="main">
-    <div class="topbar">
-      <button id="menuBtn" class="btn menu-button">☰</button>
-      <button id="newArticleBtn" class="btn primary">新建文章</button>
-      <button id="saveBtn" class="btn">保存</button>
-      <button id="exportBtn" class="btn">导出 .md</button>
-      <button id="deleteBtn" class="btn danger">删除</button>
-      <div class="spacer"></div>
-      <button id="logoutBtn" class="btn">退出登录</button>
-    </div>
-
-    <div class="titlebar">
-      <input id="titleInput" placeholder="文章标题…" />
-      <select id="moveSelect" class="select"></select>
-    </div>
-
-    <section class="editor">
-      <div class="pane">
-        <div class="pane-header">编辑（Markdown）</div>
-        <div class="pane-body"><textarea id="content" placeholder="# 新的一天…"></textarea></div>
-      </div>
-      <div class="pane">
-        <div class="pane-header">预览</div>
-        <div id="preview" class="pane-body"></div>
-      </div>
-    </section>
-  </main>
-</div>
-
-<script type="module">
-  // ====== Supabase 初始化 ======
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-
-  const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // ====== 状态 ======
-  let currentUser = null;
-  let folders = [];       // {id, name, created_at}
-  let articles = [];      // 所有文章缓存（减少请求） {id, folder_id, title, content, created_at, updated_at}
-  let selectedFolderId = null;
-  let selectedArticleId = null;
-
-  // ====== DOM ======
-  const el = (id) => document.getElementById(id);
-  const authView = el('auth');
-  const email = el('email');
-  const password = el('password');
-  const loginBtn = el('loginBtn');
-  const signupBtn = el('signupBtn');
-  const authMsg = el('authMsg');
-
-  const sidebar = el('sidebar');
-  const menuBtn = el('menuBtn');
-  const newFolderBtn = el('newFolderBtn');
-  const newArticleBtn = el('newArticleBtn');
-  const saveBtn = el('saveBtn');
-  const exportBtn = el('exportBtn');
-  const deleteBtn = el('deleteBtn');
-  const logoutBtn = el('logoutBtn');
-  const searchInput = el('searchInput');
-
-  const tree = el('tree');
-  const titleInput = el('titleInput');
-  const moveSelect = el('moveSelect');
-  const content = el('content');
-  const preview = el('preview');
-
-  // ====== 工具 ======
-  const toast = (msg, ok=false) => {
-    authMsg.textContent = msg;
-    authMsg.style.color = ok ? 'var(--ok)' : 'var(--muted)';
-    if (!authView.classList.contains('hidden')) return;
-    // 简易气泡（控制台）
-    console.info(msg);
-  };
-
-  const groupByMonth = (list) => {
-    const map = {};
-    for (const a of list) {
-      const ym = dayjs(a.created_at).format('YYYY-MM');
-      if (!map[ym]) map[ym] = [];
-      map[ym].push(a);
-    }
-    const keys = Object.keys(map).sort((a,b)=> b.localeCompare(a)); // 倒序
-    return keys.map(k => ({ month: k, items: map[k] }));
-  };
-
-  const sanitizeFileName = (s) => s.replace(/[\\/:*?"<>|]/g, '_').trim() || 'untitled';
-
-  const renderMarkdown = () => { preview.innerHTML = marked.parse(content.value || ''); };
-
-  // ====== Auth 逻辑 ======
-  loginBtn.onclick = async () => {
-    authMsg.textContent = '';
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.value, password: password.value });
-    if (error) { authMsg.textContent = error.message; return; }
-    currentUser = data.user;
-    authView.classList.add('hidden');
-    await bootstrap();
-  };
-
-  signupBtn.onclick = async () => {
-    authMsg.textContent = '';
-    const { error: sErr } = await supabase.auth.signUp({ email: email.value, password: password.value });
-    if (sErr) { authMsg.textContent = sErr.message; return; }
-    // 若项目关闭了邮件确认，这里会直接有 session；否则我们再尝试用密码登录
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.value, password: password.value });
-    if (error) {
-      authMsg.textContent = '注册成功，请前往邮箱完成验证后再登录（或在 Auth 设置关闭 Email 确认）。';
-      return;
-    }
-    currentUser = data.user;
-    authView.classList.add('hidden');
-    await bootstrap();
-  };
-
-  logoutBtn.onclick = async () => {
-    await supabase.auth.signOut();
-    location.reload();
-  };
-
-  // ====== 数据访问 ======
-  async function loadFolders() {
-    const { data, error } = await supabase.from('folders').select('*').order('created_at', { ascending: true });
-    if (error) throw error;
-    folders = data;
-  }
-
-  async function loadArticles() {
-    // 拉取当前用户全部文章，在前端做分组 / 过滤，减少频繁请求
-    const { data, error } = await supabase.from('articles').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    articles = data;
-  }
-
-  async function createFolder() {
-    const name = prompt('新建文件夹名称：');
-    if (!name) return;
-    const { error } = await supabase.from('folders').insert({ name });
-    if (error) return alert(error.message);
-    await refreshTree();
-  }
-
-  async function renameFolder(fid) {
-    const f = folders.find(x => x.id === fid);
-    const name = prompt('重命名文件夹：', f?.name || '');
-    if (!name) return;
-    const { error } = await supabase.from('folders').update({ name }).eq('id', fid);
-    if (error) return alert(error.message);
-    await refreshTree();
-    if (selectedFolderId === fid) fillMoveSelect(); // 名称变化时刷新下拉
-  }
-
-  async function deleteFolder(fid) {
-    if (!confirm('删除文件夹将一并删除其下所有文章，确定吗？')) return;
-    const { error } = await supabase.from('folders').delete().eq('id', fid);
-    if (error) return alert(error.message);
-    if (selectedFolderId === fid) {
-      selectedFolderId = null;
-      selectedArticleId = null;
-      clearEditor();
-    }
-    await refreshTree();
-  }
-
-  async function createArticle() {
-    if (!selectedFolderId && folders.length) {
-      // 默认放到第一个文件夹
-      selectedFolderId = folders[0].id;
-    }
-    if (!selectedFolderId) {
-      alert('请先创建一个文件夹');
-      return;
-    }
-    const today = dayjs().format('YYYY-MM-DD');
-    const { data, error } = await supabase.from('articles').insert({
-      folder_id: selectedFolderId,
-      title: `日记 - ${today}`,
-      content: `# ${today}\n\n写点什么吧…`
-    }).select().single();
-    if (error) return alert(error.message);
-    await refreshTree();
-    selectArticle(data.id);
-  }
-
-  async function saveArticle() {
-    if (!selectedArticleId) { alert('尚未选择文章'); return; }
-    const title = titleInput.value.trim() || '未命名';
-    const { error } = await supabase.from('articles')
-      .update({ title, content: content.value, updated_at: new Date().toISOString(), folder_id: moveSelect.value || null })
-      .eq('id', selectedArticleId);
-    if (error) return alert(error.message);
-    await refreshTree();
-    toast('已保存', true);
-  }
-
-  async function deleteArticle() {
-    if (!selectedArticleId) return;
-    if (!confirm('确定删除这篇文章吗？')) return;
-    const { error } = await supabase.from('articles').delete().eq('id', selectedArticleId);
-    if (error) return alert(error.message);
-    selectedArticleId = null;
-    clearEditor();
-    await refreshTree();
-  }
-
-  // ====== UI 渲染 ======
-  function buildTreeHTML() {
-    const query = (searchInput.value || '').toLowerCase();
-
-    const container = document.createElement('div');
-
-    for (const f of folders) {
-      // 当前文件夹的文章
-      const list = articles
-        .filter(a => a.folder_id === f.id)
-        .filter(a => a.title.toLowerCase().includes(query));
-
-      const groups = groupByMonth(list);
-
-      const wrap = document.createElement('div');
-      wrap.className = 'folder';
-
-      const header = document.createElement('div');
-      header.className = 'folder-header';
-      header.onclick = () => { selectedFolderId = f.id; fillMoveSelect(); openSidebar(false); };
-
-      const title = document.createElement('div');
-      title.className = 'folder-title';
-      title.textContent = `🗂️ ${f.name}`;
-
-      const actions = document.createElement('div');
-      actions.className = 'row-actions';
-
-      const rnBtn = document.createElement('button');
-      rnBtn.className = 'btn ghost';
-      rnBtn.textContent = '重命名';
-      rnBtn.onclick = (e)=>{ e.stopPropagation(); renameFolder(f.id); };
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn ghost';
-      delBtn.textContent = '删除';
-      delBtn.onclick = (e)=>{ e.stopPropagation(); deleteFolder(f.id); };
-
-      actions.append(rnBtn, delBtn);
-      header.append(title, actions);
-
-      const ul = document.createElement('div');
-      ul.className = 'article-list';
-
-      for (const g of groups) {
-        const dg = document.createElement('div'); dg.className = 'date-group'; dg.textContent = g.month;
-        ul.appendChild(dg);
-        for (const a of g.items) {
-          const row = document.createElement('div');
-          row.className = 'article' + (a.id === selectedArticleId ? ' active' : '');
-          row.onclick = () => selectArticle(a.id);
-
-          const atitle = document.createElement('div');
-          atitle.className = 'article-title';
-          atitle.textContent = a.title;
-
-          const small = document.createElement('div');
-          small.className = 'muted';
-          small.style.fontSize = '11px';
-          small.textContent = dayjs(a.updated_at || a.created_at).format('MM-DD');
-
-          row.append(atitle, small);
-          ul.appendChild(row);
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 日记本</title>
+    <!-- 使用在中国访问更快的 CDN 加载 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Marked.js 用于解析 Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 引入 Supabase-js 客户端 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 引入 Lucide Icons 图标库 -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide-static@latest/dist/lucide.min.js"></script>
+    <script>
+        // 自定义 Tailwind CSS 配置
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            'light': '#f0f4f8',
+                            'DEFAULT': '#3b82f6',
+                            'dark': '#1e40af',
+                        },
+                    }
+                }
+            }
         }
-      }
+    </script>
+    <style>
+        /* 自定义滚动条样式，使其更美观 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c4c4c4;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        /* Prose a little bit of custom styling for the markdown rendering */
+        .prose a {
+            color: #3b82f6;
+            text-decoration: underline;
+        }
+        .prose blockquote {
+            border-left-color: #3b82f6;
+        }
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-white antialiased text-slate-800">
+    <div id="app" class="relative min-h-screen">
+        <!-- 认证页面 (默认显示) -->
+        <div id="auth-view" class="flex items-center justify-center min-h-screen bg-brand-light">
+            <div class="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-lg">
+                <div class="text-center">
+                    <h1 class="text-3xl font-bold text-slate-900">日记本</h1>
+                    <p class="text-slate-500">记录你的想法，整理你的生活</p>
+                </div>
+                
+                <!-- 登录/注册切换 -->
+                <div class="flex border border-gray-200 rounded-md p-1">
+                    <button id="show-login-tab" class="w-1/2 p-2 rounded-md text-sm font-medium bg-blue-500 text-white">登录</button>
+                    <button id="show-register-tab" class="w-1/2 p-2 rounded-md text-sm font-medium text-gray-600">注册</button>
+                </div>
 
-      wrap.append(header, ul);
-      container.appendChild(wrap);
-    }
+                <!-- 登录表单 -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="login-email" class="text-sm font-medium text-slate-600">邮箱</label>
+                        <input id="login-email" type="email" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="login-password" class="text-sm font-medium text-slate-600">密码</label>
+                        <input id="login-password" type="password" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors duration-200">
+                        登录
+                    </button>
+                </form>
 
-    return container.innerHTML || '<div class="muted" style="padding:10px;">还没有任何文件夹，点击上方“新建文件夹”。</div>';
-  }
+                <!-- 注册表单 (默认隐藏) -->
+                <form id="register-form" class="hidden space-y-4">
+                     <div>
+                        <label for="register-email" class="text-sm font-medium text-slate-600">邮箱</label>
+                        <input id="register-email" type="email" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="register-password" class="text-sm font-medium text-slate-600">密码</label>
+                        <input id="register-password" type="password" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="至少6个字符">
+                    </div>
+                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors duration-200">
+                        注册
+                    </button>
+                </form>
+            </div>
+        </div>
 
-  function renderTree() {
-    tree.innerHTML = buildTreeHTML();
-  }
+        <!-- 主应用界面 (默认隐藏) -->
+        <div id="main-app-view" class="hidden h-screen w-full md:flex">
+            <!-- 侧边栏 -->
+            <aside id="sidebar" class="absolute z-30 md:relative w-72 md:w-80 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0 md:translate-x-0 -translate-x-full">
+                <!-- 用户信息和操作 -->
+                <div class="p-4 border-b border-slate-200">
+                    <div id="user-info" class="flex items-center space-x-2">
+                        <span class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm" id="user-avatar"></span>
+                        <span class="text-sm font-medium truncate" id="user-email"></span>
+                    </div>
+                    <button id="logout-button" class="w-full mt-3 px-3 py-1.5 text-xs text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 transition-colors">
+                        退出登录
+                    </button>
+                </div>
+                
+                <!-- 新建操作 -->
+                <div class="p-4 flex space-x-2">
+                    <button id="new-folder-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+                        <i data-lucide="folder-plus" class="w-4 h-4 mr-2"></i>
+                        新建文件夹
+                    </button>
+                    <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
+                        <i data-lucide="file-plus-2" class="w-4 h-4 mr-2"></i>
+                        新建文章
+                    </button>
+                </div>
 
-  function fillMoveSelect() {
-    moveSelect.innerHTML = '';
-    for (const f of folders) {
-      const opt = document.createElement('option');
-      opt.value = f.id;
-      opt.textContent = f.name;
-      if (f.id === selectedFolderId) opt.selected = true;
-      moveSelect.appendChild(opt);
-    }
-  }
+                <!-- 文件夹和文章列表 -->
+                <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-4">
+                    <!-- 动态内容 -->
+                </div>
+            </aside>
 
-  function clearEditor() {
-    titleInput.value = '';
-    content.value = '';
-    renderMarkdown();
-  }
+            <!-- 主内容区 -->
+            <main id="main-content" class="flex-1 flex flex-col bg-white">
+                 <!-- 移动端顶部导航 -->
+                <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white">
+                    <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                    <h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2>
+                    <div id="mobile-editor-controls" class="hidden">
+                         <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">
+                            <i data-lucide="save" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </header>
+                <!-- 欢迎/空状态 -->
+                <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center text-center p-8">
+                     <i data-lucide="book-open" class="w-16 h-16 text-slate-300 mb-4"></i>
+                     <h2 class="text-2xl font-semibold text-slate-800">欢迎使用日记本</h2>
+                     <p class="text-slate-500 mt-2">从左侧选择一篇文章开始阅读，或新建一篇文章开始创作。</p>
+                </div>
 
-  function setEditor(a) {
-    titleInput.value = a.title || '';
-    content.value = a.content || '';
-    renderMarkdown();
-    moveSelect.value = a.folder_id || '';
-  }
+                <!-- 文章视图 (默认隐藏) -->
+                <div id="article-view" class="hidden flex-1 flex flex-col">
+                    <!-- 文章工具栏 -->
+                    <div class="hidden md:flex items-center p-3 border-b border-slate-200 bg-white">
+                        <input id="article-title-input" class="text-xl font-semibold flex-1 bg-transparent focus:outline-none focus:ring-0 border-none p-0" value="文章标题">
+                        <div id="editor-controls" class="flex items-center space-x-2 ml-4">
+                             <button id="edit-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
+                                 <i data-lucide="pencil" class="w-4 h-4 mr-1.5"></i>编辑
+                             </button>
+                             <button id="save-button" class="hidden flex items-center px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
+                                 <i data-lucide="save" class="w-4 h-4 mr-1.5"></i>保存
+                             </button>
+                             <button id="move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
+                                 <i data-lucide="folder-git-2" class="w-4 h-4 mr-1.5"></i>移动
+                             </button>
+                             <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
+                                 <i data-lucide="download" class="w-4 h-4 mr-1.5"></i>导出
+                             </button>
+                             <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors">
+                                 <i data-lucide="trash-2" class="w-4 h-4 mr-1.5"></i>删除
+                             </button>
+                        </div>
+                    </div>
+                    <!-- 编辑器和预览区 -->
+                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
+                        <!-- Markdown 编辑器 -->
+                        <textarea id="editor" class="w-full h-full p-6 text-base leading-7 resize-none focus:outline-none font-mono"></textarea>
+                        <!-- 预览区 -->
+                        <div id="preview" class="w-full h-full p-6 overflow-y-auto prose border-l border-slate-200 bg-gray-50/50"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- 全局消息提示 -->
+        <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform translate-x-[150%]"></div>
+        
+        <!-- 移动文件夹弹窗 -->
+        <div id="move-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h3 class="text-lg font-medium">移动文章到...</h3>
+                <select id="move-folder-select" class="w-full mt-4 p-2 border rounded-md"></select>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="cancel-move" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
+                    <button id="confirm-move" class="px-4 py-2 bg-blue-500 text-white rounded-md">确认移动</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-  function exportMarkdown() {
-    if (!selectedArticleId) { alert('请选择文章'); return; }
-    const a = articles.find(x => x.id === selectedArticleId);
-    if (!a) return;
-    const blob = new Blob([a.content || ''], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const ymd = dayjs(a.created_at).format('YYYYMMDD');
-    link.href = url;
-    link.download = sanitizeFileName(`${a.title || 'note'}_${ymd}.md`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
+    <script type="module">
+        // --- Supabase 配置 ---
+        const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // --- 全局状态 ---
+        let state = {
+            user: null,
+            folders: [],
+            articles: [],
+            selectedArticleId: null,
+            isEditing: false,
+        };
 
-  async function selectArticle(aid) {
-    selectedArticleId = aid;
-    const a = articles.find(x => x.id === aid);
-    if (!a) return;
-    selectedFolderId = a.folder_id || null;
-    setEditor(a);
-    renderTree();
-    fillMoveSelect();
-    openSidebar(false);
-  }
+        // --- DOM 元素 ---
+        const dom = {
+            app: document.getElementById('app'),
+            authView: document.getElementById('auth-view'),
+            mainAppView: document.getElementById('main-app-view'),
+            // 认证
+            loginForm: document.getElementById('login-form'),
+            registerForm: document.getElementById('register-form'),
+            showLoginTab: document.getElementById('show-login-tab'),
+            showRegisterTab: document.getElementById('show-register-tab'),
+            // 侧边栏
+            sidebar: document.getElementById('sidebar'),
+            toggleSidebarButton: document.getElementById('toggle-sidebar-button'),
+            userInfo: document.getElementById('user-info'),
+            userAvatar: document.getElementById('user-avatar'),
+            userEmail: document.getElementById('user-email'),
+            logoutButton: document.getElementById('logout-button'),
+            newFolderButton: document.getElementById('new-folder-button'),
+            newArticleButton: document.getElementById('new-article-button'),
+            fileTree: document.getElementById('file-tree'),
+            // 主内容区
+            welcomeView: document.getElementById('welcome-view'),
+            articleView: document.getElementById('article-view'),
+            articleTitleInput: document.getElementById('article-title-input'),
+            mobileArticleTitle: document.getElementById('mobile-article-title'),
+            mobileEditorControls: document.getElementById('mobile-editor-controls'),
+            editor: document.getElementById('editor'),
+            preview: document.getElementById('preview'),
+            // 控制按钮
+            editorControls: document.getElementById('editor-controls'),
+            editButton: document.getElementById('edit-button'),
+            saveButton: document.getElementById('save-button'),
+            mobileSaveButton: document.getElementById('mobile-save-button'),
+            moveButton: document.getElementById('move-button'),
+            exportButton: document.getElementById('export-button'),
+            deleteButton: document.getElementById('delete-button'),
+            // 弹窗和提示
+            toast: document.getElementById('toast'),
+            moveModal: document.getElementById('move-modal'),
+            moveFolderSelect: document.getElementById('move-folder-select'),
+            cancelMove: document.getElementById('cancel-move'),
+            confirmMove: document.getElementById('confirm-move'),
+        };
 
-  function openSidebar(open) {
-    if (open === undefined) open = !sidebar.classList.contains('open');
-    if (open) sidebar.classList.add('open'); else sidebar.classList.remove('open');
-  }
+        // --- 工具函数 ---
+        /**
+         * 显示消息提示
+         * @param {string} message - 消息内容
+         * @param {'success' | 'error'} type - 提示类型
+         */
+        function showToast(message, type = 'success') {
+            dom.toast.textContent = message;
+            dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform transform-gpu ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } translate-x-0`;
+            setTimeout(() => {
+                dom.toast.style.transform = 'translateX(150%)';
+            }, 3000);
+        }
 
-  // ====== 事件绑定 ======
-  newFolderBtn.onclick = createFolder;
-  newArticleBtn.onclick = createArticle;
-  saveBtn.onclick = saveArticle;
-  exportBtn.onclick = exportMarkdown;
-  deleteBtn.onclick = deleteArticle;
-  menuBtn.onclick = ()=> openSidebar();
-  searchInput.oninput = () => renderTree();
-  content.addEventListener('input', renderMarkdown);
+        /**
+         * 格式化日期
+         * @param {string} dateString - ISO 日期字符串
+         * @returns {string} 格式化后的日期
+         */
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+        
+        // --- 认证功能 ---
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = dom.loginForm.querySelector('#login-email').value;
+            const password = dom.loginForm.querySelector('#login-password').value;
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) showToast(`登录失败: ${error.message}`, 'error');
+            else showToast('登录成功！');
+        }
 
-  moveSelect.onchange = async () => {
-    if (!selectedArticleId) return;
-    const toFolder = moveSelect.value;
-    const { error } = await supabase.from('articles').update({ folder_id: toFolder, updated_at: new Date().toISOString() }).eq('id', selectedArticleId);
-    if (error) return alert(error.message);
-    selectedFolderId = toFolder;
-    await refreshTree();
-    toast('已移动', true);
-  };
+        async function handleRegister(e) {
+            e.preventDefault();
+            const email = dom.registerForm.querySelector('#register-email').value;
+            const password = dom.registerForm.querySelector('#register-password').value;
+            if (password.length < 6) {
+                showToast('密码长度至少为6位', 'error');
+                return;
+            }
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) showToast(`注册失败: ${error.message}`, 'error');
+            else showToast('注册成功！请检查您的邮箱进行验证，然后登录。');
+        }
+        
+        async function handleLogout() {
+            const { error } = await supabase.auth.signOut();
+            if (error) showToast(`退出失败: ${error.message}`, 'error');
+            else window.location.reload();
+        }
 
-  // ====== 首次启动 ======
-  async function bootstrap() {
-    const { data } = await supabase.auth.getUser();
-    currentUser = data?.user || null;
-    await refreshTree();
-    authView.classList.add('hidden');
-  }
+        // --- 数据获取与渲染 ---
+        async function fetchData() {
+            if (!state.user) return;
+            try {
+                const { data: folders, error: foldersError } = await supabase
+                    .from('folders')
+                    .select('*')
+                    .eq('user_id', state.user.id)
+                    .order('created_at', { ascending: false });
+                if (foldersError) throw foldersError;
 
-  async function refreshTree() {
-    await loadFolders();
-    await loadArticles();
-    renderTree();
-    fillMoveSelect();
-  }
+                const { data: articles, error: articlesError } = await supabase
+                    .from('articles')
+                    .select('*')
+                    .eq('user_id', state.user.id)
+                    .order('updated_at', { ascending: false });
+                if (articlesError) throw articlesError;
 
-  // 处理已有会话
-  (async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data?.session?.user) {
-      currentUser = data.session.user;
-      authView.classList.add('hidden');
-      await bootstrap();
-    } else {
-      authView.classList.remove('hidden');
-    }
-    // 监听登录状态变化
-    supabase.auth.onAuthStateChange((_event, session) => {
-      currentUser = session?.user || null;
-    });
-  })();
-</script>
+                state.folders = folders || [];
+                state.articles = articles || [];
+                renderFileTree();
+            } catch (error) {
+                showToast(`数据加载失败: ${error.message}`, 'error');
+            }
+        }
+        
+        function renderFileTree() {
+            dom.fileTree.innerHTML = '';
+            // 创建一个映射来组织文章
+            const folderMap = new Map();
+            state.folders.forEach(folder => {
+                folderMap.set(folder.id, { ...folder, articles: [] });
+            });
+            const uncategorizedArticles = [];
+
+            state.articles.forEach(article => {
+                if (article.folder_id && folderMap.has(article.folder_id)) {
+                    folderMap.get(article.folder_id).articles.push(article);
+                } else {
+                    uncategorizedArticles.push(article);
+                }
+            });
+
+            // 渲染文件夹及其文章
+            folderMap.forEach((folder) => {
+                const folderEl = document.createElement('div');
+                folderEl.innerHTML = `
+                    <div class="flex items-center justify-between cursor-pointer p-2 rounded-md hover:bg-slate-200">
+                        <div class="flex items-center">
+                            <i data-lucide="folder" class="w-4 h-4 mr-2 text-brand"></i>
+                            <span class="font-semibold text-sm truncate">${folder.name}</span>
+                        </div>
+                        <div class="folder-actions flex items-center space-x-1">
+                            <button class="rename-folder-btn p-1 hover:bg-slate-300 rounded" data-id="${folder.id}" title="重命名"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
+                            <button class="delete-folder-btn p-1 hover:bg-slate-300 rounded" data-id="${folder.id}" title="删除"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+                    <ul class="pl-4 mt-1 space-y-1">
+                        ${folder.articles.map(article => `
+                            <li class="article-item text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${article.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${article.id}">
+                                <div class="truncate">${article.title}</div>
+                                <div class="text-xs text-slate-400 mt-0.5">${formatDate(article.updated_at)}</div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                dom.fileTree.appendChild(folderEl);
+            });
+
+            // 渲染未分类文章
+            if (uncategorizedArticles.length > 0) {
+                 const uncategorizedEl = document.createElement('div');
+                 uncategorizedEl.innerHTML = `
+                    <div class="mt-4">
+                        <h4 class="text-sm font-semibold text-slate-500 p-2">未分类</h4>
+                         <ul class="mt-1 space-y-1">
+                             ${uncategorizedArticles.map(article => `
+                                <li class="article-item text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${article.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${article.id}">
+                                    <div class="truncate">${article.title}</div>
+                                    <div class="text-xs text-slate-400 mt-0.5">${formatDate(article.updated_at)}</div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                 `;
+                 dom.fileTree.appendChild(uncategorizedEl);
+            }
+
+            lucide.createIcons(); // 重新渲染图标
+        }
+
+        // --- 文章和文件夹操作 ---
+        async function handleNewFolder() {
+            const name = prompt('请输入新文件夹的名称：');
+            if (name && name.trim()) {
+                const { error } = await supabase.from('folders').insert({ name: name.trim(), user_id: state.user.id });
+                if (error) showToast(`创建失败: ${error.message}`, 'error');
+                else {
+                    showToast('文件夹创建成功！');
+                    fetchData();
+                }
+            }
+        }
+
+        async function handleNewArticle() {
+            const title = prompt('请输入新文章的标题：') || '无标题文章';
+            if (title && title.trim()) {
+                const { data, error } = await supabase.from('articles').insert({
+                    title: title.trim(),
+                    content: `# ${title.trim()}\n\n在这里开始写作...`,
+                    user_id: state.user.id,
+                }).select();
+
+                if (error) showToast(`创建失败: ${error.message}`, 'error');
+                else {
+                    showToast('文章创建成功！');
+                    await fetchData();
+                    selectArticle(data[0].id);
+                }
+            }
+        }
+        
+        async function handleRenameFolder(id) {
+            const folder = state.folders.find(f => f.id === id);
+            if (!folder) return;
+            const newName = prompt('请输入新的文件夹名称:', folder.name);
+            if (newName && newName.trim() && newName !== folder.name) {
+                const { error } = await supabase.from('folders').update({ name: newName.trim() }).eq('id', id);
+                if(error) showToast(`重命名失败: ${error.message}`, 'error');
+                else {
+                    showToast('文件夹已重命名');
+                    fetchData();
+                }
+            }
+        }
+
+        async function handleDeleteFolder(id) {
+            if(confirm('确定要删除这个文件夹吗？文件夹内的所有文章也将被删除！')) {
+                const { error } = await supabase.from('folders').delete().eq('id', id);
+                 if (error) showToast(`删除失败: ${error.message}`, 'error');
+                 else {
+                     showToast('文件夹已删除');
+                     if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) {
+                         switchToWelcomeView();
+                     }
+                     fetchData();
+                 }
+            }
+        }
+
+        async function selectArticle(id) {
+            state.selectedArticleId = id;
+            const article = state.articles.find(a => a.id === id);
+            if (!article) {
+                switchToWelcomeView();
+                return;
+            }
+            
+            dom.welcomeView.classList.add('hidden');
+            dom.articleView.classList.remove('hidden');
+            dom.articleView.classList.add('flex');
+            
+            dom.articleTitleInput.value = article.title;
+            dom.mobileArticleTitle.textContent = article.title;
+            dom.editor.value = article.content || '';
+            
+            updatePreview();
+            switchToViewMode();
+            renderFileTree(); // 更新侧边栏高亮
+            
+            // 在移动端，选择文章后自动隐藏侧边栏
+            if (window.innerWidth < 768) {
+                dom.sidebar.classList.add('sidebar-hidden');
+            }
+        }
+
+        function updatePreview() {
+            dom.preview.innerHTML = marked.parse(dom.editor.value);
+        }
+
+        function switchToEditMode() {
+            state.isEditing = true;
+            dom.editor.classList.remove('md:hidden');
+            dom.preview.classList.remove('md:grid-cols-1');
+            dom.preview.classList.add('md:grid-cols-2');
+            dom.editor.focus();
+
+            dom.editButton.classList.add('hidden');
+            dom.saveButton.classList.remove('hidden');
+            dom.mobileEditorControls.classList.remove('hidden');
+
+            dom.articleTitleInput.readOnly = false;
+            dom.articleTitleInput.classList.add('bg-slate-100');
+        }
+
+        function switchToViewMode() {
+            state.isEditing = false;
+            dom.editor.classList.add('md:hidden');
+            dom.preview.classList.remove('md:grid-cols-2');
+            dom.preview.classList.add('md:grid-cols-1');
+            
+            dom.editButton.classList.remove('hidden');
+            dom.saveButton.classList.add('hidden');
+            dom.mobileEditorControls.classList.add('hidden');
+            
+            dom.articleTitleInput.readOnly = true;
+            dom.articleTitleInput.classList.remove('bg-slate-100');
+        }
+
+        function switchToWelcomeView() {
+            state.selectedArticleId = null;
+            dom.articleView.classList.add('hidden');
+            dom.welcomeView.classList.remove('hidden');
+            renderFileTree();
+        }
+
+        async function handleSaveArticle() {
+            if (!state.selectedArticleId) return;
+            const title = dom.articleTitleInput.value.trim();
+            const content = dom.editor.value;
+
+            if (!title) {
+                showToast('标题不能为空', 'error');
+                return;
+            }
+
+            const { error } = await supabase
+                .from('articles')
+                .update({ title, content, updated_at: new Date().toISOString() })
+                .eq('id', state.selectedArticleId);
+            
+            if (error) showToast(`保存失败: ${error.message}`, 'error');
+            else {
+                showToast('保存成功！');
+                switchToViewMode();
+                await fetchData(); // 重新获取数据以更新列表顺序和内容
+                 dom.mobileArticleTitle.textContent = title;
+            }
+        }
+
+        async function handleDeleteArticle() {
+            if (!state.selectedArticleId) return;
+            if (confirm('确定要删除这篇文章吗？')) {
+                const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId);
+                if (error) showToast(`删除失败: ${error.message}`, 'error');
+                else {
+                    showToast('文章已删除');
+                    switchToWelcomeView();
+                    fetchData();
+                }
+            }
+        }
+
+        function handleExportArticle() {
+             if (!state.selectedArticleId) return;
+             const article = state.articles.find(a => a.id === state.selectedArticleId);
+             if (!article) return;
+             
+             const blob = new Blob([article.content], { type: 'text/markdown;charset=utf-8' });
+             const url = URL.createObjectURL(blob);
+             const a = document.createElement('a');
+             a.href = url;
+             a.download = `${article.title}.md`;
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+             URL.revokeObjectURL(url);
+             showToast('已开始下载...');
+        }
+        
+        function openMoveModal() {
+            if(!state.selectedArticleId) return;
+            
+            dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; // 'null' value
+            state.folders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder.id;
+                option.textContent = folder.name;
+                dom.moveFolderSelect.appendChild(option);
+            });
+            
+            const currentArticle = state.articles.find(a => a.id === state.selectedArticleId);
+            dom.moveFolderSelect.value = currentArticle.folder_id || "";
+            
+            dom.moveModal.classList.remove('hidden');
+        }
+
+        async function handleConfirmMove() {
+            const newFolderId = dom.moveFolderSelect.value || null;
+            const { error } = await supabase
+                .from('articles')
+                .update({ folder_id: newFolderId })
+                .eq('id', state.selectedArticleId);
+                
+            if(error) showToast(`移动失败: ${error.message}`, 'error');
+            else {
+                showToast('文章已移动');
+                fetchData();
+            }
+            dom.moveModal.classList.add('hidden');
+        }
+
+        // --- 初始化和事件监听 ---
+        function initEventListeners() {
+            // 认证
+            dom.loginForm.addEventListener('submit', handleLogin);
+            dom.registerForm.addEventListener('submit', handleRegister);
+            dom.showLoginTab.addEventListener('click', () => {
+                dom.loginForm.classList.remove('hidden');
+                dom.registerForm.classList.add('hidden');
+                dom.showLoginTab.classList.add('bg-blue-500', 'text-white');
+                dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white');
+                dom.showRegisterTab.classList.add('text-gray-600');
+            });
+            dom.showRegisterTab.addEventListener('click', () => {
+                dom.registerForm.classList.remove('hidden');
+                dom.loginForm.classList.add('hidden');
+                dom.showRegisterTab.classList.add('bg-blue-500', 'text-white');
+                dom.showLoginTab.classList.remove('bg-blue-500', 'text-white');
+                dom.showLoginTab.classList.add('text-gray-600');
+            });
+
+            // 主应用
+            dom.logoutButton.addEventListener('click', handleLogout);
+            dom.newFolderButton.addEventListener('click', handleNewFolder);
+            dom.newArticleButton.addEventListener('click', handleNewArticle);
+            
+            dom.fileTree.addEventListener('click', e => {
+                const articleItem = e.target.closest('.article-item');
+                const renameBtn = e.target.closest('.rename-folder-btn');
+                const deleteBtn = e.target.closest('.delete-folder-btn');
+
+                if (articleItem) {
+                    selectArticle(articleItem.dataset.id);
+                } else if (renameBtn) {
+                    handleRenameFolder(renameBtn.dataset.id);
+                } else if (deleteBtn) {
+                    handleDeleteFolder(deleteBtn.dataset.id);
+                }
+            });
+            
+            // 编辑器
+            dom.editor.addEventListener('input', updatePreview);
+            dom.editButton.addEventListener('click', switchToEditMode);
+            dom.saveButton.addEventListener('click', handleSaveArticle);
+            dom.mobileSaveButton.addEventListener('click', handleSaveArticle);
+            dom.deleteButton.addEventListener('click', handleDeleteArticle);
+            dom.exportButton.addEventListener('click', handleExportArticle);
+            dom.moveButton.addEventListener('click', openMoveModal);
+
+            // 移动弹窗
+            dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden'));
+            dom.confirmMove.addEventListener('click', handleConfirmMove);
+            
+            // 移动端侧边栏
+            dom.toggleSidebarButton.addEventListener('click', () => {
+                dom.sidebar.classList.toggle('sidebar-hidden');
+            });
+            
+            // 点击主内容区时，如果侧边栏是打开的（移动端），则关闭它
+            dom.app.addEventListener('click', (e) => {
+                 if (window.innerWidth < 768 && !dom.sidebar.classList.contains('sidebar-hidden')) {
+                    if (!dom.sidebar.contains(e.target) && !dom.toggleSidebarButton.contains(e.target)) {
+                        dom.sidebar.classList.add('sidebar-hidden');
+                    }
+                }
+            });
+        }
+        
+        async function initializeApp() {
+            lucide.createIcons();
+            initEventListeners();
+
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            if (session) {
+                state.user = session.user;
+                dom.authView.classList.add('hidden');
+                dom.mainAppView.classList.remove('hidden');
+                dom.mainAppView.classList.add('md:flex');
+                
+                dom.userEmail.textContent = state.user.email;
+                dom.userAvatar.textContent = state.user.email[0].toUpperCase();
+                
+                await fetchData();
+            } else {
+                dom.authView.classList.remove('hidden');
+                dom.mainAppView.classList.add('hidden');
+            }
+
+            supabase.auth.onAuthStateChange((_event, session) => {
+                if (_event === 'SIGNED_IN') {
+                    if (state.user?.id !== session?.user?.id) {
+                       window.location.reload();
+                    }
+                } else if (_event === 'SIGNED_OUT') {
+                    state.user = null;
+                    dom.authView.classList.remove('hidden');
+                    dom.mainAppView.classList.add('hidden');
+                }
+            });
+        }
+
+        // --- 应用启动 ---
+        initializeApp();
+    </script>
 </body>
 </html>
