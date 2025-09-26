@@ -255,7 +255,7 @@
             } else if (type === 'article') {
                 const { data, error } = await supabase.from('articles').insert({ title: name, content: '', user_id: state.user.id }).select();
                 if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } 
-                else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id); }
+                else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id, true); }
             }
         }
 
@@ -266,7 +266,24 @@
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
-        function selectArticle(id) { state.selectedArticleId = id; const a = state.articles.find(i => i.id === id); if (!a) { switchToWelcomeView(); return; } dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex'); dom.articleTitleInput.value = a.title; dom.mobileArticleTitle.textContent = a.title; quill.root.innerHTML = a.content || ''; switchToViewMode(); renderFileTree(); if (window.innerWidth < 768) closeSidebar(); }
+        function selectArticle(id, startInEditMode = false) { 
+            state.selectedArticleId = id; 
+            const a = state.articles.find(i => i.id === id); 
+            if (!a) { switchToWelcomeView(); return; } 
+            dom.welcomeView.classList.add('hidden'); 
+            dom.articleView.classList.remove('hidden'); 
+            dom.articleView.classList.add('flex'); 
+            dom.articleTitleInput.value = a.title; 
+            dom.mobileArticleTitle.textContent = a.title; 
+            quill.root.innerHTML = a.content || ''; 
+            if (startInEditMode) {
+                switchToEditMode();
+            } else {
+                switchToViewMode(); 
+            }
+            renderFileTree(); 
+            if (window.innerWidth < 768) closeSidebar(); 
+        }
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); dom.articleTitleInput.readOnly = false; dom.articleTitleInput.classList.add('bg-slate-100'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); dom.articleTitleInput.readOnly = true; dom.articleTitleInput.classList.remove('bg-slate-100'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
         function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '日记本'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
@@ -352,5 +369,4 @@
     </script>
 </body>
 </html>
-
 
