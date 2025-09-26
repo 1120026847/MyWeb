@@ -116,7 +116,7 @@
                              <button id="edit-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="edit-2" class="w-4 h-4 mr-1.5"></i>编辑</button>
                              <button id="save-button" class="hidden flex items-center px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"><i data-feather="save" class="w-4 h-4 mr-1.5"></i>保存</button>
                              <button id="move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4 mr-1.5"></i>移动</button>
-                             <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出</button>
+                             <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出为 TXT</button>
                              <button id="refresh-button" title="同步数据" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="refresh-cw" class="w-4 h-4 mr-1.5"></i>同步</button>
                              <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-1.5"></i>删除</button>
                         </div>
@@ -138,17 +138,6 @@
                 </div>
             </div>
         </div>
-        <div id="export-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-                <h3 class="text-lg font-medium">选择导出格式</h3>
-                <p class="text-sm text-slate-500 mt-2">请选择您想要导出的文件格式。</p>
-                <div class="mt-6 flex justify-end space-x-3">
-                    <button id="export-as-pdf" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">导出为 PDF</button>
-                    <button id="export-as-txt" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">导出为 TXT</button>
-                    <button id="cancel-export" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script type="module">
@@ -167,13 +156,12 @@
             toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'),
             userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'),
             newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'),
-            refreshButton: document.getElementById('refresh-button'),
             fileTree: document.getElementById('file-tree'), welcomeView: document.getElementById('welcome-view'),
             articleView: document.getElementById('article-view'), articleTitleInput: document.getElementById('article-title-input'),
             mobileArticleTitle: document.getElementById('mobile-article-title'), editorContainer: document.getElementById('editor-container'),
             editorControls: document.getElementById('editor-controls'), editButton: document.getElementById('edit-button'),
             saveButton: document.getElementById('save-button'), moveButton: document.getElementById('move-button'),
-            exportButton: document.getElementById('export-button'), deleteButton: document.getElementById('delete-button'),
+            exportButton: document.getElementById('export-button'), refreshButton: document.getElementById('refresh-button'), deleteButton: document.getElementById('delete-button'),
             mobileControls: document.getElementById('mobile-controls'), mobileViewControls: document.getElementById('mobile-view-controls'),
             mobileEditControls: document.getElementById('mobile-edit-controls'), mobileEditButton: document.getElementById('mobile-edit-button'),
             mobileSaveButton: document.getElementById('mobile-save-button'), mobileMoreButton: document.getElementById('mobile-more-button'),
@@ -182,8 +170,6 @@
             toast: document.getElementById('toast'),
             moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'),
             cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'),
-            exportModal: document.getElementById('export-modal'), exportAsPdf: document.getElementById('export-as-pdf'),
-            exportAsTxt: document.getElementById('export-as-txt'), cancelExport: document.getElementById('cancel-export'),
         };
 
         function showToast(message, type = 'success') {
@@ -233,23 +219,8 @@
         async function handleSaveArticle() { if (!state.selectedArticleId) return; const t = dom.articleTitleInput.value.trim(); const c = quill.root.innerHTML; if (!t) { showToast('标题不能为空', 'error'); return; } const { error } = await supabase.from('articles').update({ title: t, content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId); if (error) showToast(`保存失败: ${error.message}`, 'error'); else { showToast('保存成功！'); await fetchData(); dom.mobileArticleTitle.textContent = t; switchToViewMode(); } }
         async function handleDeleteArticle() { if (!state.selectedArticleId || !confirm('确定要删除这篇文章吗？')) return; const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); } }
         
-        function exportAsPDF() {
-            const article = state.articles.find(i => i.id === state.selectedArticleId);
-            if (!article) return;
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write('<html><head><title>' + article.title + '</title>');
-            const quillStyles = document.querySelector('link[href*="quill.snow.css"]');
-            if (quillStyles) printWindow.document.write(quillStyles.outerHTML);
-            printWindow.document.write('<style>body{padding:2rem;font-family:sans-serif}h1{font-size:24pt;margin-bottom:1rem;}.ql-editor{padding:0;border:none!important}</style>');
-            printWindow.document.write('</head><body>');
-            printWindow.document.write(`<h1>${article.title}</h1>`);
-            printWindow.document.write('<div class="ql-snow"><div class="ql-editor">');
-            printWindow.document.write(quill.root.innerHTML);
-            printWindow.document.write('</div></div></body></html>');
-            setTimeout(() => { printWindow.document.close(); printWindow.focus(); printWindow.print(); printWindow.close(); }, 500);
-        }
-
-        function exportAsTXT() {
+        function handleExportArticle() {
+            if (!state.selectedArticleId) return;
             const article = state.articles.find(i => i.id === state.selectedArticleId);
             if (!article) return;
             const text = quill.getText();
@@ -264,11 +235,6 @@
             URL.revokeObjectURL(url);
         }
 
-        function handleExportArticle() {
-            if (!state.selectedArticleId) return;
-            dom.exportModal.classList.remove('hidden');
-        }
-
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
         async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
         
@@ -279,7 +245,17 @@
             dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
-            const refreshAction = async () => { showToast('正在同步数据...'); await fetchData(); showToast('数据同步完成！'); };
+            
+            const refreshAction = async () => {
+                showToast('正在同步数据...');
+                const previouslySelectedId = state.selectedArticleId;
+                await fetchData();
+                if (previouslySelectedId && state.articles.some(a => a.id === previouslySelectedId)) {
+                    selectArticle(previouslySelectedId);
+                }
+                showToast('数据同步完成！');
+            };
+
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
             dom.refreshButton.addEventListener('click', refreshAction);
             dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
@@ -288,16 +264,12 @@
             dom.mobileEditButton.addEventListener('click', switchToEditMode); dom.mobileSaveButton.addEventListener('click', handleSaveArticle); dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
             dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileExportButton.addEventListener('click', () => { handleExportArticle(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileDeleteButton.addEventListener('click', () => { handleDeleteArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden')); dom.confirmMove.addEventListener('click', handleConfirmMove);
-            dom.exportAsPdf.addEventListener('click', () => { exportAsPDF(); dom.exportModal.classList.add('hidden'); });
-            dom.exportAsTxt.addEventListener('click', () => { exportAsTXT(); dom.exportModal.classList.add('hidden'); });
-            dom.cancelExport.addEventListener('click', () => dom.exportModal.classList.add('hidden'));
             dom.toggleSidebarButton.addEventListener('click', (e) => { e.stopPropagation(); if (dom.sidebar.classList.contains('-translate-x-full')) openSidebar(); else closeSidebar(); });
             dom.sidebarOverlay.addEventListener('click', closeSidebar); document.addEventListener('click', () => dom.mobileActionsMenu.classList.add('hidden'));
         }
         
         async function initializeApp() {
             feather.replace(); initEventListeners();
-            // 修复：移除不存在的 'divider' 功能
             const toolbarOptions = [
                 [{ 'header': [1, 2, false] }],
                 ['bold', 'italic', 'underline'],
@@ -319,10 +291,9 @@
                 switchToWelcomeView(); quill.enable(false);
                 dom.authView.classList.remove('hidden'); dom.mainAppView.classList.add('hidden');
             }
-            // 修复：使用更可靠的登录跳转逻辑
-            supabase.auth.onAuthStateChange((_event, session) => {
-                const userJustLoggedIn = _event === 'SIGNED_IN' && state.user?.id !== session?.user?.id;
-                const userJustLoggedOut = _event === 'SIGNED_OUT';
+            supabase.auth.onAuthStateChange((_, session) => {
+                const userJustLoggedIn = _ === 'SIGNED_IN' && state.user?.id !== session?.user?.id;
+                const userJustLoggedOut = _ === 'SIGNED_OUT';
                 if (userJustLoggedIn || userJustLoggedOut) {
                     window.location.reload();
                 }
