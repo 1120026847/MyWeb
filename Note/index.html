@@ -81,19 +81,23 @@
 <body class="overflow-hidden h-screen">
 
     <!-- Auth Screen -->
-    <div id="auth-screen" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]">
-        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-sm">
-            <h2 class="text-2xl font-bold text-white mb-6 text-center">欢迎来到日记本</h2>
-            <div id="auth-container">
-                <p class="text-center text-gray-400 mb-4">请使用邮箱登录或注册</p>
-                <input type="email" id="email-input" placeholder="输入您的邮箱" class="w-full bg-gray-700 text-white p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="send-magic-link-btn" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition font-semibold">发送魔法链接</button>
+    <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-[100]">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm border border-custom">
+            <h2 id="auth-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">登录您的账户</h2>
+            <div id="auth-container" class="space-y-4">
+                 <input type="email" id="email-input" placeholder="邮箱地址" class="w-full border border-custom p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 <input type="password" id="password-input" placeholder="密码 (至少6位)" class="w-full border border-custom p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 <button id="auth-action-btn" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition font-semibold">登录</button>
             </div>
-            <div id="loading-spinner" class="hidden text-center text-white">
+            <div id="loading-spinner" class="hidden text-center text-gray-700">
                 <i class="fas fa-spinner fa-spin text-3xl"></i>
                 <p class="mt-2">正在处理...</p>
             </div>
-            <p id="auth-message" class="text-center mt-4 text-green-400"></p>
+            <p id="auth-message" class="text-center mt-4 text-sm"></p>
+            <p class="text-center text-sm text-gray-500 mt-4">
+                <span id="auth-toggle-text">还没有账号？</span>
+                <a href="#" id="auth-toggle-link" class="font-medium text-blue-600 hover:underline">立即注册</a>
+            </p>
         </div>
     </div>
 
@@ -180,9 +184,18 @@
         // --- DOM Elements ---
         const authScreen = document.getElementById('auth-screen');
         const appContainer = document.getElementById('app-container');
+        // Auth form elements
         const emailInput = document.getElementById('email-input');
-        const sendMagicLinkBtn = document.getElementById('send-magic-link-btn');
+        const passwordInput = document.getElementById('password-input');
+        const authActionBtn = document.getElementById('auth-action-btn');
         const authMessage = document.getElementById('auth-message');
+        const authTitle = document.getElementById('auth-title');
+        const authToggleText = document.getElementById('auth-toggle-text');
+        const authToggleLink = document.getElementById('auth-toggle-link');
+        const authContainer = document.getElementById('auth-container');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        // Main app elements
         const logoutBtn = document.getElementById('logout-btn');
         const folderList = document.getElementById('folder-list');
         const newFolderNameInput = document.getElementById('new-folder-name');
@@ -192,21 +205,15 @@
         const previewView = document.getElementById('preview-view');
         const editor = document.getElementById('editor');
         const welcomeScreen = document.getElementById('welcome-screen');
-        
-        // Buttons
         const editBtn = document.getElementById('edit-btn');
         const saveBtn = document.getElementById('save-btn');
         const deleteDiaryBtn = document.getElementById('delete-diary-btn');
         const exportDiaryBtn = document.getElementById('export-diary-btn');
         const moveDiaryBtn = document.getElementById('move-diary-btn');
-
-        // Mobile UI elements
         const menuBtn = document.getElementById('menu-btn');
         const sidebar = document.getElementById('sidebar');
         const closeSidebarBtn = document.getElementById('close-sidebar-btn');
         const sidebarOverlay = document.getElementById('sidebar-overlay');
-        
-        // Modal elements
         const moveModal = document.getElementById('move-modal');
         const moveFolderSelect = document.getElementById('move-folder-select');
         const cancelMoveBtn = document.getElementById('cancel-move-btn');
@@ -220,53 +227,120 @@
             activeFolderId: null,
             activeDiaryId: null,
             isEditing: false,
+            isLoginMode: true // To toggle between login and sign up
         };
 
         // --- AUTHENTICATION ---
-        sendMagicLinkBtn.addEventListener('click', async () => {
+        function showLoading(isLoading) {
+            if (isLoading) {
+                authContainer.classList.add('hidden');
+                loadingSpinner.classList.remove('hidden');
+            } else {
+                authContainer.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+        
+        function setAuthMessage(message, isError = false) {
+            authMessage.textContent = message;
+            authMessage.className = `text-center mt-4 text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
+        }
+
+        async function handleSignUp() {
             const email = emailInput.value;
-            if (!email) {
-                authMessage.textContent = '请输入邮箱地址。';
-                authMessage.className = 'text-center mt-4 text-red-400';
+            const password = passwordInput.value;
+            if (!email || !password) {
+                setAuthMessage('邮箱和密码不能为空。', true);
                 return;
             }
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('loading-spinner').classList.remove('hidden');
-            authMessage.textContent = '';
-            const { error } = await supabaseClient.auth.signInWithOtp({ email });
-            document.getElementById('loading-spinner').classList.add('hidden');
+             if (password.length < 6) {
+                setAuthMessage('密码至少需要6位。', true);
+                return;
+            }
+
+            showLoading(true);
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            showLoading(false);
+
             if (error) {
-                authMessage.textContent = `错误: ${error.message}`;
-                authMessage.className = 'text-center mt-4 text-red-400';
-                document.getElementById('auth-container').classList.remove('hidden');
+                setAuthMessage(`注册失败: ${error.message}`, true);
             } else {
-                authMessage.textContent = '已发送链接，请检查您的邮箱！';
-                authMessage.className = 'text-center mt-4 text-green-400';
+                setAuthMessage('注册成功！请检查您的邮箱以完成验证。');
+            }
+        }
+
+        async function handleSignIn() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || !password) {
+                setAuthMessage('邮箱和密码不能为空。', true);
+                return;
+            }
+            showLoading(true);
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            showLoading(false);
+
+            if (error) {
+                setAuthMessage(`登录失败: ${error.message}`, true);
+            }
+            // On successful login, onAuthStateChange will handle UI transition
+        }
+
+        function updateAuthUI() {
+            setAuthMessage(''); // Clear previous messages
+            if (state.isLoginMode) {
+                authTitle.textContent = '登录您的账户';
+                authActionBtn.textContent = '登录';
+                authToggleText.textContent = '还没有账号？';
+                authToggleLink.textContent = '立即注册';
+            } else {
+                authTitle.textContent = '创建新账户';
+                authActionBtn.textContent = '注册';
+                authToggleText.textContent = '已有账号？';
+                authToggleLink.textContent = '立即登录';
+            }
+        }
+
+        authActionBtn.addEventListener('click', () => {
+            if (state.isLoginMode) {
+                handleSignIn();
+            } else {
+                handleSignUp();
             }
         });
-        
-        logoutBtn.addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-            window.location.reload();
+
+        authToggleLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            state.isLoginMode = !state.isLoginMode;
+            updateAuthUI();
         });
 
-        // Main authentication logic: Listen for auth state changes
+        logoutBtn.addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+            // onAuthStateChange will handle UI transition
+        });
+
         supabaseClient.auth.onAuthStateChange(async (_event, session) => {
             if (session) {
-                // User is signed in
                 state.user = session.user;
-                authScreen.classList.add('hidden');
+                authScreen.style.display = 'none';
                 appContainer.classList.remove('hidden');
                 await loadInitialData();
             } else {
-                // User is signed out
                 state.user = null;
-                authScreen.classList.remove('hidden');
+                authScreen.style.display = 'flex';
                 appContainer.classList.add('hidden');
+                // Reset app state
+                state.folders = [];
+                state.diaries = {};
+                state.activeFolderId = null;
+                state.activeDiaryId = null;
+                renderContent();
+                folderList.innerHTML = '';
             }
         });
 
-        // --- DATA FETCHING & RENDERING ---
+        // --- DATA FETCHING & RENDERING (NO CHANGES FROM PREVIOUS VERSION) ---
         async function loadInitialData() {
             if (!state.user) return;
             await fetchFolders();
@@ -342,8 +416,12 @@
         }
         
         function renderContent() {
-            if (state.activeDiaryId) {
+            if (state.activeDiaryId && state.activeFolderId && state.diaries[state.activeFolderId]) {
                 const diary = state.diaries[state.activeFolderId].find(d => d.id === state.activeDiaryId);
+                if (!diary) { // Diary might have been moved/deleted
+                    setActiveDiary(null, null);
+                    return;
+                }
                 welcomeScreen.classList.add('hidden');
                 currentDiaryTitle.textContent = diary.title;
                 editor.value = diary.content;
@@ -371,7 +449,7 @@
             }
         }
         
-        // --- STATE MANAGEMENT ---
+        // --- STATE MANAGEMENT & ACTIONS (NO CHANGES FROM PREVIOUS VERSION) ---
         function setActiveFolder(folderId) {
             state.activeFolderId = (state.activeFolderId === folderId) ? null : folderId;
             if(state.activeFolderId !== folderId) setActiveDiary(null, null);
@@ -389,7 +467,6 @@
             if (sidebar.classList.contains('open')) toggleSidebar();
         }
 
-        // --- ACTIONS ---
         async function addFolder() {
             const name = newFolderNameInput.value.trim();
             if (!name) return;
@@ -429,6 +506,7 @@
             if (!title || title.trim() === '') return;
             const { data, error } = await supabaseClient.from('diaries').insert([{ title, content: '# ' + title + '\n\n开始写作...', folder_id: folderId, user_id: state.user.id }]).select().single();
             if (error) { console.error('Error adding diary:', error); return; }
+            if (!state.diaries[folderId]) state.diaries[folderId] = [];
             state.diaries[folderId].unshift(data);
             setActiveDiary(folderId, data.id);
         }
@@ -511,21 +589,14 @@
                 console.error('Error moving diary:', error);
                 return;
             }
-
-            // Update local state
             const diaryToMove = state.diaries[oldFolderId].find(d => d.id === diaryId);
             state.diaries[oldFolderId] = state.diaries[oldFolderId].filter(d => d.id !== diaryId);
             diaryToMove.folder_id = newFolderId;
             if (!state.diaries[newFolderId]) state.diaries[newFolderId] = [];
             state.diaries[newFolderId].unshift(diaryToMove);
-
             moveModal.style.display = 'none';
-            setActiveDiary(newFolderId, diaryId); // This will re-render everything correctly
+            setActiveDiary(newFolderId, diaryId);
         }
-
-        // --- EVENT LISTENERS ---
-        addFolderBtn.addEventListener('click', addFolder);
-        newFolderNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addFolder(); });
 
         folderList.addEventListener('click', (e) => {
             const addBtn = e.target.closest('.add-diary-btn');
@@ -548,7 +619,6 @@
         cancelMoveBtn.addEventListener('click', () => moveModal.style.display = 'none');
         confirmMoveBtn.addEventListener('click', moveDiary);
 
-        // Mobile sidebar toggle
         function toggleSidebar() {
             sidebar.classList.toggle('open');
             sidebarOverlay.classList.toggle('hidden');
