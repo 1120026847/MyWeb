@@ -30,54 +30,37 @@
     </script>
     <style>
         /* 自定义滚动条样式，使其更美观 */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #c4c4c4;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
-        /* Prose a little bit of custom styling for the markdown rendering */
-        .prose a {
-            color: #3b82f6;
-            text-decoration: underline;
-        }
-        .prose blockquote {
-            border-left-color: #3b82f6;
-        }
-        .sidebar-hidden {
-            transform: translateX(-100%);
-        }
-        #sidebar {
-            transition: transform 0.3s ease-in-out;
-        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        /* Markdown 渲染样式优化 */
+        .prose a { color: #3b82f6; text-decoration: underline; }
+        .prose blockquote { border-left-color: #3b82f6; }
+        
+        /* 侧边栏动画 */
+        .sidebar-hidden { transform: translateX(-100%); }
+        #sidebar { transition: transform 0.3s ease-in-out; }
+
+        /* 文件夹折叠图标动画 */
+        .folder-toggle-icon.collapsed { transform: rotate(-90deg); }
+        .folder-toggle-icon { transition: transform 0.2s ease-in-out; }
     </style>
 </head>
 <body class="bg-white antialiased text-slate-800">
     <div id="app" class="relative min-h-screen">
-        <!-- 认证页面 (默认显示) -->
+        <!-- 认证页面 -->
         <div id="auth-view" class="flex items-center justify-center min-h-screen bg-brand-light">
             <div class="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-lg">
                 <div class="text-center">
                     <h1 class="text-3xl font-bold text-slate-900">日记本</h1>
                     <p class="text-slate-500">记录你的想法，整理你的生活</p>
                 </div>
-                
-                <!-- 登录/注册切换 -->
                 <div class="flex border border-gray-200 rounded-md p-1">
                     <button id="show-login-tab" class="w-1/2 p-2 rounded-md text-sm font-medium bg-blue-500 text-white">登录</button>
                     <button id="show-register-tab" class="w-1/2 p-2 rounded-md text-sm font-medium text-gray-600">注册</button>
                 </div>
-
-                <!-- 登录表单 -->
                 <form id="login-form" class="space-y-4">
                     <div>
                         <label for="login-email" class="text-sm font-medium text-slate-600">邮箱</label>
@@ -87,12 +70,8 @@
                         <label for="login-password" class="text-sm font-medium text-slate-600">密码</label>
                         <input id="login-password" type="password" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="••••••••">
                     </div>
-                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors duration-200">
-                        登录
-                    </button>
+                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors duration-200">登录</button>
                 </form>
-
-                <!-- 注册表单 (默认隐藏) -->
                 <form id="register-form" class="hidden space-y-4">
                      <div>
                         <label for="register-email" class="text-sm font-medium text-slate-600">邮箱</label>
@@ -102,132 +81,77 @@
                         <label for="register-password" class="text-sm font-medium text-slate-600">密码</label>
                         <input id="register-password" type="password" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="至少6个字符">
                     </div>
-                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors duration-200">
-                        注册
-                    </button>
+                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-dark transition-colors duration-200">注册</button>
                 </form>
             </div>
         </div>
 
-        <!-- 主应用界面 (默认隐藏) -->
+        <!-- 主应用界面 -->
         <div id="main-app-view" class="hidden h-screen w-full md:flex">
-            <!-- 移动端侧边栏遮罩 -->
             <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden hidden"></div>
-
-            <!-- 侧边栏 -->
             <aside id="sidebar" class="absolute z-30 md:relative w-72 md:w-80 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0 md:translate-x-0 -translate-x-full">
-                <!-- 用户信息和操作 -->
                 <div class="p-4 border-b border-slate-200">
                     <div id="user-info" class="flex items-center space-x-2">
                         <span class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm" id="user-avatar"></span>
                         <span class="text-sm font-medium truncate" id="user-email"></span>
                     </div>
-                    <button id="logout-button" class="w-full mt-3 px-3 py-1.5 text-xs text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 transition-colors">
-                        退出登录
-                    </button>
+                    <button id="logout-button" class="w-full mt-3 px-3 py-1.5 text-xs text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 transition-colors">退出登录</button>
                 </div>
-                
-                <!-- 新建操作 -->
                 <div class="p-4 flex space-x-2">
-                    <button id="new-folder-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
-                        <i data-feather="folder-plus" class="w-4 h-4 mr-2"></i>
-                        新建文件夹
-                    </button>
-                    <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">
-                        <i data-feather="file-plus" class="w-4 h-4 mr-2"></i>
-                        新建文章
-                    </button>
+                    <button id="new-folder-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"><i data-feather="folder-plus" class="w-4 h-4 mr-2"></i>新建文件夹</button>
+                    <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"><i data-feather="file-plus" class="w-4 h-4 mr-2"></i>新建文章</button>
                 </div>
-
-                <!-- 文件夹和文章列表 -->
-                <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-4">
-                    <!-- 动态内容 -->
-                </div>
+                <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-1"></div>
             </aside>
 
             <!-- 主内容区 -->
             <main id="main-content" class="flex-1 flex flex-col bg-white">
-                 <!-- 移动端顶部导航 -->
                 <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white relative">
-                    <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0">
-                        <i data-feather="menu" class="w-6 h-6"></i>
-                    </button>
-                    
-                    <div class="flex-1 min-w-0 mx-2 text-center">
-                        <h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2>
-                    </div>
-
-                    <!-- 移动端控制按钮 -->
+                    <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
+                    <div class="flex-1 min-w-0 mx-2 text-center"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2></div>
                     <div id="mobile-controls" class="flex items-center flex-shrink-0">
-                        <!-- 默认在文章视图显示 -->
-                         <div id="mobile-view-controls" class="hidden items-center space-x-1">
-                             <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100">
-                                <i data-feather="edit-2" class="w-5 h-5"></i>
-                            </button>
-                            <button id="mobile-more-button" class="p-2 rounded-md hover:bg-slate-100">
-                                <i data-feather="more-vertical" class="w-5 h-5"></i>
-                            </button>
+                        <div id="mobile-view-controls" class="hidden items-center space-x-1">
+                            <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
+                            <button id="mobile-more-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="more-vertical" class="w-5 h-5"></i></button>
                         </div>
-                        <!-- 编辑模式下显示 -->
                         <div id="mobile-edit-controls" class="hidden items-center">
-                             <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">
-                                <i data-feather="save" class="w-5 h-5"></i>
-                            </button>
+                            <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"><i data-feather="save" class="w-5 h-5"></i></button>
                         </div>
                     </div>
-
-                    <!-- 更多操作下拉菜单 -->
                     <div id="mobile-actions-menu" class="hidden absolute top-full right-2 mt-1 w-40 bg-white rounded-md shadow-lg border z-40">
                         <a href="#" id="mobile-move-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="move" class="w-4 h-4 mr-2"></i>移动</a>
                         <a href="#" id="mobile-export-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="download" class="w-4 h-4 mr-2"></i>导出</a>
                         <a href="#" id="mobile-delete-button" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
                     </div>
                 </header>
-                <!-- 欢迎/空状态 -->
                 <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center text-center p-8">
                      <i data-feather="book-open" class="w-16 h-16 text-slate-300 mb-4"></i>
                      <h2 class="text-2xl font-semibold text-slate-800">欢迎使用日记本</h2>
                      <p class="text-slate-500 mt-2">从左侧选择一篇文章开始阅读，或新建一篇文章开始创作。</p>
                 </div>
 
-                <!-- 文章视图 (默认隐藏) -->
                 <div id="article-view" class="hidden flex-1 flex flex-col">
-                    <!-- 文章工具栏 -->
                     <div class="p-3 border-b border-slate-200 bg-white">
                         <input id="article-title-input" class="text-xl font-semibold w-full bg-transparent focus:outline-none focus:ring-0 border-none p-0" value="文章标题">
                         <div id="editor-controls" class="hidden md:flex items-center space-x-2 ml-4 mt-2">
-                             <button id="edit-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
-                                 <i data-feather="edit-2" class="w-4 h-4 mr-1.5"></i>编辑
-                             </button>
-                             <button id="save-button" class="hidden flex items-center px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
-                                 <i data-feather="save" class="w-4 h-4 mr-1.5"></i>保存
-                             </button>
-                             <button id="move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
-                                 <i data-feather="move" class="w-4 h-4 mr-1.5"></i>移动
-                             </button>
-                             <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
-                                 <i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出
-                             </button>
-                             <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors">
-                                 <i data-feather="trash-2" class="w-4 h-4 mr-1.5"></i>删除
-                             </button>
+                             <button id="edit-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><i data-feather="edit-2" class="w-4 h-4 mr-1.5"></i>编辑</button>
+                             <button id="save-button" class="hidden flex items-center px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"><i data-feather="save" class="w-4 h-4 mr-1.5"></i>保存</button>
+                             <button id="move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><i data-feather="move" class="w-4 h-4 mr-1.5"></i>移动</button>
+                             <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出</button>
+                             <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100 transition-colors"><i data-feather="trash-2" class="w-4 h-4 mr-1.5"></i>删除</button>
                         </div>
                     </div>
-                    <!-- 编辑器和预览区 -->
-                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
-                        <!-- Markdown 编辑器 -->
-                        <textarea id="editor" class="w-full h-full p-6 text-base leading-7 resize-none focus:outline-none font-mono"></textarea>
-                        <!-- 预览区 -->
-                        <div id="preview" class="w-full h-full p-6 overflow-y-auto prose border-l border-slate-200 bg-gray-50/50"></div>
+                    <!-- 合并后的编辑/预览区 -->
+                    <div class="flex-1 overflow-y-auto relative">
+                        <textarea id="editor" class="absolute inset-0 w-full h-full p-6 text-base leading-7 resize-none focus:outline-none font-mono"></textarea>
+                        <div id="preview" class="prose p-6 h-full w-full"></div>
                     </div>
                 </div>
             </main>
         </div>
         
-        <!-- 全局消息提示 -->
         <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform translate-x-[150%]"></div>
         
-        <!-- 移动文件夹弹窗 -->
         <div id="move-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                 <h3 class="text-lg font-medium">移动文章到...</h3>
@@ -253,6 +177,9 @@
             articles: [],
             selectedArticleId: null,
             isEditing: false,
+            ui: {
+                expandedFolders: new Set(),
+            }
         };
 
         // --- DOM 元素 ---
@@ -260,37 +187,31 @@
             app: document.getElementById('app'),
             authView: document.getElementById('auth-view'),
             mainAppView: document.getElementById('main-app-view'),
-            // 认证
             loginForm: document.getElementById('login-form'),
             registerForm: document.getElementById('register-form'),
             showLoginTab: document.getElementById('show-login-tab'),
             showRegisterTab: document.getElementById('show-register-tab'),
-            // 侧边栏
             sidebar: document.getElementById('sidebar'),
             sidebarOverlay: document.getElementById('sidebar-overlay'),
             toggleSidebarButton: document.getElementById('toggle-sidebar-button'),
-            userInfo: document.getElementById('user-info'),
             userAvatar: document.getElementById('user-avatar'),
             userEmail: document.getElementById('user-email'),
             logoutButton: document.getElementById('logout-button'),
             newFolderButton: document.getElementById('new-folder-button'),
             newArticleButton: document.getElementById('new-article-button'),
             fileTree: document.getElementById('file-tree'),
-            // 主内容区
             welcomeView: document.getElementById('welcome-view'),
             articleView: document.getElementById('article-view'),
             articleTitleInput: document.getElementById('article-title-input'),
             mobileArticleTitle: document.getElementById('mobile-article-title'),
             editor: document.getElementById('editor'),
             preview: document.getElementById('preview'),
-            // 控制按钮
             editorControls: document.getElementById('editor-controls'),
             editButton: document.getElementById('edit-button'),
             saveButton: document.getElementById('save-button'),
             moveButton: document.getElementById('move-button'),
             exportButton: document.getElementById('export-button'),
             deleteButton: document.getElementById('delete-button'),
-            // 移动端控制
             mobileControls: document.getElementById('mobile-controls'),
             mobileViewControls: document.getElementById('mobile-view-controls'),
             mobileEditControls: document.getElementById('mobile-edit-controls'),
@@ -301,7 +222,6 @@
             mobileMoveButton: document.getElementById('mobile-move-button'),
             mobileExportButton: document.getElementById('mobile-export-button'),
             mobileDeleteButton: document.getElementById('mobile-delete-button'),
-            // 弹窗和提示
             toast: document.getElementById('toast'),
             moveModal: document.getElementById('move-modal'),
             moveFolderSelect: document.getElementById('move-folder-select'),
@@ -310,32 +230,16 @@
         };
 
         // --- 工具函数 ---
-        /**
-         * 显示消息提示
-         * @param {string} message - 消息内容
-         * @param {'success' | 'error'} type - 提示类型
-         */
         function showToast(message, type = 'success') {
             dom.toast.textContent = message;
             dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform transform-gpu ${
                 type === 'success' ? 'bg-green-500' : 'bg-red-500'
             } translate-x-0 z-50`;
-            setTimeout(() => {
-                dom.toast.style.transform = 'translateX(150%)';
-            }, 3000);
+            setTimeout(() => { dom.toast.style.transform = 'translateX(150%)'; }, 3000);
         }
 
-        /**
-         * 格式化日期
-         * @param {string} dateString - ISO 日期字符串
-         * @returns {string} 格式化后的日期
-         */
         function formatDate(dateString) {
-            return new Date(dateString).toLocaleDateString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
+            return new Date(dateString).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
         }
         
         // --- 认证功能 ---
@@ -352,10 +256,7 @@
             e.preventDefault();
             const email = dom.registerForm.querySelector('#register-email').value;
             const password = dom.registerForm.querySelector('#register-password').value;
-            if (password.length < 6) {
-                showToast('密码长度至少为6位', 'error');
-                return;
-            }
+            if (password.length < 6) { showToast('密码长度至少为6位', 'error'); return; }
             const { error } = await supabase.auth.signUp({ email, password });
             if (error) showToast(`注册失败: ${error.message}`, 'error');
             else showToast('注册成功！请检查您的邮箱进行验证，然后登录。');
@@ -371,18 +272,9 @@
         async function fetchData() {
             if (!state.user) return;
             try {
-                const { data: folders, error: foldersError } = await supabase
-                    .from('folders')
-                    .select('*')
-                    .eq('user_id', state.user.id)
-                    .order('created_at', { ascending: false });
+                const { data: folders, error: foldersError } = await supabase.from('folders').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
                 if (foldersError) throw foldersError;
-
-                const { data: articles, error: articlesError } = await supabase
-                    .from('articles')
-                    .select('*')
-                    .eq('user_id', state.user.id)
-                    .order('updated_at', { ascending: false });
+                const { data: articles, error: articlesError } = await supabase.from('articles').select('*').eq('user_id', state.user.id).order('updated_at', { ascending: false });
                 if (articlesError) throw articlesError;
 
                 state.folders = folders || [];
@@ -395,11 +287,8 @@
         
         function renderFileTree() {
             dom.fileTree.innerHTML = '';
-            // 创建一个映射来组织文章
             const folderMap = new Map();
-            state.folders.forEach(folder => {
-                folderMap.set(folder.id, { ...folder, articles: [] });
-            });
+            state.folders.forEach(folder => folderMap.set(folder.id, { ...folder, articles: [] }));
             const uncategorizedArticles = [];
 
             state.articles.forEach(article => {
@@ -410,12 +299,14 @@
                 }
             });
 
-            // 渲染文件夹及其文章
             folderMap.forEach((folder) => {
+                const isExpanded = state.ui.expandedFolders.has(folder.id);
                 const folderEl = document.createElement('div');
+                folderEl.className = 'folder-container';
                 folderEl.innerHTML = `
-                    <div class="flex items-center justify-between p-2 rounded-md group">
-                        <div class="flex items-center cursor-pointer flex-1 min-w-0">
+                    <div class="folder-header flex items-center justify-between p-2 rounded-md group hover:bg-slate-200 cursor-pointer" data-folder-id="${folder.id}">
+                        <div class="flex items-center flex-1 min-w-0">
+                            <i data-feather="chevron-down" class="folder-toggle-icon w-4 h-4 mr-1 text-slate-500 flex-shrink-0 ${!isExpanded ? 'collapsed' : ''}"></i>
                             <i data-feather="folder" class="w-4 h-4 mr-2 text-brand flex-shrink-0"></i>
                             <span class="font-semibold text-sm truncate">${folder.name}</span>
                         </div>
@@ -423,7 +314,7 @@
                             <i data-feather="more-vertical" class="w-4 h-4"></i>
                         </button>
                     </div>
-                    <ul class="pl-4 mt-1 space-y-1">
+                    <ul class="article-list pl-4 mt-1 space-y-1 ${!isExpanded ? 'hidden' : ''}">
                         ${folder.articles.map(article => `
                             <li class="article-item text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${article.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${article.id}">
                                 <div class="truncate">${article.title}</div>
@@ -435,7 +326,6 @@
                 dom.fileTree.appendChild(folderEl);
             });
 
-            // 渲染未分类文章
             if (uncategorizedArticles.length > 0) {
                  const uncategorizedEl = document.createElement('div');
                  uncategorizedEl.innerHTML = `
@@ -453,8 +343,7 @@
                  `;
                  dom.fileTree.appendChild(uncategorizedEl);
             }
-
-            feather.replace(); // 重新渲染图标
+            feather.replace();
         }
 
         // --- 文章和文件夹操作 ---
@@ -463,22 +352,14 @@
             if (name && name.trim()) {
                 const { error } = await supabase.from('folders').insert({ name: name.trim(), user_id: state.user.id });
                 if (error) showToast(`创建失败: ${error.message}`, 'error');
-                else {
-                    showToast('文件夹创建成功！');
-                    fetchData();
-                }
+                else { showToast('文件夹创建成功！'); fetchData(); }
             }
         }
 
         async function handleNewArticle() {
             const title = prompt('请输入新文章的标题：') || '无标题文章';
             if (title && title.trim()) {
-                const { data, error } = await supabase.from('articles').insert({
-                    title: title.trim(),
-                    content: `# ${title.trim()}\n\n在这里开始写作...`,
-                    user_id: state.user.id,
-                }).select();
-
+                const { data, error } = await supabase.from('articles').insert({ title: title.trim(), content: `# ${title.trim()}\n\n在这里开始写作...`, user_id: state.user.id }).select();
                 if (error) showToast(`创建失败: ${error.message}`, 'error');
                 else {
                     showToast('文章创建成功！');
@@ -495,10 +376,7 @@
             if (newName && newName.trim() && newName !== folder.name) {
                 const { error } = await supabase.from('folders').update({ name: newName.trim() }).eq('id', id);
                 if(error) showToast(`重命名失败: ${error.message}`, 'error');
-                else {
-                    showToast('文件夹已重命名');
-                    fetchData();
-                }
+                else { showToast('文件夹已重命名'); fetchData(); }
             }
         }
 
@@ -520,23 +398,25 @@
             const action = prompt(`文件夹操作: 请输入 "重命名" 或 "删除" 来继续。`);
             if (action && typeof action === 'string') {
                 const trimmedAction = action.trim();
-                if (trimmedAction === '重命名') {
-                    handleRenameFolder(id);
-                } else if (trimmedAction === '删除') {
-                    handleDeleteFolder(id);
-                } else {
-                   showToast('无效的操作。请输入 "重命名" 或 "删除"。', 'error');
-                }
+                if (trimmedAction === '重命名') handleRenameFolder(id);
+                else if (trimmedAction === '删除') handleDeleteFolder(id);
+                else showToast('无效的操作。请输入 "重命名" 或 "删除"。', 'error');
             }
+        }
+
+        function handleToggleFolder(folderId) {
+            if (state.ui.expandedFolders.has(folderId)) {
+                state.ui.expandedFolders.delete(folderId);
+            } else {
+                state.ui.expandedFolders.add(folderId);
+            }
+            renderFileTree();
         }
 
         async function selectArticle(id) {
             state.selectedArticleId = id;
             const article = state.articles.find(a => a.id === id);
-            if (!article) {
-                switchToWelcomeView();
-                return;
-            }
+            if (!article) { switchToWelcomeView(); return; }
             
             dom.welcomeView.classList.add('hidden');
             dom.articleView.classList.remove('hidden');
@@ -546,71 +426,45 @@
             dom.mobileArticleTitle.textContent = article.title;
             dom.editor.value = article.content || '';
             
-            updatePreview();
             switchToViewMode();
-            renderFileTree(); // 更新侧边栏高亮
-            
-            // 在移动端，选择文章后自动隐藏侧边栏
-            if (window.innerWidth < 768) {
-                closeSidebar();
-            }
-        }
-
-        function updatePreview() {
-            dom.preview.innerHTML = marked.parse(dom.editor.value);
+            renderFileTree();
+            if (window.innerWidth < 768) closeSidebar();
         }
 
         function switchToEditMode() {
             state.isEditing = true;
-            dom.editor.classList.remove('md:hidden');
-            dom.preview.classList.remove('md:grid-cols-1');
-            dom.preview.classList.add('md:grid-cols-2');
+            dom.preview.classList.add('hidden');
+            dom.editor.classList.remove('hidden');
             dom.editor.focus();
 
-            // Desktop controls
             dom.editButton.classList.add('hidden');
             dom.saveButton.classList.remove('hidden');
-
-            // Mobile controls
-            dom.mobileViewControls.classList.remove('flex');
             dom.mobileViewControls.classList.add('hidden');
             dom.mobileEditControls.classList.remove('hidden');
             dom.mobileEditControls.classList.add('flex');
-            dom.mobileArticleTitle.classList.add('hidden'); // Hide static title
-            dom.articleTitleInput.classList.remove('md:block'); // Make title input visible on mobile too
-
             dom.articleTitleInput.readOnly = false;
             dom.articleTitleInput.classList.add('bg-slate-100');
         }
 
         function switchToViewMode() {
             state.isEditing = false;
-            dom.editor.classList.add('md:hidden');
-            dom.preview.classList.remove('md:grid-cols-2');
-            dom.preview.classList.add('md:grid-cols-1');
+            dom.preview.innerHTML = marked.parse(dom.editor.value);
+            dom.editor.classList.add('hidden');
+            dom.preview.classList.remove('hidden');
             
-            // Desktop controls
             dom.editButton.classList.remove('hidden');
             dom.saveButton.classList.add('hidden');
-
-            // Mobile controls
             dom.mobileViewControls.classList.remove('hidden');
             dom.mobileViewControls.classList.add('flex');
-            dom.mobileEditControls.classList.remove('flex');
             dom.mobileEditControls.classList.add('hidden');
-            dom.mobileArticleTitle.classList.remove('hidden'); // Show static title
-            dom.articleTitleInput.classList.add('md:block'); // Hide title input on mobile
             
             dom.articleTitleInput.readOnly = true;
             dom.articleTitleInput.classList.remove('bg-slate-100');
             
-            // Show mobile controls only if an article is selected
             if (state.selectedArticleId) {
                 dom.mobileViewControls.classList.remove('hidden');
-                dom.mobileViewControls.classList.add('flex');
             } else {
                 dom.mobileViewControls.classList.add('hidden');
-                dom.mobileViewControls.classList.remove('flex');
             }
         }
 
@@ -619,7 +473,6 @@
             dom.articleView.classList.add('hidden');
             dom.welcomeView.classList.remove('hidden');
             dom.mobileArticleTitle.textContent = '日记本';
-            // Hide all mobile controls in welcome view
             dom.mobileViewControls.classList.add('hidden');
             dom.mobileEditControls.classList.add('hidden');
             renderFileTree();
@@ -629,21 +482,13 @@
             if (!state.selectedArticleId) return;
             const title = dom.articleTitleInput.value.trim();
             const content = dom.editor.value;
+            if (!title) { showToast('标题不能为空', 'error'); return; }
 
-            if (!title) {
-                showToast('标题不能为空', 'error');
-                return;
-            }
-
-            const { error } = await supabase
-                .from('articles')
-                .update({ title, content, updated_at: new Date().toISOString() })
-                .eq('id', state.selectedArticleId);
-            
+            const { error } = await supabase.from('articles').update({ title, content, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId);
             if (error) showToast(`保存失败: ${error.message}`, 'error');
             else {
                 showToast('保存成功！');
-                await fetchData(); // 重新获取数据以更新列表顺序和内容
+                await fetchData();
                 dom.mobileArticleTitle.textContent = title;
                 switchToViewMode();
             }
@@ -654,11 +499,7 @@
             if (confirm('确定要删除这篇文章吗？')) {
                 const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId);
                 if (error) showToast(`删除失败: ${error.message}`, 'error');
-                else {
-                    showToast('文章已删除');
-                    switchToWelcomeView();
-                    fetchData();
-                }
+                else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); }
             }
         }
 
@@ -666,83 +507,52 @@
              if (!state.selectedArticleId) return;
              const article = state.articles.find(a => a.id === state.selectedArticleId);
              if (!article) return;
-             
              const blob = new Blob([article.content], { type: 'text/markdown;charset=utf-8' });
              const url = URL.createObjectURL(blob);
              const a = document.createElement('a');
              a.href = url;
              a.download = `${article.title}.md`;
-             document.body.appendChild(a);
-             a.click();
-             document.body.removeChild(a);
+             document.body.appendChild(a); a.click(); document.body.removeChild(a);
              URL.revokeObjectURL(url);
              showToast('已开始下载...');
         }
         
         function openMoveModal() {
             if(!state.selectedArticleId) return;
-            
-            dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; // 'null' value
+            dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>';
             state.folders.forEach(folder => {
                 const option = document.createElement('option');
                 option.value = folder.id;
                 option.textContent = folder.name;
                 dom.moveFolderSelect.appendChild(option);
             });
-            
             const currentArticle = state.articles.find(a => a.id === state.selectedArticleId);
             dom.moveFolderSelect.value = currentArticle.folder_id || "";
-            
             dom.moveModal.classList.remove('hidden');
         }
 
         async function handleConfirmMove() {
             const newFolderId = dom.moveFolderSelect.value || null;
-            const { error } = await supabase
-                .from('articles')
-                .update({ folder_id: newFolderId })
-                .eq('id', state.selectedArticleId);
-                
+            const { error } = await supabase.from('articles').update({ folder_id: newFolderId }).eq('id', state.selectedArticleId);
             if(error) showToast(`移动失败: ${error.message}`, 'error');
-            else {
-                showToast('文章已移动');
-                fetchData();
-            }
+            else { showToast('文章已移动'); fetchData(); }
             dom.moveModal.classList.add('hidden');
         }
 
-        // --- 移动端侧边栏逻辑 ---
-        function openSidebar() {
-            dom.sidebar.classList.remove('sidebar-hidden');
-            dom.sidebarOverlay.classList.remove('hidden');
-        }
+        function openSidebar() { dom.sidebar.classList.remove('sidebar-hidden'); dom.sidebarOverlay.classList.remove('hidden'); }
+        function closeSidebar() { dom.sidebar.classList.add('sidebar-hidden'); dom.sidebarOverlay.classList.add('hidden'); }
 
-        function closeSidebar() {
-            dom.sidebar.classList.add('sidebar-hidden');
-            dom.sidebarOverlay.classList.add('hidden');
-        }
-
-        // --- 初始化和事件监听 ---
         function initEventListeners() {
-            // 认证
             dom.loginForm.addEventListener('submit', handleLogin);
             dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => {
-                dom.loginForm.classList.remove('hidden');
-                dom.registerForm.classList.add('hidden');
-                dom.showLoginTab.classList.add('bg-blue-500', 'text-white');
-                dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white');
-                dom.showRegisterTab.classList.add('text-gray-600');
+                dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden');
+                dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white');
             });
             dom.showRegisterTab.addEventListener('click', () => {
-                dom.registerForm.classList.remove('hidden');
-                dom.loginForm.classList.add('hidden');
-                dom.showRegisterTab.classList.add('bg-blue-500', 'text-white');
-                dom.showLoginTab.classList.remove('bg-blue-500', 'text-white');
-                dom.showLoginTab.classList.add('text-gray-600');
+                dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden');
+                dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white');
             });
-
-            // 主应用
             dom.logoutButton.addEventListener('click', handleLogout);
             dom.newFolderButton.addEventListener('click', handleNewFolder);
             dom.newArticleButton.addEventListener('click', handleNewArticle);
@@ -750,60 +560,41 @@
             dom.fileTree.addEventListener('click', e => {
                 const articleItem = e.target.closest('.article-item');
                 const folderMenuBtn = e.target.closest('.folder-menu-btn');
+                const folderHeader = e.target.closest('.folder-header');
 
-                if (articleItem) {
-                    selectArticle(articleItem.dataset.id);
-                } else if (folderMenuBtn) {
-                    e.stopPropagation();
-                    handleFolderMenu(folderMenuBtn.dataset.id);
-                }
+                if (folderMenuBtn) { e.stopPropagation(); handleFolderMenu(folderMenuBtn.dataset.id); }
+                else if (articleItem) { selectArticle(articleItem.dataset.id); }
+                else if (folderHeader) { handleToggleFolder(folderHeader.dataset.folderId); }
             });
             
-            // 编辑器
-            dom.editor.addEventListener('input', updatePreview);
             dom.editButton.addEventListener('click', switchToEditMode);
             dom.saveButton.addEventListener('click', handleSaveArticle);
             dom.deleteButton.addEventListener('click', handleDeleteArticle);
             dom.exportButton.addEventListener('click', handleExportArticle);
             dom.moveButton.addEventListener('click', openMoveModal);
 
-            // 移动端
             dom.mobileEditButton.addEventListener('click', switchToEditMode);
             dom.mobileSaveButton.addEventListener('click', handleSaveArticle);
-            dom.mobileMoreButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                dom.mobileActionsMenu.classList.toggle('hidden');
-            });
+            dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
             dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.mobileExportButton.addEventListener('click', () => { handleExportArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.mobileDeleteButton.addEventListener('click', () => { handleDeleteArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
 
-
-            // 移动弹窗
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden'));
             dom.confirmMove.addEventListener('click', handleConfirmMove);
             
-            // 移动端侧边栏
             dom.toggleSidebarButton.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (dom.sidebar.classList.contains('sidebar-hidden')) {
-                    openSidebar();
-                } else {
-                    closeSidebar();
-                }
+                if (dom.sidebar.classList.contains('sidebar-hidden')) openSidebar();
+                else closeSidebar();
             });
             dom.sidebarOverlay.addEventListener('click', closeSidebar);
-            
-            // 全局点击，用于关闭菜单
-            document.addEventListener('click', () => {
-                dom.mobileActionsMenu.classList.add('hidden');
-            });
+            document.addEventListener('click', () => dom.mobileActionsMenu.classList.add('hidden'));
         }
         
         async function initializeApp() {
             feather.replace();
             initEventListeners();
-
             const { data: { session } } = await supabase.auth.getSession();
             
             if (session) {
@@ -811,18 +602,11 @@
                 dom.authView.classList.add('hidden');
                 dom.mainAppView.classList.remove('hidden');
                 dom.mainAppView.classList.add('md:flex');
-                
                 dom.userEmail.textContent = state.user.email;
                 dom.userAvatar.textContent = state.user.email[0].toUpperCase();
-                
                 await fetchData();
-
-                // 优化：登录后自动打开最新文章
-                if (state.articles.length > 0) {
-                    selectArticle(state.articles[0].id);
-                } else {
-                    switchToWelcomeView();
-                }
+                if (state.articles.length > 0) selectArticle(state.articles[0].id);
+                else switchToWelcomeView();
             } else {
                 switchToWelcomeView();
                 dom.authView.classList.remove('hidden');
@@ -831,18 +615,13 @@
 
             supabase.auth.onAuthStateChange((_event, session) => {
                 if (_event === 'SIGNED_IN') {
-                    if (state.user?.id !== session?.user?.id) {
-                       window.location.reload();
-                    }
+                    if (state.user?.id !== session?.user?.id) window.location.reload();
                 } else if (_event === 'SIGNED_OUT') {
                     state.user = null;
-                    dom.authView.classList.remove('hidden');
-                    dom.mainAppView.classList.add('hidden');
+                    window.location.reload();
                 }
             });
         }
-
-        // --- 应用启动 ---
         initializeApp();
     </script>
 </body>
