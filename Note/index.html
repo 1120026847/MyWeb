@@ -41,6 +41,8 @@
         .ql-editor { font-size: 16px; line-height: 1.6; }
         .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; }
         .ql-container.ql-snow { border-radius: 0 0 8px 8px; height: calc(100% - 42px); }
+        /* Toast 提示动画 */
+        #toast { transition: transform 0.3s ease-in-out; }
     </style>
 </head>
 <body class="bg-white antialiased text-slate-800">
@@ -127,7 +129,7 @@
                 </div>
             </main>
         </div>
-        <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform translate-x-[150%]"></div>
+        <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50" style="transform: translateX(150%);"></div>
         <div id="move-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                 <h3 class="text-lg font-medium">移动文章到...</h3>
@@ -151,6 +153,7 @@
         
         let state = { user: null, folders: [], articles: [], selectedArticleId: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null } };
         let quill;
+        let toastTimeout;
 
         const dom = {
             authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'),
@@ -179,9 +182,17 @@
         };
 
         function showToast(message, type = 'success') {
+            clearTimeout(toastTimeout);
             dom.toast.textContent = message;
-            dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform transform-gpu ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} translate-x-0 z-50`;
-            setTimeout(() => { dom.toast.style.transform = 'translateX(150%)'; }, 3000);
+            dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50 transition-transform transform-gpu ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            
+            requestAnimationFrame(() => {
+                dom.toast.style.transform = 'translateX(0)';
+            });
+
+            toastTimeout = setTimeout(() => {
+                dom.toast.style.transform = 'translateX(150%)';
+            }, 3000);
         }
 
         function formatDate(d) { return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
@@ -237,7 +248,17 @@
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             
-            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { const newArticleData = state.articles.find(a=>a.id === prevId); if(newArticleData) quill.root.innerHTML = newArticleData.content || ''; } showToast('数据同步完成！'); };
+            const refreshAction = async () => {
+                showToast('正在同步数据...');
+                const prevId = state.selectedArticleId;
+                await fetchData();
+                if (prevId && state.articles.some(a => a.id === prevId)) {
+                    const newArticleData = state.articles.find(a=>a.id === prevId);
+                    if(newArticleData) quill.root.innerHTML = newArticleData.content || '';
+                }
+                showToast('数据同步完成！');
+            };
+
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
             
             dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); state.ui.activeFolderMenuId = fmb.dataset.id; const rect = fmb.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
