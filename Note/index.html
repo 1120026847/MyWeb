@@ -80,6 +80,7 @@
                 <div class="p-4 flex space-x-2">
                     <button id="new-folder-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="folder-plus" class="w-4 h-4 mr-2"></i>新建文件夹</button>
                     <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="file-plus" class="w-4 h-4 mr-2"></i>新建文章</button>
+                    <button id="refresh-button" title="同步数据" class="p-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"><i data-feather="refresh-cw" class="w-4 h-4"></i></button>
                 </div>
                 <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-1"></div>
             </aside>
@@ -154,6 +155,7 @@
             toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'),
             userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'),
             newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'),
+            refreshButton: document.getElementById('refresh-button'),
             fileTree: document.getElementById('file-tree'), welcomeView: document.getElementById('welcome-view'),
             articleView: document.getElementById('article-view'), articleTitleInput: document.getElementById('article-title-input'),
             mobileArticleTitle: document.getElementById('mobile-article-title'), editorContainer: document.getElementById('editor-container'),
@@ -216,7 +218,48 @@
         
         async function handleSaveArticle() { if (!state.selectedArticleId) return; const t = dom.articleTitleInput.value.trim(); const c = quill.root.innerHTML; if (!t) { showToast('标题不能为空', 'error'); return; } const { error } = await supabase.from('articles').update({ title: t, content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId); if (error) showToast(`保存失败: ${error.message}`, 'error'); else { showToast('保存成功！'); await fetchData(); dom.mobileArticleTitle.textContent = t; switchToViewMode(); } }
         async function handleDeleteArticle() { if (!state.selectedArticleId || !confirm('确定要删除这篇文章吗？')) return; const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); } }
-        function handleExportArticle() { if (!state.selectedArticleId) return; const a = state.articles.find(i => i.id === state.selectedArticleId); if (!a) return; const t = quill.getText(); const blob = new Blob([t], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${a.title}.txt`; document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url); }
+        
+        function exportAsPDF() {
+            const article = state.articles.find(i => i.id === state.selectedArticleId);
+            if (!article) return;
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<html><head><title>' + article.title + '</title>');
+            const quillStyles = document.querySelector('link[href*="quill.snow.css"]');
+            if (quillStyles) printWindow.document.write(quillStyles.outerHTML);
+            printWindow.document.write('<style>body{padding:2rem;font-family:sans-serif}h1{font-size:24pt;margin-bottom:1rem;}.ql-editor{padding:0;border:none!important}</style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write(`<h1>${article.title}</h1>`);
+            printWindow.document.write('<div class="ql-snow"><div class="ql-editor">');
+            printWindow.document.write(quill.root.innerHTML);
+            printWindow.document.write('</div></div></body></html>');
+            setTimeout(() => { printWindow.document.close(); printWindow.focus(); printWindow.print(); printWindow.close(); }, 500);
+        }
+
+        function exportAsTXT() {
+            const article = state.articles.find(i => i.id === state.selectedArticleId);
+            if (!article) return;
+            const text = quill.getText();
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${article.title}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleExportArticle() {
+            if (!state.selectedArticleId) return;
+            const format = prompt('请选择导出格式: "pdf" 或 "txt"', 'pdf');
+            if (!format) return;
+            const lowerFormat = format.toLowerCase().trim();
+            if (lowerFormat === 'pdf') exportAsPDF();
+            else if (lowerFormat === 'txt') exportAsTXT();
+            else showToast('无效的格式，请输入 "pdf" 或 "txt"', 'error');
+        }
+
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
         async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
         
@@ -228,6 +271,7 @@
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
+            dom.refreshButton.addEventListener('click', async () => { showToast('正在同步数据...'); await fetchData(); showToast('数据同步完成！'); });
             dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); handleFolderMenu(fmb.dataset.id); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
             dom.editButton.addEventListener('click', switchToEditMode); dom.saveButton.addEventListener('click', handleSaveArticle); dom.deleteButton.addEventListener('click', handleDeleteArticle); dom.exportButton.addEventListener('click', handleExportArticle); dom.moveButton.addEventListener('click', openMoveModal);
             dom.mobileEditButton.addEventListener('click', switchToEditMode); dom.mobileSaveButton.addEventListener('click', handleSaveArticle); dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
@@ -266,4 +310,3 @@
     </script>
 </body>
 </html>
-
