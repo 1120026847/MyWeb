@@ -148,15 +148,39 @@
             <!-- 主内容区 -->
             <main id="main-content" class="flex-1 flex flex-col bg-white">
                  <!-- 移动端顶部导航 -->
-                <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white">
-                    <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100">
+                <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white relative">
+                    <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0">
                         <i data-feather="menu" class="w-6 h-6"></i>
                     </button>
-                    <h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2>
-                    <div id="mobile-editor-controls" class="hidden">
-                         <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">
-                            <i data-feather="save" class="w-5 h-5"></i>
-                        </button>
+                    
+                    <div class="flex-1 min-w-0 mx-2 text-center">
+                        <h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2>
+                    </div>
+
+                    <!-- 移动端控制按钮 -->
+                    <div id="mobile-controls" class="flex items-center flex-shrink-0">
+                        <!-- 默认在文章视图显示 -->
+                         <div id="mobile-view-controls" class="hidden items-center space-x-1">
+                             <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100">
+                                <i data-feather="edit-2" class="w-5 h-5"></i>
+                            </button>
+                            <button id="mobile-more-button" class="p-2 rounded-md hover:bg-slate-100">
+                                <i data-feather="more-vertical" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <!-- 编辑模式下显示 -->
+                        <div id="mobile-edit-controls" class="hidden items-center">
+                             <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600">
+                                <i data-feather="save" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 更多操作下拉菜单 -->
+                    <div id="mobile-actions-menu" class="hidden absolute top-full right-2 mt-1 w-40 bg-white rounded-md shadow-lg border z-40">
+                        <a href="#" id="mobile-move-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="move" class="w-4 h-4 mr-2"></i>移动</a>
+                        <a href="#" id="mobile-export-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="download" class="w-4 h-4 mr-2"></i>导出</a>
+                        <a href="#" id="mobile-delete-button" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
                     </div>
                 </header>
                 <!-- 欢迎/空状态 -->
@@ -169,9 +193,9 @@
                 <!-- 文章视图 (默认隐藏) -->
                 <div id="article-view" class="hidden flex-1 flex flex-col">
                     <!-- 文章工具栏 -->
-                    <div class="hidden md:flex items-center p-3 border-b border-slate-200 bg-white">
-                        <input id="article-title-input" class="text-xl font-semibold flex-1 bg-transparent focus:outline-none focus:ring-0 border-none p-0" value="文章标题">
-                        <div id="editor-controls" class="flex items-center space-x-2 ml-4">
+                    <div class="p-3 border-b border-slate-200 bg-white">
+                        <input id="article-title-input" class="text-xl font-semibold w-full bg-transparent focus:outline-none focus:ring-0 border-none p-0" value="文章标题">
+                        <div id="editor-controls" class="hidden md:flex items-center space-x-2 ml-4 mt-2">
                              <button id="edit-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200 transition-colors">
                                  <i data-feather="edit-2" class="w-4 h-4 mr-1.5"></i>编辑
                              </button>
@@ -257,17 +281,26 @@
             articleView: document.getElementById('article-view'),
             articleTitleInput: document.getElementById('article-title-input'),
             mobileArticleTitle: document.getElementById('mobile-article-title'),
-            mobileEditorControls: document.getElementById('mobile-editor-controls'),
             editor: document.getElementById('editor'),
             preview: document.getElementById('preview'),
             // 控制按钮
             editorControls: document.getElementById('editor-controls'),
             editButton: document.getElementById('edit-button'),
             saveButton: document.getElementById('save-button'),
-            mobileSaveButton: document.getElementById('mobile-save-button'),
             moveButton: document.getElementById('move-button'),
             exportButton: document.getElementById('export-button'),
             deleteButton: document.getElementById('delete-button'),
+            // 移动端控制
+            mobileControls: document.getElementById('mobile-controls'),
+            mobileViewControls: document.getElementById('mobile-view-controls'),
+            mobileEditControls: document.getElementById('mobile-edit-controls'),
+            mobileEditButton: document.getElementById('mobile-edit-button'),
+            mobileSaveButton: document.getElementById('mobile-save-button'),
+            mobileMoreButton: document.getElementById('mobile-more-button'),
+            mobileActionsMenu: document.getElementById('mobile-actions-menu'),
+            mobileMoveButton: document.getElementById('mobile-move-button'),
+            mobileExportButton: document.getElementById('mobile-export-button'),
+            mobileDeleteButton: document.getElementById('mobile-delete-button'),
             // 弹窗和提示
             toast: document.getElementById('toast'),
             moveModal: document.getElementById('move-modal'),
@@ -286,7 +319,7 @@
             dom.toast.textContent = message;
             dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg transition-transform transform-gpu ${
                 type === 'success' ? 'bg-green-500' : 'bg-red-500'
-            } translate-x-0`;
+            } translate-x-0 z-50`;
             setTimeout(() => {
                 dom.toast.style.transform = 'translateX(150%)';
             }, 3000);
@@ -381,15 +414,14 @@
             folderMap.forEach((folder) => {
                 const folderEl = document.createElement('div');
                 folderEl.innerHTML = `
-                    <div class="flex items-center justify-between cursor-pointer p-2 rounded-md hover:bg-slate-200">
-                        <div class="flex items-center">
-                            <i data-feather="folder" class="w-4 h-4 mr-2 text-brand"></i>
+                    <div class="flex items-center justify-between p-2 rounded-md group">
+                        <div class="flex items-center cursor-pointer flex-1 min-w-0">
+                            <i data-feather="folder" class="w-4 h-4 mr-2 text-brand flex-shrink-0"></i>
                             <span class="font-semibold text-sm truncate">${folder.name}</span>
                         </div>
-                        <div class="folder-actions flex items-center space-x-1">
-                            <button class="rename-folder-btn p-1 hover:bg-slate-300 rounded" data-id="${folder.id}" title="重命名"><i data-feather="edit-3" class="w-3 h-3"></i></button>
-                            <button class="delete-folder-btn p-1 hover:bg-slate-300 rounded" data-id="${folder.id}" title="删除"><i data-feather="trash-2" class="w-3 h-3"></i></button>
-                        </div>
+                        <button class="folder-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100 md:opacity-100" data-id="${folder.id}" title="文件夹选项">
+                            <i data-feather="more-vertical" class="w-4 h-4"></i>
+                        </button>
                     </div>
                     <ul class="pl-4 mt-1 space-y-1">
                         ${folder.articles.map(article => `
@@ -484,6 +516,20 @@
             }
         }
 
+        function handleFolderMenu(id) {
+            const action = prompt(`文件夹操作: 请输入 "重命名" 或 "删除" 来继续。`);
+            if (action && typeof action === 'string') {
+                const trimmedAction = action.trim();
+                if (trimmedAction === '重命名') {
+                    handleRenameFolder(id);
+                } else if (trimmedAction === '删除') {
+                    handleDeleteFolder(id);
+                } else {
+                   showToast('无效的操作。请输入 "重命名" 或 "删除"。', 'error');
+                }
+            }
+        }
+
         async function selectArticle(id) {
             state.selectedArticleId = id;
             const article = state.articles.find(a => a.id === id);
@@ -521,9 +567,17 @@
             dom.preview.classList.add('md:grid-cols-2');
             dom.editor.focus();
 
+            // Desktop controls
             dom.editButton.classList.add('hidden');
             dom.saveButton.classList.remove('hidden');
-            dom.mobileEditorControls.classList.remove('hidden');
+
+            // Mobile controls
+            dom.mobileViewControls.classList.remove('flex');
+            dom.mobileViewControls.classList.add('hidden');
+            dom.mobileEditControls.classList.remove('hidden');
+            dom.mobileEditControls.classList.add('flex');
+            dom.mobileArticleTitle.classList.add('hidden'); // Hide static title
+            dom.articleTitleInput.classList.remove('md:block'); // Make title input visible on mobile too
 
             dom.articleTitleInput.readOnly = false;
             dom.articleTitleInput.classList.add('bg-slate-100');
@@ -535,18 +589,39 @@
             dom.preview.classList.remove('md:grid-cols-2');
             dom.preview.classList.add('md:grid-cols-1');
             
+            // Desktop controls
             dom.editButton.classList.remove('hidden');
             dom.saveButton.classList.add('hidden');
-            dom.mobileEditorControls.classList.add('hidden');
+
+            // Mobile controls
+            dom.mobileViewControls.classList.remove('hidden');
+            dom.mobileViewControls.classList.add('flex');
+            dom.mobileEditControls.classList.remove('flex');
+            dom.mobileEditControls.classList.add('hidden');
+            dom.mobileArticleTitle.classList.remove('hidden'); // Show static title
+            dom.articleTitleInput.classList.add('md:block'); // Hide title input on mobile
             
             dom.articleTitleInput.readOnly = true;
             dom.articleTitleInput.classList.remove('bg-slate-100');
+            
+            // Show mobile controls only if an article is selected
+            if (state.selectedArticleId) {
+                dom.mobileViewControls.classList.remove('hidden');
+                dom.mobileViewControls.classList.add('flex');
+            } else {
+                dom.mobileViewControls.classList.add('hidden');
+                dom.mobileViewControls.classList.remove('flex');
+            }
         }
 
         function switchToWelcomeView() {
             state.selectedArticleId = null;
             dom.articleView.classList.add('hidden');
             dom.welcomeView.classList.remove('hidden');
+            dom.mobileArticleTitle.textContent = '日记本';
+            // Hide all mobile controls in welcome view
+            dom.mobileViewControls.classList.add('hidden');
+            dom.mobileEditControls.classList.add('hidden');
             renderFileTree();
         }
 
@@ -568,9 +643,9 @@
             if (error) showToast(`保存失败: ${error.message}`, 'error');
             else {
                 showToast('保存成功！');
-                switchToViewMode();
                 await fetchData(); // 重新获取数据以更新列表顺序和内容
-                 dom.mobileArticleTitle.textContent = title;
+                dom.mobileArticleTitle.textContent = title;
+                switchToViewMode();
             }
         }
 
@@ -674,15 +749,13 @@
             
             dom.fileTree.addEventListener('click', e => {
                 const articleItem = e.target.closest('.article-item');
-                const renameBtn = e.target.closest('.rename-folder-btn');
-                const deleteBtn = e.target.closest('.delete-folder-btn');
+                const folderMenuBtn = e.target.closest('.folder-menu-btn');
 
                 if (articleItem) {
                     selectArticle(articleItem.dataset.id);
-                } else if (renameBtn) {
-                    handleRenameFolder(renameBtn.dataset.id);
-                } else if (deleteBtn) {
-                    handleDeleteFolder(deleteBtn.dataset.id);
+                } else if (folderMenuBtn) {
+                    e.stopPropagation();
+                    handleFolderMenu(folderMenuBtn.dataset.id);
                 }
             });
             
@@ -690,10 +763,21 @@
             dom.editor.addEventListener('input', updatePreview);
             dom.editButton.addEventListener('click', switchToEditMode);
             dom.saveButton.addEventListener('click', handleSaveArticle);
-            dom.mobileSaveButton.addEventListener('click', handleSaveArticle);
             dom.deleteButton.addEventListener('click', handleDeleteArticle);
             dom.exportButton.addEventListener('click', handleExportArticle);
             dom.moveButton.addEventListener('click', openMoveModal);
+
+            // 移动端
+            dom.mobileEditButton.addEventListener('click', switchToEditMode);
+            dom.mobileSaveButton.addEventListener('click', handleSaveArticle);
+            dom.mobileMoreButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dom.mobileActionsMenu.classList.toggle('hidden');
+            });
+            dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
+            dom.mobileExportButton.addEventListener('click', () => { handleExportArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
+            dom.mobileDeleteButton.addEventListener('click', () => { handleDeleteArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
+
 
             // 移动弹窗
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden'));
@@ -709,6 +793,11 @@
                 }
             });
             dom.sidebarOverlay.addEventListener('click', closeSidebar);
+            
+            // 全局点击，用于关闭菜单
+            document.addEventListener('click', () => {
+                dom.mobileActionsMenu.classList.add('hidden');
+            });
         }
         
         async function initializeApp() {
@@ -731,8 +820,11 @@
                 // 优化：登录后自动打开最新文章
                 if (state.articles.length > 0) {
                     selectArticle(state.articles[0].id);
+                } else {
+                    switchToWelcomeView();
                 }
             } else {
+                switchToWelcomeView();
                 dom.authView.classList.remove('hidden');
                 dom.mainAppView.classList.add('hidden');
             }
