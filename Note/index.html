@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown 日记</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -80,6 +80,7 @@
 </head>
 <body class="overflow-hidden h-screen">
 
+    <!-- Auth Screen -->
     <div id="auth-screen" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]">
         <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-sm">
             <h2 class="text-2xl font-bold text-white mb-6 text-center">欢迎来到日记本</h2>
@@ -96,7 +97,9 @@
         </div>
     </div>
 
+    <!-- Main Content -->
     <div id="app-container" class="hidden h-screen md:flex">
+        <!-- Sidebar -->
         <aside id="sidebar" class="sidebar w-64 md:w-80 lg:w-96 p-4 flex flex-col h-full overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h1 class="text-xl font-bold">我的日记</h1>
@@ -109,7 +112,8 @@
                 <button id="add-folder-btn" class="bg-blue-600 text-white px-3 py-2 rounded-r hover:bg-blue-700"><i class="fas fa-plus"></i></button>
             </div>
             <nav id="folder-list" class="flex-grow">
-                </nav>
+                <!-- Folders and diaries will be populated here -->
+            </nav>
             <div class="mt-auto">
                 <button id="logout-btn" class="w-full text-left p-2 rounded hover:bg-red-500/10 text-red-600">
                     <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
@@ -117,9 +121,12 @@
             </div>
         </aside>
 
+        <!-- Sidebar overlay for mobile -->
         <div id="sidebar-overlay" class="modal-overlay hidden md:hidden"></div>
 
+        <!-- Main content -->
         <main class="main-content flex-1 flex flex-col h-screen overflow-hidden">
+            <!-- Top Bar -->
             <div class="flex items-center p-4 border-b border-custom bg-white">
                  <button id="menu-btn" class="md:hidden mr-4 text-2xl">
                     <i class="fas fa-bars"></i>
@@ -134,6 +141,7 @@
                 </div>
             </div>
 
+            <!-- Editor/Preview Area -->
             <div id="content-area" class="flex-1 p-4 md:p-6 overflow-y-auto">
                 <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center text-gray-400">
                     <i class="fas fa-book-open text-6xl mb-4"></i>
@@ -144,11 +152,13 @@
                     <textarea id="editor" class="w-full h-full p-4 resize-none"></textarea>
                 </div>
                 <div id="preview-view" class="hidden prose-custom max-w-none">
-                    </div>
+                    <!-- Rendered markdown will be here -->
+                </div>
             </div>
         </main>
     </div>
 
+    <!-- Move Diary Modal -->
     <div id="move-modal" class="modal-overlay hidden items-center justify-center fixed inset-0 z-[60]">
         <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
             <h3 class="text-lg font-bold mb-4">移动文章到...</h3>
@@ -213,19 +223,6 @@
         };
 
         // --- AUTHENTICATION ---
-        // (Authentication logic remains the same as before)
-        const handleAuth = async () => {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                state.user = session.user;
-                authScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                await loadInitialData();
-            } else {
-                authScreen.classList.remove('hidden');
-                appContainer.classList.add('hidden');
-            }
-        };
         sendMagicLinkBtn.addEventListener('click', async () => {
             const email = emailInput.value;
             if (!email) {
@@ -247,11 +244,27 @@
                 authMessage.className = 'text-center mt-4 text-green-400';
             }
         });
+        
         logoutBtn.addEventListener('click', async () => {
             await supabaseClient.auth.signOut();
             window.location.reload();
         });
-        supabaseClient.auth.onAuthStateChange(() => handleAuth());
+
+        // Main authentication logic: Listen for auth state changes
+        supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+            if (session) {
+                // User is signed in
+                state.user = session.user;
+                authScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                await loadInitialData();
+            } else {
+                // User is signed out
+                state.user = null;
+                authScreen.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        });
 
         // --- DATA FETCHING & RENDERING ---
         async function loadInitialData() {
@@ -280,12 +293,12 @@
             state.folders.forEach(folder => {
                 const folderEl = document.createElement('div');
                 folderEl.innerHTML = `
-                    <div class="folder-item cursor-pointer p-2 rounded flex justify-between items-center ${folder.id === state.activeFolderId ? 'active' : ''}">
+                    <div class="folder-item cursor-pointer p-2 rounded flex justify-between items-center group ${folder.id === state.activeFolderId ? 'active' : ''}">
                         <div class="folder-name-container flex items-center flex-grow truncate mr-2">
                             <i class="fas fa-folder mr-2 ${folder.id === state.activeFolderId ? 'fa-folder-open text-blue-500' : 'text-gray-500'}"></i>
                             <span class="font-semibold truncate">${folder.name}</span>
                         </div>
-                        <div class="flex-shrink-0">
+                        <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button class="rename-folder-btn text-gray-400 hover:text-blue-500 mr-2" data-folder-id="${folder.id}" title="重命名文件夹"><i class="fas fa-edit"></i></button>
                             <button class="add-diary-btn text-gray-400 hover:text-green-500 mr-2" data-folder-id="${folder.id}" title="新建文章"><i class="fas fa-plus-circle"></i></button>
                             <button class="delete-folder-btn text-gray-400 hover:text-red-500" data-folder-id="${folder.id}" title="删除文件夹"><i class="fas fa-trash-alt"></i></button>
@@ -309,7 +322,7 @@
             
             diaries.forEach(diary => {
                 const diaryEl = document.createElement('div');
-                diaryEl.className = `diary-item cursor-pointer p-2 my-1 rounded flex justify-between items-center ${diary.id === state.activeDiaryId ? 'active' : ''}`;
+                diaryEl.className = `diary-item cursor-pointer p-2 my-1 rounded flex justify-between items-center group ${diary.id === state.activeDiaryId ? 'active' : ''}`;
                 diaryEl.dataset.diaryId = diary.id;
                 diaryEl.dataset.folderId = folderId;
 
@@ -318,7 +331,7 @@
                        <i class="far fa-file-alt mr-2 text-gray-500"></i>
                        <span class="truncate">${diary.title}</span>
                     </div>
-                    <button class="rename-diary-btn text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100" data-diary-id="${diary.id}" title="重命名文章"><i class="fas fa-edit"></i></button>
+                    <button class="rename-diary-btn text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" data-diary-id="${diary.id}" title="重命名文章"><i class="fas fa-edit"></i></button>
                 `;
                 diaryListContainer.appendChild(diaryEl);
                 diaryEl.querySelector('.truncate').addEventListener('click', (e) => {
@@ -421,7 +434,9 @@
         }
 
         async function renameDiary(diaryId) {
-            const folderId = state.activeFolderId;
+            const folderId = state.folders.find(f => state.diaries[f.id]?.some(d => d.id === diaryId))?.id;
+            if(!folderId) return;
+            
             const diary = state.diaries[folderId].find(d => d.id === diaryId);
             const newTitle = prompt("输入新的文章标题:", diary.title);
             if (!newTitle || newTitle.trim() === '' || newTitle === diary.title) return;
@@ -542,8 +557,7 @@
         closeSidebarBtn.addEventListener('click', toggleSidebar);
         sidebarOverlay.addEventListener('click', toggleSidebar);
 
-        // --- INITIALIZATION ---
-        handleAuth();
     </script>
 </body>
 </html>
+
