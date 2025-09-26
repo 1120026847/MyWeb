@@ -4,459 +4,564 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown 日记</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Markdown Parser (Marked.js) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <!-- Icons (Lucide) -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide-static@latest/dist/lucide.min.js"></script>
     <style>
-        :root {
-            --bg-main: #f8f9fa; --bg-sidebar: #ffffff; --bg-editor: #ffffff;
-            --text-main: #212529; --text-muted: #6c757d; --border-color: #dee2e6;
-            --accent-color: #0d6efd; --accent-hover: #0b5ed7;
-            --danger-color: #dc3545; --success-color: #198754;
-        }
-        body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; background-color: var(--bg-main); color: var(--text-main); }
-        .btn-primary { background-color: var(--accent-color); color: white; } .btn-primary:hover { background-color: var(--accent-hover); }
-        .btn-danger { background-color: var(--danger-color); color: white; }
-        .btn-success { background-color: var(--success-color); color: white; }
-        .btn-secondary { background-color: #6c757d; color: white; } .btn-secondary:hover { background-color: #5c636a; }
-        .border-custom { border-color: var(--border-color); }
-        .folder-item.active > div:first-child, .diary-item.active { background-color: rgba(13, 110, 253, 0.1); }
-        .folder-item > div:first-child:hover, .diary-item:hover { background-color: rgba(13, 110, 253, 0.05); }
-        .prose-custom h1, .prose-custom h2, .prose-custom h3 { border-bottom: 1px solid var(--border-color); padding-bottom: .3em; }
-        .prose-custom a { color: var(--accent-color); text-decoration: none; } .prose-custom a:hover { text-decoration: underline; }
-        .prose-custom blockquote { border-left: .25em solid var(--accent-color); color: var(--text-muted); background-color: #f8f9fa; padding-left: 1em; }
-        .prose-custom code { background-color: rgba(0,0,0,0.05); color: #d63384; padding: .2em .4em; border-radius: 6px; }
-        .prose-custom pre { background-color: #f6f8fa; padding: 1rem; border-radius: 8px; }
-        @media (max-width: 768px) {
-            .sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
-            .sidebar.open { transform: translateX(0); }
-            #sidebar-overlay { display: block; }
+        /* 自定义滚动条样式，使其更精致 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        /* 自定义 Prose 样式以适应白色背景 */
+        .prose {
+            --tw-prose-body: #374151;
+            --tw-prose-headings: #111827;
+            --tw-prose-lead: #4b5563;
+            --tw-prose-links: #1d4ed8;
+            --tw-prose-bold: #111827;
+            --tw-prose-counters: #6b7280;
+            --tw-prose-bullets: #d1d5db;
+            --tw-prose-hr: #e5e7eb;
+            --tw-prose-quotes: #111827;
+            --tw-prose-quote-borders: #e5e7eb;
+            --tw-prose-captions: #6b7280;
+            --tw-prose-code: #111827;
+            --tw-prose-pre-code: #e5e7eb;
+            --tw-prose-pre-bg: #1f2937;
+            --tw-prose-th-borders: #d1d5db;
+            --tw-prose-td-borders: #e5e7eb;
         }
     </style>
 </head>
-<body class="overflow-hidden h-screen">
+<body class="bg-white font-sans antialiased text-gray-800">
+    <!-- 主容器 -->
+    <div id="app" class="h-screen w-screen flex overflow-hidden">
 
-    <!-- Auth Screen -->
-    <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-[100]">
-        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm border border-custom">
-            <h2 id="auth-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">登录您的账户</h2>
-            <div id="auth-container" class="space-y-4">
-                 <input type="email" id="email-input" placeholder="邮箱地址" class="w-full border border-custom p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                 <input type="password" id="password-input" placeholder="密码 (至少6位)" class="w-full border border-custom p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
-                 <button id="auth-action-btn" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition font-semibold">登录</button>
+        <!-- 认证页面 -->
+        <div id="auth-view" class="w-full h-full flex items-center justify-center p-4 bg-gray-50">
+            <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800">日记</h1>
+                    <p class="text-gray-500 mt-2">记录你的想法与生活</p>
+                </div>
+
+                <!-- 登录/注册切换 -->
+                <div class="flex border border-gray-200 rounded-lg p-1 mb-6">
+                    <button id="show-login-btn" class="w-1/2 p-2 rounded-md text-sm font-semibold bg-blue-500 text-white">登录</button>
+                    <button id="show-register-btn" class="w-1/2 p-2 rounded-md text-sm font-semibold text-gray-600">注册</button>
+                </div>
+
+                <!-- 表单 -->
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-gray-600 mb-1">邮箱</label>
+                        <input type="email" id="login-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-gray-600 mb-1">密码</label>
+                        <input type="password" id="login-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">登录</button>
+                </form>
+
+                <form id="register-form" class="space-y-4 hidden">
+                    <div>
+                        <label for="register-email" class="block text-sm font-medium text-gray-600 mb-1">邮箱</label>
+                        <input type="email" id="register-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-sm font-medium text-gray-600 mb-1">密码</label>
+                        <input type="password" id="register-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">注册并登录</button>
+                </form>
+                <p id="auth-error" class="text-red-500 text-sm mt-4 text-center"></p>
             </div>
-            <div id="loading-spinner" class="hidden text-center text-gray-700">
-                <i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2">正在处理...</p>
-            </div>
-            <p id="auth-message" class="text-center mt-4 text-sm"></p>
-            <p class="text-center text-sm text-gray-500 mt-4">
-                <span id="auth-toggle-text">还没有账号？</span>
-                <a href="#" id="auth-toggle-link" class="font-medium text-blue-600 hover:underline">立即注册</a>
-            </p>
         </div>
-    </div>
 
-    <!-- Main Content -->
-    <div id="app-container" class="hidden h-screen md:flex">
-        <aside id="sidebar" class="sidebar w-64 md:w-80 lg:w-96 p-4 flex flex-col h-full overflow-y-auto bg-white border-r border-custom">
-            <div class="flex items-center justify-between mb-4">
-                <h1 class="text-xl font-bold">我的日记</h1>
-                <button id="close-sidebar-btn" class="md:hidden text-2xl text-gray-500 hover:text-gray-800"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="flex items-center mb-4">
-                <input type="text" id="new-folder-name" placeholder="新建文件夹..." class="w-full border border-custom p-2 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="add-folder-btn" class="bg-blue-600 text-white px-3 py-2 rounded-r hover:bg-blue-700"><i class="fas fa-plus"></i></button>
-            </div>
-            <nav id="folder-list" class="flex-grow"></nav>
-            <div class="mt-auto pt-4 border-t border-custom">
-                <button id="logout-btn" class="w-full text-left p-2 rounded hover:bg-red-500/10 text-red-600"><i class="fas fa-sign-out-alt mr-2"></i> 退出登录</button>
-            </div>
-        </aside>
-
-        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40"></div>
-
-        <main class="flex-1 flex flex-col h-screen overflow-hidden">
-            <div class="flex items-center p-4 border-b border-custom bg-white">
-                 <button id="menu-btn" class="md:hidden mr-4 text-2xl"><i class="fas fa-bars"></i></button>
-                <div id="current-diary-title" class="text-lg font-semibold truncate">请选择或创建一篇文章</div>
-                <div class="ml-auto flex items-center space-x-2">
-                    <button id="move-diary-btn" class="btn-secondary px-3 py-1.5 rounded-md hidden"><i class="fas fa-folder-tree"></i> <span class="hidden sm:inline ml-1">移动</span></button>
-                    <button id="export-diary-btn" class="btn-secondary px-3 py-1.5 rounded-md hidden"><i class="fas fa-file-export"></i> <span class="hidden sm:inline ml-1">导出</span></button>
-                    <button id="delete-diary-btn" class="btn-danger px-3 py-1.5 rounded-md hidden"><i class="fas fa-trash"></i> <span class="hidden sm:inline ml-1">删除</span></button>
-                    <button id="edit-btn" class="btn-primary px-3 py-1.5 rounded-md hidden"><i class="fas fa-pencil-alt"></i> <span class="hidden sm:inline ml-1">编辑</span></button>
-                    <button id="save-btn" class="btn-success px-3 py-1.5 rounded-md hidden"><i class="fas fa-save"></i> <span class="hidden sm:inline ml-1">保存</span></button>
+        <!-- 主应用界面 (登录后可见) -->
+        <div id="main-view" class="w-full h-full flex hidden">
+            <!-- 侧边栏 -->
+            <aside id="sidebar" class="w-full md:w-80 h-full bg-gray-50 border-r border-gray-200 flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 md:relative absolute z-20">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-gray-800">文件列表</h2>
+                    <button id="sidebar-close-btn" class="md:hidden p-1 rounded-full hover:bg-gray-200">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
                 </div>
-            </div>
-
-            <div class="flex-1 p-4 md:p-6 overflow-y-auto">
-                <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                    <i class="fas fa-book-open text-6xl mb-4"></i>
-                    <h2 class="text-2xl font-semibold text-gray-700">开始您的写作之旅</h2>
-                    <p class="mt-2">从左侧选择或创建一个文件夹和文章。</p>
+                <div class="p-2 space-y-2">
+                    <button id="new-article-btn" class="w-full flex items-center justify-center gap-2 bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-all">
+                        <i data-lucide="file-plus-2" class="w-4 h-4"></i> 新建文章
+                    </button>
+                     <button id="new-folder-btn" class="w-full flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all">
+                        <i data-lucide="folder-plus" class="w-4 h-4"></i> 新建文件夹
+                    </button>
                 </div>
-                <div id="editor-view" class="hidden h-full"><textarea id="editor" class="w-full h-full p-4 resize-none focus:outline-none border border-custom rounded-lg"></textarea></div>
-                <div id="preview-view" class="hidden prose-custom max-w-none"></div>
-            </div>
-        </main>
-    </div>
+                <div id="file-list" class="flex-1 overflow-y-auto p-2">
+                    <!-- 文件和文件夹将在这里动态渲染 -->
+                </div>
+                 <div class="p-4 border-t border-gray-200">
+                    <div id="user-info" class="text-sm text-gray-500 truncate mb-2"></div>
+                    <button id="logout-btn" class="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-600 transition-all">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> 退出登录
+                    </button>
+                </div>
+            </aside>
 
-    <div id="move-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[60]">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <h3 class="text-lg font-bold mb-4 text-gray-800">移动文章到...</h3>
-            <select id="move-folder-select" class="w-full p-2 border border-custom rounded mb-4 text-gray-800"></select>
-            <div class="flex justify-end space-x-2">
-                <button id="cancel-move-btn" class="btn-secondary px-4 py-2 rounded">取消</button>
-                <button id="confirm-move-btn" class="btn-primary px-4 py-2 rounded">确认移动</button>
-            </div>
+            <!-- 主内容区 -->
+            <main class="flex-1 h-full flex flex-col bg-white">
+                <div id="editor-view" class="flex-1 flex flex-col h-full hidden">
+                    <!-- 编辑器头部 -->
+                    <div class="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+                        <div class="flex items-center gap-4">
+                           <button id="sidebar-open-btn" class="md:hidden p-1 rounded-full hover:bg-gray-200">
+                                <i data-lucide="menu" class="w-5 h-5"></i>
+                            </button>
+                            <input type="text" id="article-title" placeholder="输入文章标题..." class="text-lg font-semibold bg-transparent focus:outline-none w-full">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="save-btn" class="px-4 py-1.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-all flex items-center gap-1.5">
+                                <i data-lucide="save" class="w-4 h-4"></i> 保存
+                            </button>
+                            <button id="move-btn" title="移动文章" class="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                                <i data-lucide="folder-git-2" class="w-4 h-4"></i>
+                            </button>
+                             <button id="export-btn" title="导出为 Markdown" class="p-2 hover:bg-gray-200 rounded-lg transition-colors">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                            </button>
+                            <button id="delete-btn" title="删除文章" class="p-2 hover:bg-red-200 text-red-600 rounded-lg transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 编辑/预览区 -->
+                    <div class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden">
+                        <div class="h-full border-r border-gray-200">
+                             <textarea id="markdown-editor" class="w-full h-full p-6 resize-none focus:outline-none text-base leading-relaxed" placeholder="在这里开始用 Markdown 书写..."></textarea>
+                        </div>
+                        <div id="preview-area" class="prose max-w-none w-full h-full p-6 overflow-y-auto bg-gray-50">
+                        </div>
+                    </div>
+                </div>
+                <div id="welcome-view" class="flex-1 flex items-center justify-center text-center text-gray-400">
+                    <div>
+                        <i data-lucide="notebook-tabs" class="w-24 h-24 mx-auto"></i>
+                        <p class="mt-4 text-lg">选择一篇文章或新建一篇日记</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- 全局加载动画 -->
+        <div id="loader" class="fixed inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        
+        <!-- 自定义提示框 -->
+        <div id="custom-alert" class="fixed top-5 right-5 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-50 hidden transition-transform translate-x-full">
+          <strong class="font-bold">错误!</strong>
+          <span id="alert-message" class="block sm:inline"></span>
         </div>
     </div>
 
     <script type="module">
-    const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-    const { createClient } = supabase;
+        const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
 
-    const App = {
-        state: {
-            user: null, folders: [], diariesByFolder: {},
-            activeFolderId: null, activeDiaryId: null,
-            isEditing: false, isLoginMode: true
-        },
-        elements: {},
-        supabase: null,
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        init() {
-            this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            this.cacheDOMElements();
-            this.bindEventListeners();
-            this.supabase.auth.onAuthStateChange((event, session) => this.handleAuthStateChange(session));
-        },
+        // DOM Elements
+        const authView = document.getElementById('auth-view');
+        const mainView = document.getElementById('main-view');
+        const editorView = document.getElementById('editor-view');
+        const welcomeView = document.getElementById('welcome-view');
+        const loader = document.getElementById('loader');
+
+        // State
+        let folders = [];
+        let articles = [];
+        let activeArticle = null;
+        let currentUser = null;
+
+        // ----- UI Functions -----
+        const showLoader = () => loader.classList.remove('hidden');
+        const hideLoader = () => loader.classList.add('hidden');
         
-        cacheDOMElements() {
-            const ids = [
-                'auth-screen', 'app-container', 'email-input', 'password-input', 'auth-action-btn', 
-                'auth-message', 'auth-title', 'auth-toggle-text', 'auth-toggle-link', 'auth-container', 
-                'loading-spinner', 'logout-btn', 'folder-list', 'new-folder-name', 'add-folder-btn', 
-                'current-diary-title', 'editor-view', 'preview-view', 'editor', 'welcome-screen', 
-                'edit-btn', 'save-btn', 'delete-diary-btn', 'export-diary-btn', 'move-diary-btn', 
-                'menu-btn', 'sidebar', 'close-sidebar-btn', 'sidebar-overlay', 'move-modal', 
-                'move-folder-select', 'cancel-move-btn', 'confirm-move-btn'
-            ];
-            ids.forEach(id => {
-                const key = id.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-                this.elements[key] = document.getElementById(id);
-            });
-        },
+        function showAlert(message) {
+            const customAlert = document.getElementById('custom-alert');
+            const alertMessage = document.getElementById('alert-message');
+            alertMessage.textContent = ' ' + message;
+            customAlert.classList.remove('hidden', 'translate-x-full');
+            customAlert.classList.add('translate-x-0');
+            setTimeout(() => {
+                customAlert.classList.remove('translate-x-0');
+                customAlert.classList.add('translate-x-full');
+                setTimeout(() => customAlert.classList.add('hidden'), 300);
+            }, 3000);
+        }
 
-        bindEventListeners() {
-            this.elements.authActionBtn.addEventListener('click', () => this.handleAuthAction());
-            this.elements.authToggleLink.addEventListener('click', e => {
-                e.preventDefault();
-                this.state.isLoginMode = !this.state.isLoginMode;
-                this.ui.updateAuthForm();
-            });
-            this.elements.logoutBtn.addEventListener('click', () => this.supabase.auth.signOut());
-            this.elements.addFolderBtn.addEventListener('click', () => this.handlers.addFolder());
-            this.elements.newFolderName.addEventListener('keypress', e => { if (e.key === 'Enter') this.handlers.addFolder(); });
-            this.elements.folderList.addEventListener('click', e => this.handlers.handleSidebarClick(e));
-            this.elements.editBtn.addEventListener('click', () => this.handlers.setEditing(true));
-            this.elements.saveBtn.addEventListener('click', () => this.handlers.saveDiary());
-            this.elements.deleteDiaryBtn.addEventListener('click', () => this.handlers.deleteDiary());
-            this.elements.exportDiaryBtn.addEventListener('click', () => this.handlers.exportDiary());
-            this.elements.moveDiaryBtn.addEventListener('click', () => this.ui.showMoveModal());
-            this.elements.cancelMoveBtn.addEventListener('click', () => this.elements.moveModal.style.display = 'none');
-            this.elements.confirmMoveBtn.addEventListener('click', () => this.handlers.moveDiary());
-            const toggleSidebar = () => this.ui.toggleSidebar();
-            this.elements.menuBtn.addEventListener('click', toggleSidebar);
-            this.elements.closeSidebarBtn.addEventListener('click', toggleSidebar);
-            this.elements.sidebarOverlay.addEventListener('click', toggleSidebar);
-        },
+        const renderFileList = () => {
+            const fileListContainer = document.getElementById('file-list');
+            fileListContainer.innerHTML = ''; // Clear current list
 
-        async handleAuthStateChange(session) {
-            if (session) {
-                this.state.user = session.user;
-                this.elements.authScreen.style.display = 'none';
-                this.elements.appContainer.classList.remove('hidden');
-                this.ui.showAuthLoading(false);
-                await this.handlers.loadInitialData();
-            } else {
-                this.state.user = null;
-                this.elements.authScreen.style.display = 'flex';
-                this.elements.appContainer.classList.add('hidden');
-                this.ui.showAuthLoading(false);
-            }
-        },
-
-        handleAuthAction() {
-            this.state.isLoginMode ? this.auth.signIn() : this.auth.signUp();
-        },
-
-        auth: {
-            async signUp() {
-                App.ui.setAuthMessage('');
-                if (!App.elements.emailInput.value || !App.elements.passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
-                if (App.elements.passwordInput.value.length < 6) return App.ui.setAuthMessage('密码至少需要6位。', true);
-                App.ui.showAuthLoading(true);
-                const { error } = await App.supabase.auth.signUp({ email: App.elements.emailInput.value, password: App.elements.passwordInput.value });
-                App.ui.showAuthLoading(false);
-                if (error) App.ui.setAuthMessage(`注册失败: ${error.message}`, true);
-                else App.ui.setAuthMessage('注册成功！请检查您的邮箱以完成验证。');
-            },
-            async signIn() {
-                App.ui.setAuthMessage('');
-                if (!App.elements.emailInput.value || !App.elements.passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
-                App.ui.showAuthLoading(true);
-                const { error } = await App.supabase.auth.signInWithPassword({ email: App.elements.emailInput.value, password: App.elements.passwordInput.value });
-                if (error) {
-                    App.ui.showAuthLoading(false);
-                    App.ui.setAuthMessage(`登录失败: ${error.message}`, true);
-                }
-            }
-        },
-
-        handlers: {
-            async loadInitialData() {
-                if (!App.state.user) return;
-                const { data: folders, error } = await App.supabase.from('folders').select('*').eq('user_id', App.state.user.id).order('created_at', { ascending: true });
-                if (error) return console.error('Error fetching folders:', error);
-                App.state.folders = folders;
-                App.state.diariesByFolder = {};
-                for (const folder of folders) {
-                    const { data: diaries, error: diariesError } = await App.supabase.from('diaries').select('*').eq('folder_id', folder.id).order('created_at', { ascending: false });
-                    if (diariesError) console.error(`Error fetching diaries for ${folder.id}:`, diariesError);
-                    else App.state.diariesByFolder[folder.id] = diaries;
-                }
-                App.ui.renderAll();
-            },
-            
-            handleSidebarClick(e) {
-                const target = e.target.closest('button, [data-folder-id], [data-diary-id]');
-                if (!target) return;
-
-                const folderId = target.closest('[data-folder-id]')?.dataset.folderId;
-                const diaryId = target.closest('[data-diary-id]')?.dataset.diaryId;
-
-                if (target.matches('.add-diary-btn')) this.addDiary(folderId);
-                else if (target.matches('.rename-folder-btn')) this.renameFolder(folderId);
-                else if (target.matches('.delete-folder-btn')) this.deleteFolder(folderId);
-                else if (target.matches('.rename-diary-btn')) this.renameDiary(diaryId, folderId);
-                else if (diaryId) this.setActiveDiary(folderId, diaryId);
-                else if (folderId) this.setActiveFolder(folderId);
-            },
-
-            setActiveFolder(folderId) {
-                App.state.activeFolderId = (App.state.activeFolderId === folderId) ? null : folderId;
-                this.setActiveDiary(null, null); // Always deselect diary when changing folder
-            },
-
-            setActiveDiary(folderId, diaryId) {
-                App.state.activeFolderId = folderId;
-                App.state.activeDiaryId = diaryId;
-                App.state.isEditing = false;
-                App.ui.renderAll();
-                if (window.innerWidth < 768) App.ui.toggleSidebar();
-            },
-            
-            setEditing(isEditing) {
-                App.state.isEditing = isEditing;
-                App.ui.renderContent();
-            },
-
-            async addFolder() {
-                const name = App.elements.newFolderName.value.trim();
-                if (!name) return;
-                const { data, error } = await App.supabase.from('folders').insert({ name, user_id: App.state.user.id }).select().single();
-                if (error) return console.error('Error adding folder:', error);
-                App.state.folders.push(data);
-                App.state.diariesByFolder[data.id] = [];
-                App.elements.newFolderName.value = '';
-                this.setActiveFolder(data.id);
-            },
-            
-            async renameFolder(folderId) {
-                const folder = App.state.folders.find(f => f.id === folderId);
-                const newName = prompt('输入新的文件夹名称:', folder.name);
-                if (!newName || newName.trim() === '' || newName.trim() === folder.name) return;
-                const { data, error } = await App.supabase.from('folders').update({ name: newName.trim() }).eq('id', folderId).select().single();
-                if (error) return console.error('Error renaming folder:', error);
-                folder.name = data.name;
-                App.ui.renderFolders();
-            },
-            
-            async deleteFolder(folderId) {
-                if (!confirm('确定要删除这个文件夹及其所有文章吗？此操作无法撤销。')) return;
-                const { error } = await App.supabase.from('folders').delete().eq('id', folderId);
-                if (error) return console.error('Error deleting folder:', error);
-                App.state.folders = App.state.folders.filter(f => f.id !== folderId);
-                delete App.state.diariesByFolder[folderId];
-                if (App.state.activeFolderId === folderId) this.setActiveFolder(null);
-                else App.ui.renderFolders();
-            },
-
-            async addDiary(folderId) {
-                const title = prompt("请输入新文章的标题：");
-                if (!title || title.trim() === '') return;
-                const content = `# ${title.trim()}\n\n开始写作...`;
-                const { data, error } = await App.supabase.from('diaries').insert({ title: title.trim(), content, folder_id: folderId, user_id: App.state.user.id }).select().single();
-                if (error) return console.error('Error adding diary:', error);
-                App.state.diariesByFolder[folderId].unshift(data);
-                this.setActiveDiary(folderId, data.id);
-            },
-            
-            async renameDiary(diaryId, folderId) {
-                const diary = App.state.diariesByFolder[folderId].find(d => d.id === diaryId);
-                const newTitle = prompt("输入新的文章标题:", diary.title);
-                if (!newTitle || newTitle.trim() === '' || newTitle.trim() === diary.title) return;
-                const { data, error } = await App.supabase.from('diaries').update({ title: newTitle.trim() }).eq('id', diaryId).select().single();
-                if (error) return console.error('Error renaming diary:', error);
-                diary.title = data.title;
-                App.ui.renderAll();
-            },
-
-            async saveDiary() {
-                if (!App.state.activeDiaryId) return;
-                const content = App.elements.editor.value;
-                const { data, error } = await App.supabase.from('diaries').update({ content }).eq('id', App.state.activeDiaryId).select().single();
-                if (error) return console.error('Error saving diary:', error);
-                const diaryIndex = App.state.diariesByFolder[App.state.activeFolderId].findIndex(d => d.id === App.state.activeDiaryId);
-                App.state.diariesByFolder[App.state.activeFolderId][diaryIndex] = data;
-                this.setEditing(false);
-            },
-            
-            async deleteDiary() {
-                if (!App.state.activeDiaryId || !confirm('确定要删除这篇文章吗？')) return;
-                const { error } = await App.supabase.from('diaries').delete().eq('id', App.state.activeDiaryId);
-                if (error) return console.error('Error deleting diary:', error);
-                const folderId = App.state.activeFolderId;
-                App.state.diariesByFolder[folderId] = App.state.diariesByFolder[folderId].filter(d => d.id !== App.state.activeDiaryId);
-                this.setActiveDiary(folderId, null);
-            },
-
-            exportDiary() {
-                const diary = App.state.diariesByFolder[App.state.activeFolderId]?.find(d => d.id === App.state.activeDiaryId);
-                if (!diary) return;
-                const blob = new Blob([diary.content], { type: 'text/markdown;charset=utf-8' });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `${diary.title.replace(/[\/\\?%*:|"<>]/g, '-')}.md`;
-                a.click();
-                URL.revokeObjectURL(a.href);
-            },
-
-            async moveDiary() {
-                const newFolderId = App.elements.moveFolderSelect.value;
-                const { activeDiaryId, activeFolderId } = App.state;
-                if (!newFolderId || !activeDiaryId) return;
-                const { data, error } = await App.supabase.from('diaries').update({ folder_id: newFolderId }).eq('id', activeDiaryId).select().single();
-                if (error) return console.error('Error moving diary:', error);
-                const diaryToMove = App.state.diariesByFolder[activeFolderId].find(d => d.id === activeDiaryId);
-                App.state.diariesByFolder[activeFolderId] = App.state.diariesByFolder[activeFolderId].filter(d => d.id !== activeDiaryId);
-                App.state.diariesByFolder[newFolderId].unshift(data);
-                App.elements.moveModal.style.display = 'none';
-                this.setActiveDiary(newFolderId, activeDiaryId);
-            }
-        },
-
-        ui: {
-            renderAll() { this.renderFolders(); this.renderContent(); },
-            
-            renderFolders() {
-                App.elements.folderList.innerHTML = App.state.folders.map(folder => `
-                    <div class="folder-item group" data-folder-id="${folder.id}">
-                        <div class="flex justify-between items-center p-2 rounded cursor-pointer ${folder.id === App.state.activeFolderId ? 'active' : ''}">
-                            <div class="folder-name-container flex items-center flex-grow truncate mr-2">
-                                <i class="fas fa-folder mr-2 ${folder.id === App.state.activeFolderId ? 'fa-folder-open text-blue-500' : 'text-gray-500'}"></i>
-                                <span class="font-semibold truncate">${folder.name}</span>
-                            </div>
-                            <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button class="rename-folder-btn text-gray-400 hover:text-blue-500 p-1" title="重命名"><i class="fas fa-edit"></i></button>
-                                <button class="add-diary-btn text-gray-400 hover:text-green-500 p-1" title="新建文章"><i class="fas fa-plus-circle"></i></button>
-                                <button class="delete-folder-btn text-gray-400 hover:text-red-500 p-1" title="删除"><i class="fas fa-trash-alt"></i></button>
-                            </div>
+            // Render folders
+            folders.forEach(folder => {
+                const folderEl = document.createElement('div');
+                folderEl.innerHTML = `
+                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-gray-200 cursor-pointer folder-item" data-id="${folder.id}">
+                        <div class="flex items-center gap-2">
+                           <i data-lucide="folder" class="w-4 h-4 text-yellow-600"></i>
+                           <span class="font-semibold text-sm">${folder.name}</span>
                         </div>
-                        <div class="diary-list pl-4 border-l border-custom ml-2 ${folder.id === App.state.activeFolderId ? '' : 'hidden'}">
-                            ${(App.state.diariesByFolder[folder.id] || []).map(diary => this.getDiaryHTML(diary)).join('')}
+                        <div>
+                            <button class="edit-folder-btn p-1 rounded hover:bg-gray-300" data-id="${folder.id}" data-name="${folder.name}"><i data-lucide="file-pen-line" class="w-3.5 h-3.5 text-gray-500"></i></button>
+                            <button class="delete-folder-btn p-1 rounded hover:bg-gray-300" data-id="${folder.id}"><i data-lucide="trash-2" class="w-3.5 h-3.5 text-red-500"></i></button>
                         </div>
                     </div>
-                `).join('');
-            },
+                    <div id="folder-articles-${folder.id}" class="pl-4 border-l-2 border-gray-200 ml-2"></div>
+                `;
+                fileListContainer.appendChild(folderEl);
+            });
 
-            getDiaryHTML(diary) {
-                return `
-                    <div class="diary-item p-2 my-1 rounded flex justify-between items-center group cursor-pointer ${diary.id === App.state.activeDiaryId ? 'active' : ''}" data-diary-id="${diary.id}" data-folder-id="${diary.folder_id}">
-                        <div class="flex items-center truncate">
-                           <i class="far fa-file-alt mr-2 text-gray-500"></i>
-                           <span class="truncate">${diary.title}</span>
-                        </div>
-                        <button class="rename-diary-btn text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 p-1" title="重命名"><i class="fas fa-edit"></i></button>
-                    </div>`;
-            },
-            
-            renderContent() {
-                const diary = App.state.activeDiaryId ? App.state.diariesByFolder[App.state.activeFolderId]?.find(d => d.id === App.state.activeDiaryId) : null;
-                const { welcomeScreen, editorView, previewView, currentDiaryTitle, editor, editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn } = App.elements;
-                if (diary) {
-                    welcomeScreen.classList.add('hidden');
-                    currentDiaryTitle.textContent = diary.title;
-                    editor.value = diary.content;
-                    previewView.innerHTML = marked.parse(diary.content || '');
-                    [deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.remove('hidden'));
-                    if (App.state.isEditing) {
-                        editorView.classList.remove('hidden'); previewView.classList.add('hidden');
-                        editBtn.classList.add('hidden'); saveBtn.classList.remove('hidden');
-                        editor.focus();
-                    } else {
-                        editorView.classList.add('hidden'); previewView.classList.remove('hidden');
-                        editBtn.classList.remove('hidden'); saveBtn.classList.add('hidden');
-                    }
-                } else {
-                    welcomeScreen.classList.remove('hidden');
-                    editorView.classList.add('hidden'); previewView.classList.add('hidden');
-                    currentDiaryTitle.textContent = '请选择或创建一篇文章';
-                    [editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.add('hidden'));
+            // Render articles inside folders or at root
+            articles.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+            articles.forEach(article => {
+                const parentContainer = article.folder_id 
+                    ? document.getElementById(`folder-articles-${article.folder_id}`)
+                    : fileListContainer;
+
+                if (parentContainer) {
+                    const articleEl = document.createElement('div');
+                    articleEl.className = `flex items-center p-2 rounded-lg cursor-pointer article-item ${activeArticle?.id === article.id ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100'}`;
+                    articleEl.dataset.id = article.id;
+                    articleEl.innerHTML = `
+                        <i data-lucide="file-text" class="w-4 h-4 mr-2 flex-shrink-0"></i>
+                        <span class="text-sm truncate">${article.title || '无标题文章'}</span>
+                    `;
+                    parentContainer.appendChild(articleEl);
                 }
-            },
-            
-            updateAuthForm() {
-                App.ui.setAuthMessage('');
-                const { authTitle, authActionBtn, authToggleText, authToggleLink } = App.elements;
-                if (App.state.isLoginMode) {
-                    authTitle.textContent = '登录您的账户'; authActionBtn.textContent = '登录';
-                    authToggleText.textContent = '还没有账号？'; authToggleLink.textContent = '立即注册';
-                } else {
-                    authTitle.textContent = '创建新账户'; authActionBtn.textContent = '注册';
-                    authToggleText.textContent = '已有账号？'; authToggleLink.textContent = '立即登录';
-                }
-            },
+            });
+            lucide.createIcons(); // Re-render icons
+        };
 
-            showAuthLoading(isLoading) {
-                App.elements.authContainer.classList.toggle('hidden', isLoading);
-                App.elements.loadingSpinner.classList.toggle('hidden', !isLoading);
-            },
-            
-            setAuthMessage(message, isError = false) {
-                App.elements.authMessage.textContent = message;
-                App.elements.authMessage.className = `text-center mt-4 text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
-            },
-
-            toggleSidebar() {
-                App.elements.sidebar.classList.toggle('open');
-                App.elements.sidebarOverlay.classList.toggle('hidden');
-            },
-            
-            showMoveModal() {
-                App.elements.moveFolderSelect.innerHTML = App.state.folders
-                    .filter(f => f.id !== App.state.activeFolderId)
-                    .map(folder => `<option value="${folder.id}">${folder.name}</option>`).join('');
-                if (App.elements.moveFolderSelect.options.length > 0) App.elements.moveModal.style.display = 'flex';
-                else alert('没有其他文件夹可以移动。');
+        const renderEditor = () => {
+            if (activeArticle) {
+                editorView.classList.remove('hidden');
+                welcomeView.classList.add('hidden');
+                document.getElementById('article-title').value = activeArticle.title;
+                const editor = document.getElementById('markdown-editor');
+                editor.value = activeArticle.content || '';
+                updatePreview(editor.value);
+            } else {
+                editorView.classList.add('hidden');
+                welcomeView.classList.remove('hidden');
             }
-        }
-    };
+        };
 
-    document.addEventListener('DOMContentLoaded', () => App.init());
+        const updatePreview = (markdown) => {
+            document.getElementById('preview-area').innerHTML = marked.parse(markdown || '');
+        };
+        
+        // ----- Data Functions -----
+        const fetchData = async () => {
+            if (!currentUser) return;
+            showLoader();
+            try {
+                const { data: foldersData, error: foldersError } = await supabase
+                    .from('folders')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('name');
+                if (foldersError) throw foldersError;
+                folders = foldersData;
+
+                const { data: articlesData, error: articlesError } = await supabase
+                    .from('articles')
+                    .select('id, title, folder_id, updated_at')
+                    .eq('user_id', currentUser.id);
+                if (articlesError) throw articlesError;
+                articles = articlesData;
+
+                renderFileList();
+            } catch (error) {
+                showAlert('数据加载失败: ' + error.message);
+            } finally {
+                hideLoader();
+            }
+        };
+
+        // ----- Event Handlers -----
+        
+        // Auth events
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            showLoader();
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            hideLoader();
+            if (error) {
+                document.getElementById('auth-error').textContent = "登录失败: " + error.message;
+            } else {
+                 document.getElementById('auth-error').textContent = '';
+            }
+        });
+        
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            showLoader();
+            const { error } = await supabase.auth.signUp({ email, password });
+            hideLoader();
+            if (error) {
+                document.getElementById('auth-error').textContent = "注册失败: " + error.message;
+            } else {
+                document.getElementById('auth-error').textContent = '';
+            }
+        });
+        
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+        });
+
+        // App events
+        document.getElementById('new-folder-btn').addEventListener('click', async () => {
+            const name = prompt('请输入新文件夹的名称:');
+            if (name) {
+                showLoader();
+                const { error } = await supabase.from('folders').insert({ name, user_id: currentUser.id });
+                hideLoader();
+                if (error) showAlert('创建文件夹失败: ' + error.message);
+                else await fetchData();
+            }
+        });
+
+        document.getElementById('new-article-btn').addEventListener('click', () => {
+            const today = new Date().toISOString().slice(0, 10);
+            activeArticle = {
+                id: null, // New article doesn't have an ID yet
+                title: `日记 ${today}`,
+                content: `# 日记 ${today}\n\n`,
+                folder_id: null,
+                user_id: currentUser.id
+            };
+            renderEditor();
+            renderFileList(); // Re-render to deselect others
+        });
+        
+        document.getElementById('file-list').addEventListener('click', async (e) => {
+            const articleItem = e.target.closest('.article-item');
+            const editFolderBtn = e.target.closest('.edit-folder-btn');
+            const deleteFolderBtn = e.target.closest('.delete-folder-btn');
+
+            if (articleItem) {
+                const articleId = articleItem.dataset.id;
+                if (activeArticle?.id === articleId) return;
+                showLoader();
+                const { data, error } = await supabase.from('articles').select('*').eq('id', articleId).single();
+                hideLoader();
+                if (error) {
+                    showAlert('加载文章失败: ' + error.message);
+                } else {
+                    activeArticle = data;
+                    renderEditor();
+                    renderFileList();
+                }
+            }
+
+            if (editFolderBtn) {
+                e.stopPropagation();
+                const folderId = editFolderBtn.dataset.id;
+                const oldName = editFolderBtn.dataset.name;
+                const newName = prompt('请输入新的文件夹名称:', oldName);
+                if (newName && newName !== oldName) {
+                    showLoader();
+                    const { error } = await supabase.from('folders').update({ name: newName }).eq('id', folderId);
+                    hideLoader();
+                    if (error) showAlert('更新文件夹失败: ' + error.message);
+                    else await fetchData();
+                }
+            }
+
+            if (deleteFolderBtn) {
+                e.stopPropagation();
+                const folderId = deleteFolderBtn.dataset.id;
+                if (confirm('确定要删除此文件夹及其中的所有文章吗？此操作不可撤销。')) {
+                    showLoader();
+                    // Supabase ON DELETE CASCADE will handle deleting articles
+                    const { error } = await supabase.from('folders').delete().eq('id', folderId);
+                    hideLoader();
+                    if (error) showAlert('删除文件夹失败: ' + error.message);
+                    else {
+                        if (activeArticle?.folder_id === folderId) {
+                            activeArticle = null;
+                            renderEditor();
+                        }
+                        await fetchData();
+                    }
+                }
+            }
+        });
+        
+        document.getElementById('markdown-editor').addEventListener('input', (e) => {
+            if(activeArticle) {
+                activeArticle.content = e.target.value;
+                updatePreview(e.target.value);
+            }
+        });
+
+        document.getElementById('article-title').addEventListener('input', (e) => {
+            if(activeArticle) {
+                activeArticle.title = e.target.value;
+            }
+        });
+        
+        document.getElementById('save-btn').addEventListener('click', async () => {
+            if (!activeArticle) return;
+            showLoader();
+            const articleData = {
+                title: activeArticle.title || '无标题文章',
+                content: activeArticle.content,
+                user_id: currentUser.id,
+                folder_id: activeArticle.folder_id,
+                updated_at: new Date().toISOString()
+            };
+
+            let error, data;
+            if (activeArticle.id) { // Update existing article
+                ({ error, data } = await supabase.from('articles').update(articleData).eq('id', activeArticle.id).select().single());
+            } else { // Insert new article
+                ({ error, data } = await supabase.from('articles').insert(articleData).select().single());
+            }
+            hideLoader();
+
+            if (error) {
+                showAlert('保存失败: ' + error.message);
+            } else {
+                activeArticle = data; // Update state with DB data (like created_at, id)
+                await fetchData(); // Refresh file list
+            }
+        });
+
+        document.getElementById('delete-btn').addEventListener('click', async () => {
+            if (!activeArticle || !activeArticle.id) return;
+            if (confirm('你确定要删除这篇文章吗?')) {
+                showLoader();
+                const { error } = await supabase.from('articles').delete().eq('id', activeArticle.id);
+                hideLoader();
+                if (error) {
+                    showAlert('删除失败: ' + error.message);
+                } else {
+                    activeArticle = null;
+                    renderEditor();
+                    await fetchData();
+                }
+            }
+        });
+        
+        document.getElementById('export-btn').addEventListener('click', () => {
+             if (!activeArticle) return;
+             const blob = new Blob([activeArticle.content], { type: 'text/markdown;charset=utf-8' });
+             const url = URL.createObjectURL(blob);
+             const a = document.createElement('a');
+             a.href = url;
+             a.download = `${activeArticle.title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
+             document.body.appendChild(a);
+             a.click();
+             document.body.removeChild(a);
+             URL.revokeObjectURL(url);
+        });
+        
+        document.getElementById('move-btn').addEventListener('click', async () => {
+            if (!activeArticle || !activeArticle.id) return;
+            
+            let options = '<option value="root">根目录 (无文件夹)</option>';
+            folders.forEach(f => {
+                options += `<option value="${f.id}" ${activeArticle.folder_id === f.id ? 'selected' : ''}>${f.name}</option>`;
+            });
+
+            const targetFolderId = prompt(`选择要移动到的文件夹:\n${folders.map((f,i) => `${i+1}. ${f.name}`).join('\n')}\n输入0移动到根目录`, activeArticle.folder_id ? folders.findIndex(f => f.id === activeArticle.folder_id) + 1 : 0);
+            
+            let newFolderId = null;
+            if (targetFolderId !== null) {
+                const index = parseInt(targetFolderId, 10);
+                if (index === 0) {
+                    newFolderId = null;
+                } else if (!isNaN(index) && index > 0 && index <= folders.length) {
+                    newFolderId = folders[index - 1].id;
+                } else {
+                    showAlert("无效的选择。");
+                    return;
+                }
+
+                if (newFolderId === activeArticle.folder_id) return;
+
+                showLoader();
+                const { error } = await supabase.from('articles').update({ folder_id: newFolderId }).eq('id', activeArticle.id);
+                hideLoader();
+
+                if (error) {
+                    showAlert('移动失败: ' + error.message);
+                } else {
+                    activeArticle.folder_id = newFolderId;
+                    await fetchData();
+                }
+            }
+        });
+        
+        // Responsive sidebar toggles
+        const sidebar = document.getElementById('sidebar');
+        document.getElementById('sidebar-open-btn').addEventListener('click', () => sidebar.classList.remove('-translate-x-full'));
+        document.getElementById('sidebar-close-btn').addEventListener('click', () => sidebar.classList.add('-translate-x-full'));
+
+
+        // Auth UI toggle
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const showLoginBtn = document.getElementById('show-login-btn');
+        const showRegisterBtn = document.getElementById('show-register-btn');
+        showLoginBtn.addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+            showLoginBtn.classList.add('bg-blue-500', 'text-white');
+            showRegisterBtn.classList.remove('bg-blue-500', 'text-white');
+        });
+        showRegisterBtn.addEventListener('click', () => {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            showRegisterBtn.classList.add('bg-blue-500', 'text-white');
+            showLoginBtn.classList.remove('bg-blue-500', 'text-white');
+        });
+
+        // ----- Initialization -----
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session) {
+                currentUser = session.user;
+                document.getElementById('user-info').textContent = `用户: ${currentUser.email}`;
+                authView.classList.add('hidden');
+                mainView.classList.remove('hidden');
+                await fetchData();
+            } else {
+                currentUser = null;
+                folders = [];
+                articles = [];
+                activeArticle = null;
+                authView.classList.remove('hidden');
+                mainView.classList.add('hidden');
+                renderFileList();
+                renderEditor();
+            }
+        });
+        
+        lucide.createIcons();
     </script>
 </body>
 </html>
-
