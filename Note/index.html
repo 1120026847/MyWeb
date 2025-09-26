@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown 日记</title>
+    <title>156456</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Markdown Parser (Marked.js) -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Icons (Lucide) - 已修正此处的链接 -->
+    <!-- Icons (Lucide) -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
         /* 自定义滚动条样式，使其更精致 */
@@ -165,10 +165,23 @@
         </div>
         
         <!-- 自定义提示框 -->
-        <div id="custom-alert" class="fixed top-5 right-5 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-50 hidden transition-transform translate-x-full">
+        <div id="custom-alert" class="fixed top-5 right-5 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-[100] hidden transition-transform translate-x-full">
           <strong class="font-bold">错误!</strong>
           <span id="alert-message" class="block sm:inline"></span>
         </div>
+        
+        <!-- 自定义模态框 -->
+        <div id="custom-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[90] hidden">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md m-4">
+                <h3 id="modal-title" class="text-lg font-medium leading-6 text-gray-900 mb-4"></h3>
+                <div id="modal-body" class="mb-6"></div>
+                <div class="flex justify-end gap-3">
+                    <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">取消</button>
+                    <button id="modal-confirm-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">确认</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script type="module">
@@ -183,6 +196,12 @@
         const editorView = document.getElementById('editor-view');
         const welcomeView = document.getElementById('welcome-view');
         const loader = document.getElementById('loader');
+        const customModal = document.getElementById('custom-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+
 
         // State
         let folders = [];
@@ -206,12 +225,33 @@
                 setTimeout(() => customAlert.classList.add('hidden'), 300);
             }, 3000);
         }
+        
+        const hideModal = () => customModal.classList.add('hidden');
+        
+        const showModal = ({ title, body, onConfirm, confirmText = '确认' }) => {
+            modalTitle.textContent = title;
+            modalBody.innerHTML = body;
+            modalConfirmBtn.textContent = confirmText;
+            
+            // Clone and replace buttons to remove old event listeners
+            const newConfirmBtn = modalConfirmBtn.cloneNode(true);
+            modalConfirmBtn.parentNode.replaceChild(newConfirmBtn, modalConfirmBtn);
+            
+            const newCancelBtn = modalCancelBtn.cloneNode(true);
+            modalCancelBtn.parentNode.replaceChild(newCancelBtn, modalCancelBtn);
+
+            newConfirmBtn.onclick = () => onConfirm(modalBody);
+            newCancelBtn.onclick = hideModal;
+
+            customModal.classList.remove('hidden');
+            const firstInput = modalBody.querySelector('input, select');
+            if (firstInput) firstInput.focus();
+        };
 
         const renderFileList = () => {
             const fileListContainer = document.getElementById('file-list');
             fileListContainer.innerHTML = ''; // Clear current list
 
-            // Render folders
             folders.forEach(folder => {
                 const folderEl = document.createElement('div');
                 folderEl.innerHTML = `
@@ -230,7 +270,6 @@
                 fileListContainer.appendChild(folderEl);
             });
 
-            // Render articles inside folders or at root
             articles.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
             articles.forEach(article => {
                 const parentContainer = article.folder_id 
@@ -248,7 +287,7 @@
                     parentContainer.appendChild(articleEl);
                 }
             });
-            lucide.createIcons(); // Re-render icons
+            lucide.createIcons();
         };
 
         const renderEditor = () => {
@@ -272,6 +311,7 @@
         // ----- Data Functions -----
         const fetchData = async () => {
             if (!currentUser) return;
+            console.log('Fetching data...');
             showLoader();
             try {
                 const { data: foldersData, error: foldersError } = await supabase
@@ -281,6 +321,7 @@
                     .order('name');
                 if (foldersError) throw foldersError;
                 folders = foldersData;
+                console.log('Folders fetched:', folders);
 
                 const { data: articlesData, error: articlesError } = await supabase
                     .from('articles')
@@ -288,18 +329,21 @@
                     .eq('user_id', currentUser.id);
                 if (articlesError) throw articlesError;
                 articles = articlesData;
+                console.log('Articles fetched:', articles);
 
+                console.log('Rendering file list...');
                 renderFileList();
             } catch (error) {
+                console.error('Data loading failed:', error);
                 showAlert('数据加载失败: ' + error.message);
             } finally {
+                console.log('Hiding loader.');
                 hideLoader();
             }
         };
 
         // ----- Event Handlers -----
         
-        // Auth events
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('login-email').value;
@@ -307,11 +351,8 @@
             showLoader();
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             hideLoader();
-            if (error) {
-                document.getElementById('auth-error').textContent = "登录失败: " + error.message;
-            } else {
-                 document.getElementById('auth-error').textContent = '';
-            }
+            if (error) document.getElementById('auth-error').textContent = "登录失败: " + error.message;
+            else document.getElementById('auth-error').textContent = '';
         });
         
         document.getElementById('register-form').addEventListener('submit', async (e) => {
@@ -321,40 +362,39 @@
             showLoader();
             const { error } = await supabase.auth.signUp({ email, password });
             hideLoader();
-            if (error) {
-                document.getElementById('auth-error').textContent = "注册失败: " + error.message;
-            } else {
-                document.getElementById('auth-error').textContent = '';
-            }
+            if (error) document.getElementById('auth-error').textContent = "注册失败: " + error.message;
+            else document.getElementById('auth-error').textContent = '';
         });
         
-        document.getElementById('logout-btn').addEventListener('click', async () => {
-            await supabase.auth.signOut();
-        });
+        document.getElementById('logout-btn').addEventListener('click', async () => supabase.auth.signOut());
 
-        // App events
-        document.getElementById('new-folder-btn').addEventListener('click', async () => {
-            const name = prompt('请输入新文件夹的名称:');
-            if (name) {
-                showLoader();
-                const { error } = await supabase.from('folders').insert({ name, user_id: currentUser.id });
-                hideLoader();
-                if (error) showAlert('创建文件夹失败: ' + error.message);
-                else await fetchData();
-            }
+        document.getElementById('new-folder-btn').addEventListener('click', () => {
+            showModal({
+                title: '新建文件夹',
+                body: '<input type="text" id="folder-name-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="文件夹名称..." required>',
+                onConfirm: async (bodyEl) => {
+                    const input = bodyEl.querySelector('#folder-name-input');
+                    const name = input.value.trim();
+                    if (name) {
+                        hideModal();
+                        showLoader();
+                        const { error } = await supabase.from('folders').insert({ name, user_id: currentUser.id });
+                        hideLoader();
+                        if (error) showAlert('创建文件夹失败: ' + error.message);
+                        else await fetchData();
+                    } else {
+                        input.focus();
+                        showAlert("文件夹名称不能为空。");
+                    }
+                }
+            });
         });
 
         document.getElementById('new-article-btn').addEventListener('click', () => {
             const today = new Date().toISOString().slice(0, 10);
-            activeArticle = {
-                id: null, // New article doesn't have an ID yet
-                title: `日记 ${today}`,
-                content: `# 日记 ${today}\n\n`,
-                folder_id: null,
-                user_id: currentUser.id
-            };
+            activeArticle = { id: null, title: `日记 ${today}`, content: `# 日记 ${today}\n\n`, folder_id: null, user_id: currentUser.id };
             renderEditor();
-            renderFileList(); // Re-render to deselect others
+            renderFileList();
         });
         
         document.getElementById('file-list').addEventListener('click', async (e) => {
@@ -368,103 +408,83 @@
                 showLoader();
                 const { data, error } = await supabase.from('articles').select('*').eq('id', articleId).single();
                 hideLoader();
-                if (error) {
-                    showAlert('加载文章失败: ' + error.message);
-                } else {
-                    activeArticle = data;
-                    renderEditor();
-                    renderFileList();
-                }
+                if (error) showAlert('加载文章失败: ' + error.message);
+                else { activeArticle = data; renderEditor(); renderFileList(); }
             }
 
             if (editFolderBtn) {
                 e.stopPropagation();
                 const folderId = editFolderBtn.dataset.id;
                 const oldName = editFolderBtn.dataset.name;
-                const newName = prompt('请输入新的文件夹名称:', oldName);
-                if (newName && newName !== oldName) {
-                    showLoader();
-                    const { error } = await supabase.from('folders').update({ name: newName }).eq('id', folderId);
-                    hideLoader();
-                    if (error) showAlert('更新文件夹失败: ' + error.message);
-                    else await fetchData();
-                }
+                showModal({
+                    title: '重命名文件夹',
+                    body: `<input type="text" id="folder-name-input" value="${oldName}" class="w-full px-4 py-2 border border-gray-300 rounded-lg" required>`,
+                    onConfirm: async (bodyEl) => {
+                        const newName = bodyEl.querySelector('#folder-name-input').value.trim();
+                        if (newName && newName !== oldName) {
+                            hideModal();
+                            showLoader();
+                            const { error } = await supabase.from('folders').update({ name: newName }).eq('id', folderId);
+                            hideLoader();
+                            if (error) showAlert('更新文件夹失败: ' + error.message);
+                            else await fetchData();
+                        }
+                    }
+                });
             }
 
             if (deleteFolderBtn) {
                 e.stopPropagation();
                 const folderId = deleteFolderBtn.dataset.id;
-                if (confirm('确定要删除此文件夹及其中的所有文章吗？此操作不可撤销。')) {
-                    showLoader();
-                    // Supabase ON DELETE CASCADE will handle deleting articles
-                    const { error } = await supabase.from('folders').delete().eq('id', folderId);
-                    hideLoader();
-                    if (error) showAlert('删除文件夹失败: ' + error.message);
-                    else {
-                        if (activeArticle?.folder_id === folderId) {
-                            activeArticle = null;
-                            renderEditor();
+                showModal({
+                    title: '删除文件夹',
+                    body: '<p>确定要删除此文件夹及其中的所有文章吗？此操作不可撤销。</p>',
+                    confirmText: '确认删除',
+                    onConfirm: async () => {
+                        hideModal();
+                        showLoader();
+                        const { error } = await supabase.from('folders').delete().eq('id', folderId);
+                        hideLoader();
+                        if (error) showAlert('删除文件夹失败: ' + error.message);
+                        else {
+                            if (activeArticle?.folder_id === folderId) { activeArticle = null; renderEditor(); }
+                            await fetchData();
                         }
-                        await fetchData();
                     }
-                }
+                });
             }
         });
         
-        document.getElementById('markdown-editor').addEventListener('input', (e) => {
-            if(activeArticle) {
-                activeArticle.content = e.target.value;
-                updatePreview(e.target.value);
-            }
-        });
-
-        document.getElementById('article-title').addEventListener('input', (e) => {
-            if(activeArticle) {
-                activeArticle.title = e.target.value;
-            }
-        });
+        document.getElementById('markdown-editor').addEventListener('input', (e) => { if(activeArticle) { activeArticle.content = e.target.value; updatePreview(e.target.value); } });
+        document.getElementById('article-title').addEventListener('input', (e) => { if(activeArticle) activeArticle.title = e.target.value; });
         
         document.getElementById('save-btn').addEventListener('click', async () => {
             if (!activeArticle) return;
             showLoader();
-            const articleData = {
-                title: activeArticle.title || '无标题文章',
-                content: activeArticle.content,
-                user_id: currentUser.id,
-                folder_id: activeArticle.folder_id,
-                updated_at: new Date().toISOString()
-            };
-
+            const articleData = { title: activeArticle.title || '无标题文章', content: activeArticle.content, user_id: currentUser.id, folder_id: activeArticle.folder_id, updated_at: new Date().toISOString() };
             let error, data;
-            if (activeArticle.id) { // Update existing article
-                ({ error, data } = await supabase.from('articles').update(articleData).eq('id', activeArticle.id).select().single());
-            } else { // Insert new article
-                ({ error, data } = await supabase.from('articles').insert(articleData).select().single());
-            }
+            if (activeArticle.id) { ({ error, data } = await supabase.from('articles').update(articleData).eq('id', activeArticle.id).select().single()); } 
+            else { ({ error, data } = await supabase.from('articles').insert(articleData).select().single()); }
             hideLoader();
-
-            if (error) {
-                showAlert('保存失败: ' + error.message);
-            } else {
-                activeArticle = data; // Update state with DB data (like created_at, id)
-                await fetchData(); // Refresh file list
-            }
+            if (error) showAlert('保存失败: ' + error.message);
+            else { activeArticle = data; await fetchData(); }
         });
 
-        document.getElementById('delete-btn').addEventListener('click', async () => {
+        document.getElementById('delete-btn').addEventListener('click', () => {
             if (!activeArticle || !activeArticle.id) return;
-            if (confirm('你确定要删除这篇文章吗?')) {
-                showLoader();
-                const { error } = await supabase.from('articles').delete().eq('id', activeArticle.id);
-                hideLoader();
-                if (error) {
-                    showAlert('删除失败: ' + error.message);
-                } else {
-                    activeArticle = null;
-                    renderEditor();
-                    await fetchData();
+            showModal({
+                title: '删除文章',
+                body: '<p>你确定要删除这篇文章吗?</p>',
+                confirmText: '确认删除',
+                onConfirm: async () => {
+                    hideModal();
+                    showLoader();
+                    const { error } = await supabase.from('articles').delete().eq('id', activeArticle.id);
+                    hideLoader();
+                    if (error) showAlert('删除失败: ' + error.message);
+                    else { activeArticle = null; renderEditor(); await fetchData(); }
                 }
-            }
+            });
         });
         
         document.getElementById('export-btn').addEventListener('click', () => {
@@ -474,86 +494,61 @@
              const a = document.createElement('a');
              a.href = url;
              a.download = `${activeArticle.title.replace(/[\\/:*?"<>|]/g, '_')}.md`;
-             document.body.appendChild(a);
-             a.click();
-             document.body.removeChild(a);
+             document.body.appendChild(a); a.click(); document.body.removeChild(a);
              URL.revokeObjectURL(url);
         });
         
-        document.getElementById('move-btn').addEventListener('click', async () => {
+        document.getElementById('move-btn').addEventListener('click', () => {
             if (!activeArticle || !activeArticle.id) return;
-            
             let options = '<option value="root">根目录 (无文件夹)</option>';
-            folders.forEach(f => {
-                options += `<option value="${f.id}" ${activeArticle.folder_id === f.id ? 'selected' : ''}>${f.name}</option>`;
+            folders.forEach(f => { options += `<option value="${f.id}" ${activeArticle.folder_id === f.id ? 'selected' : ''}>${f.name}</option>`; });
+            showModal({
+                title: '移动文章',
+                body: `<p class="mb-2">选择要将文章移动到的文件夹:</p><select id="move-folder-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg">${options}</select>`,
+                onConfirm: async (bodyEl) => {
+                    const selectedId = bodyEl.querySelector('#move-folder-select').value;
+                    const newFolderId = selectedId === 'root' ? null : selectedId;
+                    if (newFolderId === activeArticle.folder_id) { hideModal(); return; }
+                    hideModal();
+                    showLoader();
+                    const { error } = await supabase.from('articles').update({ folder_id: newFolderId }).eq('id', activeArticle.id);
+                    hideLoader();
+                    if (error) showAlert('移动失败: ' + error.message);
+                    else { activeArticle.folder_id = newFolderId; await fetchData(); }
+                }
             });
-
-            const targetFolderId = prompt(`选择要移动到的文件夹:\n${folders.map((f,i) => `${i+1}. ${f.name}`).join('\n')}\n输入0移动到根目录`, activeArticle.folder_id ? folders.findIndex(f => f.id === activeArticle.folder_id) + 1 : 0);
-            
-            let newFolderId = null;
-            if (targetFolderId !== null) {
-                const index = parseInt(targetFolderId, 10);
-                if (index === 0) {
-                    newFolderId = null;
-                } else if (!isNaN(index) && index > 0 && index <= folders.length) {
-                    newFolderId = folders[index - 1].id;
-                } else {
-                    showAlert("无效的选择。");
-                    return;
-                }
-
-                if (newFolderId === activeArticle.folder_id) return;
-
-                showLoader();
-                const { error } = await supabase.from('articles').update({ folder_id: newFolderId }).eq('id', activeArticle.id);
-                hideLoader();
-
-                if (error) {
-                    showAlert('移动失败: ' + error.message);
-                } else {
-                    activeArticle.folder_id = newFolderId;
-                    await fetchData();
-                }
-            }
         });
         
-        // Responsive sidebar toggles
+        // Responsive sidebar toggles & Auth UI toggle
         const sidebar = document.getElementById('sidebar');
         document.getElementById('sidebar-open-btn').addEventListener('click', () => sidebar.classList.remove('-translate-x-full'));
         document.getElementById('sidebar-close-btn').addEventListener('click', () => sidebar.classList.add('-translate-x-full'));
-
-
-        // Auth UI toggle
-        const loginForm = document.getElementById('login-form');
-        const registerForm = document.getElementById('register-form');
-        const showLoginBtn = document.getElementById('show-login-btn');
-        const showRegisterBtn = document.getElementById('show-register-btn');
-        showLoginBtn.addEventListener('click', () => {
-            loginForm.classList.remove('hidden');
-            registerForm.classList.add('hidden');
-            showLoginBtn.classList.add('bg-blue-500', 'text-white');
-            showRegisterBtn.classList.remove('bg-blue-500', 'text-white');
+        document.getElementById('show-login-btn').addEventListener('click', (e) => {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            e.target.classList.add('bg-blue-500', 'text-white');
+            document.getElementById('show-register-btn').classList.remove('bg-blue-500', 'text-white');
         });
-        showRegisterBtn.addEventListener('click', () => {
-            loginForm.classList.add('hidden');
-            registerForm.classList.remove('hidden');
-            showRegisterBtn.classList.add('bg-blue-500', 'text-white');
-            showLoginBtn.classList.remove('bg-blue-500', 'text-white');
+        document.getElementById('show-register-btn').addEventListener('click', (e) => {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+            e.target.classList.add('bg-blue-500', 'text-white');
+            document.getElementById('show-login-btn').classList.remove('bg-blue-500', 'text-white');
         });
 
         // ----- Initialization -----
         supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth state changed:', event);
             if (session) {
+                console.log('User session found:', session.user.email);
                 currentUser = session.user;
                 document.getElementById('user-info').textContent = `用户: ${currentUser.email}`;
                 authView.classList.add('hidden');
                 mainView.classList.remove('hidden');
                 await fetchData();
             } else {
-                currentUser = null;
-                folders = [];
-                articles = [];
-                activeArticle = null;
+                console.log('User session not found.');
+                currentUser = null; folders = []; articles = []; activeArticle = null;
                 authView.classList.remove('hidden');
                 mainView.classList.add('hidden');
                 renderFileList();
@@ -561,6 +556,7 @@
             }
         });
         
+        console.log('App initialized.');
         lucide.createIcons();
     </script>
 </body>
