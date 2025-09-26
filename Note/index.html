@@ -297,16 +297,14 @@
         
         async function initializeApp() {
             feather.replace(); initEventListeners();
+            // 修复：移除不存在的 'divider' 功能
             const toolbarOptions = [
                 [{ 'header': [1, 2, false] }],
                 ['bold', 'italic', 'underline'],
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['blockquote', 'code-block', 'divider'],
+                ['blockquote', 'code-block'],
                 ['clean']
             ];
-            var divider = Quill.import('blots/divider');
-            Quill.register(divider, true);
-
             quill = new Quill('#editor-container', { modules: { toolbar: toolbarOptions }, theme: 'snow' });
 
             const { data: { session } } = await supabase.auth.getSession();
@@ -321,7 +319,14 @@
                 switchToWelcomeView(); quill.enable(false);
                 dom.authView.classList.remove('hidden'); dom.mainAppView.classList.add('hidden');
             }
-            supabase.auth.onAuthStateChange((_, session) => { if (_ === 'SIGNED_IN' && state.user?.id !== session?.user?.id) window.location.reload(); else if (_ === 'SIGNED_OUT') window.location.reload(); });
+            // 修复：使用更可靠的登录跳转逻辑
+            supabase.auth.onAuthStateChange((_event, session) => {
+                const userJustLoggedIn = _event === 'SIGNED_IN' && state.user?.id !== session?.user?.id;
+                const userJustLoggedOut = _event === 'SIGNED_OUT';
+                if (userJustLoggedIn || userJustLoggedOut) {
+                    window.location.reload();
+                }
+            });
         }
         initializeApp();
     </script>
