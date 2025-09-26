@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>156456</title>
+    <title>Markdown 日记</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase Client -->
@@ -311,33 +311,47 @@
         // ----- Data Functions -----
         const fetchData = async () => {
             if (!currentUser) return;
-            console.log('Fetching data...');
+            console.log('Fetching data for user:', currentUser.id);
             showLoader();
             try {
+                console.log('--> Step 1: Fetching folders...');
                 const { data: foldersData, error: foldersError } = await supabase
                     .from('folders')
                     .select('*')
                     .eq('user_id', currentUser.id)
                     .order('name');
-                if (foldersError) throw foldersError;
+                
+                console.log('--> Step 1a: Folders query completed.');
+                if (foldersError) {
+                    console.error('Folders fetch error:', foldersError);
+                    throw foldersError;
+                }
                 folders = foldersData;
-                console.log('Folders fetched:', folders);
+                console.log('--> Step 2: Folders fetched successfully.', folders);
 
+                console.log('--> Step 3: Fetching articles...');
                 const { data: articlesData, error: articlesError } = await supabase
                     .from('articles')
                     .select('id, title, folder_id, updated_at')
                     .eq('user_id', currentUser.id);
-                if (articlesError) throw articlesError;
-                articles = articlesData;
-                console.log('Articles fetched:', articles);
 
-                console.log('Rendering file list...');
+                console.log('--> Step 3a: Articles query completed.');
+                if (articlesError) {
+                    console.error('Articles fetch error:', articlesError);
+                    throw articlesError;
+                }
+                articles = articlesData;
+                console.log('--> Step 4: Articles fetched successfully.', articles);
+
+                console.log('--> Step 5: Rendering file list...');
                 renderFileList();
+                console.log('--> Step 6: File list rendered.');
+
             } catch (error) {
-                console.error('Data loading failed:', error);
-                showAlert('数据加载失败: ' + error.message);
+                console.error('!!! Critical error in fetchData:', error);
+                showAlert(`数据加载失败: ${error.message}`);
             } finally {
-                console.log('Hiding loader.');
+                console.log('--> Step 7: Executing finally block, hiding loader.');
                 hideLoader();
             }
         };
