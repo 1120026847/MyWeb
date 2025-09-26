@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>15615615</title>
+    <title>Markdown 日记</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -169,19 +169,6 @@
         let state = { user: null, folders: [], diaries: {}, activeFolderId: null, activeDiaryId: null, isEditing: false, isLoginMode: true };
 
         // --- Authentication ---
-        const handleAuth = async () => {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (session) {
-                state.user = session.user;
-                authScreen.style.display = 'none';
-                appContainer.classList.remove('hidden');
-                await loadInitialData();
-            } else {
-                authScreen.style.display = 'flex';
-                appContainer.classList.add('hidden');
-            }
-        };
-
         const showLoading = (isLoading) => {
             authContainer.classList.toggle('hidden', isLoading);
             loadingSpinner.classList.toggle('hidden', !isLoading);
@@ -207,9 +194,6 @@
             if (!emailInput.value || !passwordInput.value) return setAuthMessage('邮箱和密码不能为空。', true);
             showLoading(true);
             const { error } = await supabaseClient.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
-            
-            // **FIX**: Only hide spinner and show message on ERROR.
-            // On success, the onAuthStateChange listener will handle the UI transition.
             if (error) {
                 showLoading(false);
                 setAuthMessage(`登录失败: ${error.message}`, true);
@@ -226,12 +210,23 @@
                 authToggleText.textContent = '已有账号？'; authToggleLink.textContent = '立即登录';
             }
         };
-
-        authActionBtn.addEventListener('click', () => state.isLoginMode ? handleSignIn() : handleSignUp());
-        authToggleLink.addEventListener('click', (e) => { e.preventDefault(); state.isLoginMode = !state.isLoginMode; updateAuthUI(); });
-        logoutBtn.addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
-        supabaseClient.auth.onAuthStateChange(() => handleAuth());
-
+        
+        // --- Central Auth Listener ---
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            if (session) {
+                state.user = session.user;
+                authScreen.style.display = 'none';
+                appContainer.classList.remove('hidden');
+                showLoading(false);
+                await loadInitialData();
+            } else {
+                state.user = null;
+                authScreen.style.display = 'flex';
+                appContainer.classList.add('hidden');
+                showLoading(false);
+            }
+        });
+        
         // --- Data Fetching & Rendering ---
         async function loadInitialData() {
             if (!state.user) return;
@@ -431,6 +426,10 @@
         }
 
         // --- Event Listeners ---
+        authActionBtn.addEventListener('click', () => state.isLoginMode ? handleSignIn() : handleSignUp());
+        authToggleLink.addEventListener('click', (e) => { e.preventDefault(); state.isLoginMode = !state.isLoginMode; updateAuthUI(); });
+        logoutBtn.addEventListener('click', async () => { await supabaseClient.auth.signOut(); window.location.reload(); });
+        
         addFolderBtn.addEventListener('click', addFolder);
         newFolderNameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addFolder(); });
         folderList.addEventListener('click', (e) => {
@@ -454,8 +453,6 @@
         closeSidebarBtn.addEventListener('click', toggleSidebar);
         sidebarOverlay.addEventListener('click', toggleSidebar);
         
-        handleAuth();
     </script>
 </body>
 </html>
-
