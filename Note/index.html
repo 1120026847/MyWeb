@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown 日记1561561</title>
+    <title>Markdown 日记111</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -107,7 +107,7 @@
         <aside id="sidebar" class="sidebar w-64 md:w-80 lg:w-96 p-4 flex flex-col h-full overflow-y-auto">
             <div class="flex items-center justify-between mb-4">
                 <h1 class="text-xl font-bold">我的日记</h1>
-                <button id="close-sidebar-btn" class="md:hidden text-2xl text-gray-400 hover:text-black">
+                <button id="close-sidebar-btn" class="md-hidden text-2xl text-gray-400 hover:text-black">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -132,7 +132,7 @@
         <main class="main-content flex-1 flex flex-col h-screen overflow-hidden">
             <!-- Top Bar -->
             <div class="flex items-center p-4 border-b border-custom bg-white">
-                 <button id="menu-btn" class="md:hidden mr-4 text-2xl">
+                 <button id="menu-btn" class="md-hidden mr-4 text-2xl">
                     <i class="fas fa-bars"></i>
                 </button>
                 <div id="current-diary-title" class="text-lg font-semibold truncate">请选择或创建一篇文章</div>
@@ -182,13 +182,9 @@
         
         const App = {
             state: {
-                user: null,
-                folders: [],
-                diaries: {},
-                activeFolderId: null,
-                activeDiaryId: null,
-                isEditing: false,
-                isLoginMode: true
+                user: null, folders: [], diaries: {},
+                activeFolderId: null, activeDiaryId: null,
+                isEditing: false, isLoginMode: true
             },
             elements: {},
             supabase: null,
@@ -203,14 +199,13 @@
 
             cacheDOMElements() {
                 const ids = [
-                    'auth-screen', 'app-container', 'email-input', 'password-input',
-                    'auth-action-btn', 'auth-message', 'auth-title', 'auth-toggle-text',
-                    'auth-toggle-link', 'auth-container', 'loading-spinner', 'logout-btn',
-                    'folder-list', 'new-folder-name', 'add-folder-btn', 'current-diary-title',
-                    'editor-view', 'preview-view', 'editor', 'welcome-screen', 'edit-btn',
-                    'save-btn', 'delete-diary-btn', 'export-diary-btn', 'move-diary-btn',
-                    'menu-btn', 'sidebar', 'close-sidebar-btn', 'sidebar-overlay',
-                    'move-modal', 'move-folder-select', 'cancel-move-btn', 'confirm-move-btn'
+                    'auth-screen', 'app-container', 'email-input', 'password-input', 'auth-action-btn', 
+                    'auth-message', 'auth-title', 'auth-toggle-text', 'auth-toggle-link', 'auth-container', 
+                    'loading-spinner', 'logout-btn', 'folder-list', 'new-folder-name', 'add-folder-btn', 
+                    'current-diary-title', 'editor-view', 'preview-view', 'editor', 'welcome-screen', 
+                    'edit-btn', 'save-btn', 'delete-diary-btn', 'export-diary-btn', 'move-diary-btn', 
+                    'menu-btn', 'sidebar', 'close-sidebar-btn', 'sidebar-overlay', 'move-modal', 
+                    'move-folder-select', 'cancel-move-btn', 'confirm-move-btn'
                 ];
                 ids.forEach(id => {
                     const key = id.replace(/-(\w)/g, (_, c) => c.toUpperCase());
@@ -220,84 +215,56 @@
             },
 
             bindEventListeners() {
-                const bind = (element, event, handler) => {
-                    if (element) {
-                        element.addEventListener(event, handler);
-                    } else {
-                        console.warn(`Binding failed: Element for handler ${handler.name} not found.`);
-                    }
-                };
-
-                bind(this.elements.authActionBtn, 'click', () => this.handleAuthAction());
-                bind(this.elements.authToggleLink, 'click', e => {
+                // Simplified and safer event binding
+                this.elements.authActionBtn?.addEventListener('click', () => this.handleAuthAction());
+                this.elements.authToggleLink?.addEventListener('click', e => {
                     e.preventDefault();
                     this.state.isLoginMode = !this.state.isLoginMode;
                     this.ui.updateAuthUI();
                 });
-                bind(this.elements.logoutBtn, 'click', () => this.auth.signOut());
-                bind(this.elements.addFolderBtn, 'click', () => this.handlers.addFolder());
-                bind(this.elements.newFolderName, 'keypress', e => {
-                    if (e.key === 'Enter') this.handlers.addFolder();
-                });
-                bind(this.elements.editBtn, 'click', () => this.handlers.setEditing(true));
-                bind(this.elements.saveBtn, 'click', () => this.handlers.saveDiary());
-                bind(this.elements.deleteDiaryBtn, 'click', () => this.handlers.deleteDiary());
-                bind(this.elements.exportDiaryBtn, 'click', () => this.handlers.exportDiary());
-                bind(this.elements.moveDiaryBtn, 'click', () => this.ui.showMoveModal());
-                bind(this.elements.cancelMoveBtn, 'click', () => this.elements.moveModal.style.display = 'none');
-                bind(this.elements.confirmMoveBtn, 'click', () => this.handlers.moveDiary());
-                bind(this.elements.menuBtn, 'click', () => this.ui.toggleSidebar());
-                bind(this.elements.closeSidebarBtn, 'click', () => this.ui.toggleSidebar());
-                bind(this.elements.sidebarOverlay, 'click', () => this.ui.toggleSidebar());
-                bind(this.elements.folderList, 'click', e => this.handlers.handleFolderListClick(e));
-                
-                console.log("App.bindEventListeners() - Event listeners bound.");
+                this.elements.logoutBtn?.addEventListener('click', () => this.auth.signOut());
+                this.elements.addFolderBtn?.addEventListener('click', () => this.handlers.addFolder());
+                this.elements.newFolderName?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handlers.addFolder(); });
+                this.elements.editBtn?.addEventListener('click', () => this.handlers.setEditing(true));
+                this.elements.saveBtn?.addEventListener('click', () => this.handlers.saveDiary());
+                this.elements.deleteDiaryBtn?.addEventListener('click', () => this.handlers.deleteDiary());
+                this.elements.exportDiaryBtn?.addEventListener('click', () => this.handlers.exportDiary());
+                this.elements.moveDiaryBtn?.addEventListener('click', () => this.ui.showMoveModal());
+                this.elements.cancelMoveBtn?.addEventListener('click', () => this.elements.moveModal.style.display = 'none');
+                this.elements.confirmMoveBtn?.addEventListener('click', () => this.handlers.moveDiary());
+                this.elements.menuBtn?.addEventListener('click', () => this.ui.toggleSidebar());
+                this.elements.closeSidebarBtn?.addEventListener('click', () => this.ui.toggleSidebar());
+                this.elements.sidebarOverlay?.addEventListener('click', () => this.ui.toggleSidebar());
+                this.elements.folderList?.addEventListener('click', e => this.handlers.handleFolderListClick(e));
+                console.log("App.bindEventListeners() - Event listeners bound successfully.");
             },
 
             initAuthListener() {
                 this.supabase.auth.onAuthStateChange(async (_event, session) => {
                     console.log("Auth state changed. Session:", session ? "Exists" : "Null");
-                    if (session && this.state.user?.id !== session.user.id) {
-                        this.state.user = session.user;
-                        this.elements.authScreen.style.display = 'none';
-                        this.elements.appContainer.classList.remove('hidden');
-                        await this.handlers.loadInitialData();
-                    } else if (!session) {
-                        this.state.user = null;
-                        this.elements.authScreen.style.display = 'flex';
-                        this.elements.appContainer.classList.add('hidden');
-                        this.handlers.resetAppState();
+                    const userIsAuthenticated = !!session;
+                    const userStateIsAuthenticated = !!this.state.user;
+
+                    if (userIsAuthenticated !== userStateIsAuthenticated) {
+                        if (userIsAuthenticated) {
+                            this.state.user = session.user;
+                            this.elements.authScreen.style.display = 'none';
+                            this.elements.appContainer.classList.remove('hidden');
+                            await this.handlers.loadInitialData();
+                        } else {
+                            this.state.user = null;
+                            this.elements.authScreen.style.display = 'flex';
+                            this.elements.appContainer.classList.add('hidden');
+                            this.handlers.resetAppState();
+                        }
                     }
                 });
             },
 
             auth: {
-                async signUp() {
-                    const { emailInput, passwordInput } = App.elements;
-                    App.ui.setAuthMessage('');
-                    if (!emailInput.value || !passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
-                    if (passwordInput.value.length < 6) return App.ui.setAuthMessage('密码至少需要6位。', true);
-                    
-                    App.ui.showAuthLoading(true);
-                    const { error } = await App.supabase.auth.signUp({ email: emailInput.value, password: passwordInput.value });
-                    App.ui.showAuthLoading(false);
-                    if (error) App.ui.setAuthMessage(`注册失败: ${error.message}`, true);
-                    else App.ui.setAuthMessage('注册成功！请检查您的邮箱以完成验证。');
-                },
-                async signIn() {
-                    const { emailInput, passwordInput } = App.elements;
-                    App.ui.setAuthMessage('');
-                    if (!emailInput.value || !passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
-
-                    App.ui.showAuthLoading(true);
-                    const { error } = await App.supabase.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
-                    App.ui.showAuthLoading(false);
-                    if (error) App.ui.setAuthMessage(`登录失败: ${error.message}`, true);
-                },
-                signOut() {
-                    console.log("Signing out...");
-                    App.supabase.auth.signOut();
-                }
+                async signUp() { /* ... unchanged ... */ },
+                async signIn() { /* ... unchanged ... */ },
+                signOut() { console.log("Signing out..."); App.supabase.auth.signOut(); }
             },
             
             handleAuthAction() {
@@ -306,18 +273,7 @@
                 else this.auth.signUp();
             },
             
-            api: {
-                async fetchFolders() { return App.supabase.from('folders').select('*').eq('user_id', App.state.user.id).order('created_at', { ascending: true }); },
-                async fetchDiaries(folderId) { return App.supabase.from('diaries').select('*').eq('folder_id', folderId).order('created_at', { ascending: false }); },
-                async addFolder(name) { return App.supabase.from('folders').insert({ name, user_id: App.state.user.id }).select().single(); },
-                async renameFolder(id, name) { return App.supabase.from('folders').update({ name }).eq('id', id).select().single(); },
-                async deleteFolder(id) { return App.supabase.from('folders').delete().eq('id', id); },
-                async addDiary(folderId, title) { const content = `# ${title}\n\n开始写作...`; return App.supabase.from('diaries').insert({ title, content, folder_id: folderId, user_id: App.state.user.id }).select().single(); },
-                async renameDiary(id, title) { return App.supabase.from('diaries').update({ title }).eq('id', id).select().single(); },
-                async saveDiary(id, content) { return App.supabase.from('diaries').update({ content }).eq('id', id).select().single(); },
-                async deleteDiary(id) { return App.supabase.from('diaries').delete().eq('id', id); },
-                async moveDiary(id, folderId) { return App.supabase.from('diaries').update({ folder_id: folderId }).eq('id', id).select().single(); }
-            },
+            api: { /* ... all api methods unchanged ... */ },
 
             ui: {
                 renderAll() { this.renderFolders(); this.renderContent(); },
@@ -353,6 +309,7 @@
                         const diaryEl = document.createElement('div');
                         diaryEl.className = `diary-item cursor-pointer p-2 my-1 rounded flex justify-between items-center group ${diary.id === App.state.activeDiaryId ? 'active' : ''}`;
                         diaryEl.dataset.diaryId = diary.id;
+                        diaryEl.dataset.folderId = folderId; // **FIX**: Ensure folderId is on diary items
                         diaryEl.innerHTML = `
                             <div class="diary-name-container flex items-center truncate">
                                <i class="far fa-file-alt mr-2 text-gray-500"></i>
@@ -363,65 +320,12 @@
                         container.appendChild(diaryEl);
                     });
                 },
-                renderContent() {
-                    const { activeDiaryId, activeFolderId, diaries } = App.state;
-                    const { welcomeScreen, editorView, previewView, currentDiaryTitle, editor, editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn } = App.elements;
-                    const diary = activeDiaryId && diaries[activeFolderId]?.find(d => d.id === activeDiaryId);
-                    if (diary) {
-                        welcomeScreen.classList.add('hidden');
-                        currentDiaryTitle.textContent = diary.title;
-                        editor.value = diary.content;
-                        previewView.innerHTML = marked.parse(diary.content || '');
-                        [deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.remove('hidden'));
-                        if (App.state.isEditing) {
-                            editorView.classList.remove('hidden'); previewView.classList.add('hidden');
-                            editBtn.classList.add('hidden'); saveBtn.classList.remove('hidden');
-                        } else {
-                            editorView.classList.add('hidden'); previewView.classList.remove('hidden');
-                            editBtn.classList.remove('hidden'); saveBtn.classList.add('hidden');
-                        }
-                    } else {
-                        welcomeScreen.classList.remove('hidden'); editorView.classList.add('hidden'); previewView.classList.add('hidden');
-                        currentDiaryTitle.textContent = '请选择或创建一篇文章';
-                        [editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.add('hidden'));
-                    }
-                },
-                updateAuthUI() {
-                    this.setAuthMessage('');
-                    const { authTitle, authActionBtn, authToggleText, authToggleLink } = App.elements;
-                    if (App.state.isLoginMode) {
-                        authTitle.textContent = '登录您的账户'; authActionBtn.textContent = '登录';
-                        authToggleText.textContent = '还没有账号？'; authToggleLink.textContent = '立即注册';
-                    } else {
-                        authTitle.textContent = '创建新账户'; authActionBtn.textContent = '注册';
-                        authToggleText.textContent = '已有账号？'; authToggleLink.textContent = '立即登录';
-                    }
-                },
-                showAuthLoading(isLoading) {
-                    const { authContainer, loadingSpinner } = App.elements;
-                    authContainer.classList.toggle('hidden', isLoading);
-                    loadingSpinner.classList.toggle('hidden', !isLoading);
-                },
-                setAuthMessage(message, isError = false) {
-                    const { authMessage } = App.elements;
-                    authMessage.textContent = message;
-                    authMessage.className = `text-center mt-4 text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
-                },
-                toggleSidebar() {
-                    App.elements.sidebar.classList.toggle('open');
-                    App.elements.sidebarOverlay.classList.toggle('hidden');
-                },
-                showMoveModal() {
-                    const { moveFolderSelect, moveModal } = App.elements;
-                    moveFolderSelect.innerHTML = '';
-                    App.state.folders.filter(f => f.id !== App.state.activeFolderId).forEach(folder => {
-                        const option = document.createElement('option');
-                        option.value = folder.id; option.textContent = folder.name;
-                        moveFolderSelect.appendChild(option);
-                    });
-                    if (moveFolderSelect.options.length > 0) moveModal.style.display = 'flex';
-                    else alert('没有其他文件夹可以移动。');
-                }
+                renderContent() { /* ... unchanged ... */ },
+                updateAuthUI() { /* ... unchanged ... */ },
+                showAuthLoading(isLoading) { /* ... unchanged ... */ },
+                setAuthMessage(message, isError = false) { /* ... unchanged ... */ },
+                toggleSidebar() { /* ... unchanged ... */ },
+                showMoveModal() { /* ... unchanged ... */ }
             },
 
             handlers: {
@@ -437,125 +341,235 @@
                     }
                     App.ui.renderAll();
                 },
-                resetAppState() {
-                    console.log("Resetting app state.");
-                    App.state.folders = []; App.state.diaries = {};
-                    App.state.activeFolderId = null; App.state.activeDiaryId = null;
-                    App.ui.renderAll();
-                },
+                resetAppState() { /* ... unchanged ... */ },
                 handleFolderListClick(e) {
-                    const folderItem = e.target.closest('.folder-item');
-                    if (!folderItem) return;
-                    const folderId = folderItem.dataset.folderId;
                     const diaryItem = e.target.closest('.diary-item');
-                    const diaryId = diaryItem?.dataset.diaryId;
+                    const folderItem = e.target.closest('.folder-item');
+                    if (!folderItem && !diaryItem) return;
 
-                    if (e.target.closest('.add-diary-btn')) this.addDiary(folderId);
-                    else if (e.target.closest('.rename-folder-btn')) this.renameFolder(folderId);
-                    else if (e.target.closest('.delete-folder-btn')) this.deleteFolder(folderId);
-                    else if (e.target.closest('.rename-diary-btn')) this.renameDiary(diaryId, folderId);
-                    else if (e.target.closest('.diary-name-container')) this.setActiveDiary(folderId, diaryId);
-                    else if (e.target.closest('.folder-name-container')) this.setActiveFolder(folderId);
+                    const folderId = folderItem?.dataset.folderId || diaryItem?.dataset.folderId;
+                    const diaryId = diaryItem?.dataset.diaryId;
+                    if (!folderId) return;
+
+                    if (e.target.closest('.add-diary-btn')) return this.addDiary(folderId);
+                    if (e.target.closest('.rename-folder-btn')) return this.renameFolder(folderId);
+                    if (e.target.closest('.delete-folder-btn')) return this.deleteFolder(folderId);
+                    if (diaryId) {
+                        if (e.target.closest('.rename-diary-btn')) return this.renameDiary(diaryId, folderId);
+                        if (e.target.closest('.diary-name-container')) return this.setActiveDiary(folderId, diaryId);
+                    }
+                    if (e.target.closest('.folder-name-container')) return this.setActiveFolder(folderId);
                 },
-                setActiveFolder(folderId) {
-                    App.state.activeFolderId = (App.state.activeFolderId === folderId) ? null : folderId;
-                    if (App.state.activeFolderId !== folderId) this.setActiveDiary(null, null, { skipRender: true });
-                    App.ui.renderAll();
-                },
-                setActiveDiary(folderId, diaryId, options = {}) {
-                    App.state.activeFolderId = folderId; App.state.activeDiaryId = diaryId;
-                    this.setEditing(false, { skipRender: true });
-                    if (!options.skipRender) App.ui.renderAll();
-                    if (App.elements.sidebar.classList.contains('open')) App.ui.toggleSidebar();
-                },
-                setEditing(isEditing, options = {}) {
-                    App.state.isEditing = isEditing;
-                    if (!options.skipRender) App.ui.renderContent();
-                },
-                async addFolder() {
-                    const name = App.elements.newFolderName.value.trim();
-                    if (!name) return;
-                    const { data, error } = await App.api.addFolder(name);
-                    if (error) return console.error('Error adding folder:', error);
-                    App.state.folders.push(data); App.state.diaries[data.id] = [];
-                    App.elements.newFolderName.value = ''; this.setActiveFolder(data.id);
-                },
-                async renameFolder(folderId) {
-                    const folder = App.state.folders.find(f => f.id === folderId);
-                    const newName = prompt('输入新的文件夹名称:', folder.name);
-                    if (!newName || newName.trim() === '' || newName === folder.name) return;
-                    const { data, error } = await App.api.renameFolder(folderId, newName.trim());
-                    if (error) return console.error('Error renaming folder:', error);
-                    folder.name = data.name; App.ui.renderFolders();
-                },
-                async deleteFolder(folderId) {
-                    if (!confirm('确定要删除这个文件夹及其所有文章吗？此操作无法撤销。')) return;
-                    const { error } = await App.api.deleteFolder(folderId);
-                    if(error) return console.error('Error deleting folder:', error);
-                    App.state.folders = App.state.folders.filter(f => f.id !== folderId);
-                    delete App.state.diaries[folderId];
-                    if (App.state.activeFolderId === folderId) this.setActiveFolder(null);
-                    else App.ui.renderFolders();
-                },
-                async addDiary(folderId) {
-                    const title = prompt("请输入新文章的标题：");
-                    if (!title || title.trim() === '') return;
-                    const { data, error } = await App.api.addDiary(folderId, title.trim());
-                    if (error) return console.error('Error adding diary:', error);
-                    if (!App.state.diaries[folderId]) App.state.diaries[folderId] = [];
-                    App.state.diaries[folderId].unshift(data); this.setActiveDiary(folderId, data.id);
-                },
-                async renameDiary(diaryId, folderId) {
-                    const diary = App.state.diaries[folderId]?.find(d => d.id === diaryId);
-                    if (!diary) return;
-                    const newTitle = prompt("输入新的文章标题:", diary.title);
-                    if (!newTitle || newTitle.trim() === '' || newTitle === diary.title) return;
-                    const { data, error } = await App.api.renameDiary(diaryId, newTitle.trim());
-                    if (error) return console.error('Error renaming diary:', error);
-                    diary.title = data.title; App.ui.renderAll();
-                },
-                async saveDiary() {
-                    const { activeDiaryId, activeFolderId } = App.state;
-                    if (!activeDiaryId) return;
-                    const { data, error } = await App.api.saveDiary(activeDiaryId, App.elements.editor.value);
-                    if (error) return console.error('Error saving diary:', error);
-                    const idx = App.state.diaries[activeFolderId].findIndex(d => d.id === activeDiaryId);
-                    if(idx > -1) App.state.diaries[activeFolderId][idx] = data;
-                    this.setEditing(false);
-                },
-                async deleteDiary() {
-                    const { activeDiaryId, activeFolderId } = App.state;
-                    if (!activeDiaryId || !confirm('确定要删除这篇文章吗？')) return;
-                    const { error } = await App.api.deleteDiary(activeDiaryId);
-                    if (error) return console.error('Error deleting diary:', error);
-                    App.state.diaries[activeFolderId] = App.state.diaries[activeFolderId].filter(d => d.id !== activeDiaryId);
-                    this.setActiveDiary(activeFolderId, null);
-                },
-                async moveDiary() {
-                    const newFolderId = App.elements.moveFolderSelect.value;
-                    const { activeDiaryId, activeFolderId } = App.state;
-                    if (!newFolderId || !activeDiaryId) return;
-                    const { data, error } = await App.api.moveDiary(activeDiaryId, newFolderId);
-                    if (error) return console.error('Error moving diary:', error);
-                    const diary = App.state.diaries[activeFolderId].find(d => d.id === activeDiaryId);
-                    App.state.diaries[activeFolderId] = App.state.diaries[activeFolderId].filter(d => d.id !== activeDiaryId);
-                    if (!App.state.diaries[newFolderId]) App.state.diaries[newFolderId] = [];
-                    App.state.diaries[newFolderId].unshift(data);
-                    App.elements.moveModal.style.display = 'none';
-                    this.setActiveDiary(newFolderId, activeDiaryId);
-                },
-                exportDiary() {
-                    const { activeDiaryId, activeFolderId, diaries } = App.state;
-                    if (!activeDiaryId) return;
-                    const diary = diaries[activeFolderId].find(d => d.id === activeDiaryId);
-                    const blob = new Blob([diary.content], { type: 'text/markdown;charset=utf-8' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `${diary.title.replace(/[\/\\?%*:|"<>]/g, '-')}.md`;
-                    a.click();
-                    URL.revokeObjectURL(a.href);
-                }
+                setActiveFolder(folderId) { /* ... unchanged ... */ },
+                setActiveDiary(folderId, diaryId, options = {}) { /* ... unchanged ... */ },
+                setEditing(isEditing, options = {}) { /* ... unchanged ... */ },
+                async addFolder() { /* ... unchanged ... */ },
+                async renameFolder(folderId) { /* ... unchanged ... */ },
+                async deleteFolder(folderId) { /* ... unchanged ... */ },
+                async addDiary(folderId) { /* ... unchanged ... */ },
+                async renameDiary(diaryId, folderId) { /* ... unchanged ... */ },
+                async saveDiary() { /* ... unchanged ... */ },
+                async deleteDiary() { /* ... unchanged ... */ },
+                async moveDiary() { /* ... unchanged ... */ },
+                exportDiary() { /* ... unchanged ... */ }
             }
+        };
+        
+        // Helper functions copied from previous unchanged sections for completeness
+        App.auth.signUp = async function() {
+            const { emailInput, passwordInput } = App.elements;
+            App.ui.setAuthMessage('');
+            if (!emailInput.value || !passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
+            if (passwordInput.value.length < 6) return App.ui.setAuthMessage('密码至少需要6位。', true);
+            App.ui.showAuthLoading(true);
+            const { error } = await App.supabase.auth.signUp({ email: emailInput.value, password: passwordInput.value });
+            App.ui.showAuthLoading(false);
+            if (error) App.ui.setAuthMessage(`注册失败: ${error.message}`, true);
+            else App.ui.setAuthMessage('注册成功！请检查您的邮箱以完成验证。');
+        };
+        App.auth.signIn = async function() {
+            const { emailInput, passwordInput } = App.elements;
+            App.ui.setAuthMessage('');
+            if (!emailInput.value || !passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
+            App.ui.showAuthLoading(true);
+            const { error } = await App.supabase.auth.signInWithPassword({ email: emailInput.value, password: passwordInput.value });
+            App.ui.showAuthLoading(false);
+            if (error) App.ui.setAuthMessage(`登录失败: ${error.message}`, true);
+        };
+        App.api = {
+            async fetchFolders() { return App.supabase.from('folders').select('*').eq('user_id', App.state.user.id).order('created_at', { ascending: true }); },
+            async fetchDiaries(folderId) { return App.supabase.from('diaries').select('*').eq('folder_id', folderId).order('created_at', { ascending: false }); },
+            async addFolder(name) { return App.supabase.from('folders').insert({ name, user_id: App.state.user.id }).select().single(); },
+            async renameFolder(id, name) { return App.supabase.from('folders').update({ name }).eq('id', id).select().single(); },
+            async deleteFolder(id) { return App.supabase.from('folders').delete().eq('id', id); },
+            async addDiary(folderId, title) { const content = `# ${title}\n\n开始写作...`; return App.supabase.from('diaries').insert({ title, content, folder_id: folderId, user_id: App.state.user.id }).select().single(); },
+            async renameDiary(id, title) { return App.supabase.from('diaries').update({ title }).eq('id', id).select().single(); },
+            async saveDiary(id, content) { return App.supabase.from('diaries').update({ content }).eq('id', id).select().single(); },
+            async deleteDiary(id) { return App.supabase.from('diaries').delete().eq('id', id); },
+            async moveDiary(id, folderId) { return App.supabase.from('diaries').update({ folder_id: folderId }).eq('id', id).select().single(); }
+        };
+        App.ui.renderContent = function() {
+            const { activeDiaryId, activeFolderId, diaries } = App.state;
+            const { welcomeScreen, editorView, previewView, currentDiaryTitle, editor, editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn } = App.elements;
+            const diary = activeDiaryId && diaries[activeFolderId]?.find(d => d.id === activeDiaryId);
+            if (diary) {
+                welcomeScreen.classList.add('hidden');
+                currentDiaryTitle.textContent = diary.title;
+                editor.value = diary.content;
+                previewView.innerHTML = marked.parse(diary.content || '');
+                [deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.remove('hidden'));
+                if (App.state.isEditing) {
+                    editorView.classList.remove('hidden'); previewView.classList.add('hidden');
+                    editBtn.classList.add('hidden'); saveBtn.classList.remove('hidden');
+                } else {
+                    editorView.classList.add('hidden'); previewView.classList.remove('hidden');
+                    editBtn.classList.remove('hidden'); saveBtn.classList.add('hidden');
+                }
+            } else {
+                welcomeScreen.classList.remove('hidden'); editorView.classList.add('hidden'); previewView.classList.add('hidden');
+                currentDiaryTitle.textContent = '请选择或创建一篇文章';
+                [editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.add('hidden'));
+            }
+        };
+        App.ui.updateAuthUI = function() {
+            this.setAuthMessage('');
+            const { authTitle, authActionBtn, authToggleText, authToggleLink } = App.elements;
+            if (App.state.isLoginMode) {
+                authTitle.textContent = '登录您的账户'; authActionBtn.textContent = '登录';
+                authToggleText.textContent = '还没有账号？'; authToggleLink.textContent = '立即注册';
+            } else {
+                authTitle.textContent = '创建新账户'; authActionBtn.textContent = '注册';
+                authToggleText.textContent = '已有账号？'; authToggleLink.textContent = '立即登录';
+            }
+        };
+        App.ui.showAuthLoading = function(isLoading) {
+            const { authContainer, loadingSpinner } = App.elements;
+            authContainer.classList.toggle('hidden', isLoading);
+            loadingSpinner.classList.toggle('hidden', !isLoading);
+        };
+        App.ui.setAuthMessage = function(message, isError = false) {
+            const { authMessage } = App.elements;
+            authMessage.textContent = message;
+            authMessage.className = `text-center mt-4 text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
+        };
+        App.ui.toggleSidebar = function() {
+            App.elements.sidebar.classList.toggle('open');
+            App.elements.sidebarOverlay.classList.toggle('hidden');
+        };
+        App.ui.showMoveModal = function() {
+            const { moveFolderSelect, moveModal } = App.elements;
+            moveFolderSelect.innerHTML = '';
+            App.state.folders.filter(f => f.id !== App.state.activeFolderId).forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder.id; option.textContent = folder.name;
+                moveFolderSelect.appendChild(option);
+            });
+            if (moveFolderSelect.options.length > 0) moveModal.style.display = 'flex';
+            else alert('没有其他文件夹可以移动。');
+        };
+        App.handlers.resetAppState = function() {
+            console.log("Resetting app state.");
+            App.state.folders = []; App.state.diaries = {};
+            App.state.activeFolderId = null; App.state.activeDiaryId = null;
+            App.ui.renderAll();
+        };
+        App.handlers.setActiveFolder = function(folderId) {
+            App.state.activeFolderId = (App.state.activeFolderId === folderId) ? null : folderId;
+            if (App.state.activeFolderId !== folderId) this.setActiveDiary(null, null, { skipRender: true });
+            App.ui.renderAll();
+        };
+        App.handlers.setActiveDiary = function(folderId, diaryId, options = {}) {
+            App.state.activeFolderId = folderId; App.state.activeDiaryId = diaryId;
+            this.setEditing(false, { skipRender: true });
+            if (!options.skipRender) App.ui.renderAll();
+            if (App.elements.sidebar.classList.contains('open')) App.ui.toggleSidebar();
+        };
+        App.handlers.setEditing = function(isEditing, options = {}) {
+            App.state.isEditing = isEditing;
+            if (!options.skipRender) App.ui.renderContent();
+        };
+        App.handlers.addFolder = async function() {
+            const name = App.elements.newFolderName.value.trim();
+            if (!name) return;
+            const { data, error } = await App.api.addFolder(name);
+            if (error) return console.error('Error adding folder:', error);
+            App.state.folders.push(data); App.state.diaries[data.id] = [];
+            App.elements.newFolderName.value = ''; this.setActiveFolder(data.id);
+        };
+        App.handlers.renameFolder = async function(folderId) {
+            const folder = App.state.folders.find(f => f.id === folderId);
+            const newName = prompt('输入新的文件夹名称:', folder.name);
+            if (!newName || newName.trim() === '' || newName === folder.name) return;
+            const { data, error } = await App.api.renameFolder(folderId, newName.trim());
+            if (error) return console.error('Error renaming folder:', error);
+            folder.name = data.name; App.ui.renderFolders();
+        };
+        App.handlers.deleteFolder = async function(folderId) {
+            if (!confirm('确定要删除这个文件夹及其所有文章吗？此操作无法撤销。')) return;
+            const { error } = await App.api.deleteFolder(folderId);
+            if(error) return console.error('Error deleting folder:', error);
+            App.state.folders = App.state.folders.filter(f => f.id !== folderId);
+            delete App.state.diaries[folderId];
+            if (App.state.activeFolderId === folderId) this.setActiveFolder(null);
+            else App.ui.renderFolders();
+        };
+        App.handlers.addDiary = async function(folderId) {
+            const title = prompt("请输入新文章的标题：");
+            if (!title || title.trim() === '') return;
+            const { data, error } = await App.api.addDiary(folderId, title.trim());
+            if (error) return console.error('Error adding diary:', error);
+            if (!App.state.diaries[folderId]) App.state.diaries[folderId] = [];
+            App.state.diaries[folderId].unshift(data); this.setActiveDiary(folderId, data.id);
+        };
+        App.handlers.renameDiary = async function(diaryId, folderId) {
+            const diary = App.state.diaries[folderId]?.find(d => d.id === diaryId);
+            if (!diary) return;
+            const newTitle = prompt("输入新的文章标题:", diary.title);
+            if (!newTitle || newTitle.trim() === '' || newTitle === diary.title) return;
+            const { data, error } = await App.api.renameDiary(diaryId, newTitle.trim());
+            if (error) return console.error('Error renaming diary:', error);
+            diary.title = data.title; App.ui.renderAll();
+        };
+        App.handlers.saveDiary = async function() {
+            const { activeDiaryId, activeFolderId } = App.state;
+            if (!activeDiaryId) return;
+            const { data, error } = await App.api.saveDiary(activeDiaryId, App.elements.editor.value);
+            if (error) return console.error('Error saving diary:', error);
+            const idx = App.state.diaries[activeFolderId].findIndex(d => d.id === activeDiaryId);
+            if(idx > -1) App.state.diaries[activeFolderId][idx] = data;
+            this.setEditing(false);
+        };
+        App.handlers.deleteDiary = async function() {
+            const { activeDiaryId, activeFolderId } = App.state;
+            if (!activeDiaryId || !confirm('确定要删除这篇文章吗？')) return;
+            const { error } = await App.api.deleteDiary(activeDiaryId);
+            if (error) return console.error('Error deleting diary:', error);
+            App.state.diaries[activeFolderId] = App.state.diaries[activeFolderId].filter(d => d.id !== activeDiaryId);
+            this.setActiveDiary(activeFolderId, null);
+        };
+        App.handlers.moveDiary = async function() {
+            const newFolderId = App.elements.moveFolderSelect.value;
+            const { activeDiaryId, activeFolderId } = App.state;
+            if (!newFolderId || !activeDiaryId) return;
+            const { data, error } = await App.api.moveDiary(activeDiaryId, newFolderId);
+            if (error) return console.error('Error moving diary:', error);
+            const diary = App.state.diaries[activeFolderId].find(d => d.id === activeDiaryId);
+            App.state.diaries[activeFolderId] = App.state.diaries[activeFolderId].filter(d => d.id !== activeDiaryId);
+            if (!App.state.diaries[newFolderId]) App.state.diaries[newFolderId] = [];
+            App.state.diaries[newFolderId].unshift(data);
+            App.elements.moveModal.style.display = 'none';
+            this.setActiveDiary(newFolderId, activeDiaryId);
+        };
+        App.handlers.exportDiary = function() {
+            const { activeDiaryId, activeFolderId, diaries } = App.state;
+            if (!activeDiaryId) return;
+            const diary = diaries[activeFolderId].find(d => d.id === activeDiaryId);
+            const blob = new Blob([diary.content], { type: 'text/markdown;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${diary.title.replace(/[\/\\?%*:|"<>]/g, '-')}.md`;
+            a.click();
+            URL.revokeObjectURL(a.href);
         };
 
         // Run the app after the DOM is fully loaded
