@@ -138,6 +138,10 @@
                 </div>
             </div>
         </div>
+         <div id="folder-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
+            <a href="#" id="rename-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
+            <a href="#" id="delete-folder-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
+        </div>
     </div>
 
     <script type="module">
@@ -145,7 +149,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, isEditing: false, ui: { expandedFolders: new Set() } };
+        let state = { user: null, folders: [], articles: [], selectedArticleId: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null } };
         let quill;
 
         const dom = {
@@ -170,6 +174,8 @@
             toast: document.getElementById('toast'),
             moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'),
             cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'),
+            folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'),
+            deleteFolderBtn: document.getElementById('delete-folder-btn'),
         };
 
         function showToast(message, type = 'success') {
@@ -208,7 +214,7 @@
         async function handleNewArticle() { const t = prompt('请输入新文章的标题：') || '无标题文章'; if (t && t.trim()) { const { data, error } = await supabase.from('articles').insert({ title: t.trim(), content: '', user_id: state.user.id }).select(); if (error) showToast(`创建失败: ${error.message}`, 'error'); else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id); } } }
         async function handleRenameFolder(id) { const f = state.folders.find(i => i.id === id); if (!f) return; const n = prompt('请输入新的文件夹名称:', f.name); if (n && n.trim() && n !== f.name) { const { error } = await supabase.from('folders').update({ name: n.trim() }).eq('id', id); if(error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文件夹已重命名'); fetchData(); } } }
         async function handleDeleteFolder(id) { if(confirm('确定要删除这个文件夹吗？其内的所有文章也将被删除！')) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
-        function handleFolderMenu(id) { const a = prompt(`文件夹操作: "重命名" 或 "删除"`); if (a) { if (a === '重命名') handleRenameFolder(id); else if (a === '删除') handleDeleteFolder(id); else showToast('无效操作。', 'error'); } }
+        
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
         function selectArticle(id) { state.selectedArticleId = id; const a = state.articles.find(i => i.id === id); if (!a) { switchToWelcomeView(); return; } dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex'); dom.articleTitleInput.value = a.title; dom.mobileArticleTitle.textContent = a.title; quill.root.innerHTML = a.content || ''; switchToViewMode(); renderFileTree(); if (window.innerWidth < 768) closeSidebar(); }
@@ -219,22 +225,7 @@
         async function handleSaveArticle() { if (!state.selectedArticleId) return; const t = dom.articleTitleInput.value.trim(); const c = quill.root.innerHTML; if (!t) { showToast('标题不能为空', 'error'); return; } const { error } = await supabase.from('articles').update({ title: t, content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId); if (error) showToast(`保存失败: ${error.message}`, 'error'); else { showToast('保存成功！'); await fetchData(); dom.mobileArticleTitle.textContent = t; switchToViewMode(); } }
         async function handleDeleteArticle() { if (!state.selectedArticleId || !confirm('确定要删除这篇文章吗？')) return; const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); } }
         
-        function handleExportArticle() {
-            if (!state.selectedArticleId) return;
-            const article = state.articles.find(i => i.id === state.selectedArticleId);
-            if (!article) return;
-            const text = quill.getText();
-            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${article.title}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
-
+        function handleExportArticle() { if (!state.selectedArticleId) return; const a = state.articles.find(i => i.id === state.selectedArticleId); if (!a) return; const t = quill.getText(); const b = new Blob([t], { type: 'text/plain;charset=utf-8' }); const u = URL.createObjectURL(b); const l = document.createElement('a'); l.href = u; l.download = `${a.title}.txt`; document.body.appendChild(l); l.click(); document.body.removeChild(l); URL.revokeObjectURL(u); }
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
         async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
         
@@ -246,26 +237,22 @@
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             
-            const refreshAction = async () => {
-                showToast('正在同步数据...');
-                const previouslySelectedId = state.selectedArticleId;
-                await fetchData();
-                if (previouslySelectedId && state.articles.some(a => a.id === previouslySelectedId)) {
-                    selectArticle(previouslySelectedId);
-                }
-                showToast('数据同步完成！');
-            };
-
+            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { const newArticleData = state.articles.find(a=>a.id === prevId); if(newArticleData) quill.root.innerHTML = newArticleData.content || ''; } showToast('数据同步完成！'); };
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
+            
+            dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); state.ui.activeFolderMenuId = fmb.dataset.id; const rect = fmb.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
+            
+            dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
+            dom.deleteFolderBtn.addEventListener('click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
+
             dom.refreshButton.addEventListener('click', refreshAction);
             dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
-            dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); handleFolderMenu(fmb.dataset.id); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
             dom.editButton.addEventListener('click', switchToEditMode); dom.saveButton.addEventListener('click', handleSaveArticle); dom.deleteButton.addEventListener('click', handleDeleteArticle); dom.exportButton.addEventListener('click', handleExportArticle); dom.moveButton.addEventListener('click', openMoveModal);
             dom.mobileEditButton.addEventListener('click', switchToEditMode); dom.mobileSaveButton.addEventListener('click', handleSaveArticle); dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
             dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileExportButton.addEventListener('click', () => { handleExportArticle(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileDeleteButton.addEventListener('click', () => { handleDeleteArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden')); dom.confirmMove.addEventListener('click', handleConfirmMove);
             dom.toggleSidebarButton.addEventListener('click', (e) => { e.stopPropagation(); if (dom.sidebar.classList.contains('-translate-x-full')) openSidebar(); else closeSidebar(); });
-            dom.sidebarOverlay.addEventListener('click', closeSidebar); document.addEventListener('click', () => dom.mobileActionsMenu.classList.add('hidden'));
+            dom.sidebarOverlay.addEventListener('click', closeSidebar); document.addEventListener('click', () => { dom.mobileActionsMenu.classList.add('hidden'); dom.folderContextMenu.classList.add('hidden'); });
         }
         
         async function initializeApp() {
