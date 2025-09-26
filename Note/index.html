@@ -111,6 +111,9 @@
 
         <!-- 主应用界面 (默认隐藏) -->
         <div id="main-app-view" class="hidden h-screen w-full md:flex">
+            <!-- 移动端侧边栏遮罩 -->
+            <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden hidden"></div>
+
             <!-- 侧边栏 -->
             <aside id="sidebar" class="absolute z-30 md:relative w-72 md:w-80 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0 md:translate-x-0 -translate-x-full">
                 <!-- 用户信息和操作 -->
@@ -240,6 +243,7 @@
             showRegisterTab: document.getElementById('show-register-tab'),
             // 侧边栏
             sidebar: document.getElementById('sidebar'),
+            sidebarOverlay: document.getElementById('sidebar-overlay'),
             toggleSidebarButton: document.getElementById('toggle-sidebar-button'),
             userInfo: document.getElementById('user-info'),
             userAvatar: document.getElementById('user-avatar'),
@@ -502,7 +506,7 @@
             
             // 在移动端，选择文章后自动隐藏侧边栏
             if (window.innerWidth < 768) {
-                dom.sidebar.classList.add('sidebar-hidden');
+                closeSidebar();
             }
         }
 
@@ -632,6 +636,17 @@
             dom.moveModal.classList.add('hidden');
         }
 
+        // --- 移动端侧边栏逻辑 ---
+        function openSidebar() {
+            dom.sidebar.classList.remove('sidebar-hidden');
+            dom.sidebarOverlay.classList.remove('hidden');
+        }
+
+        function closeSidebar() {
+            dom.sidebar.classList.add('sidebar-hidden');
+            dom.sidebarOverlay.classList.add('hidden');
+        }
+
         // --- 初始化和事件监听 ---
         function initEventListeners() {
             // 认证
@@ -685,18 +700,15 @@
             dom.confirmMove.addEventListener('click', handleConfirmMove);
             
             // 移动端侧边栏
-            dom.toggleSidebarButton.addEventListener('click', () => {
-                dom.sidebar.classList.toggle('sidebar-hidden');
-            });
-            
-            // 点击主内容区时，如果侧边栏是打开的（移动端），则关闭它
-            dom.app.addEventListener('click', (e) => {
-                 if (window.innerWidth < 768 && !dom.sidebar.classList.contains('sidebar-hidden')) {
-                    if (!dom.sidebar.contains(e.target) && !dom.toggleSidebarButton.contains(e.target)) {
-                        dom.sidebar.classList.add('sidebar-hidden');
-                    }
+            dom.toggleSidebarButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (dom.sidebar.classList.contains('sidebar-hidden')) {
+                    openSidebar();
+                } else {
+                    closeSidebar();
                 }
             });
+            dom.sidebarOverlay.addEventListener('click', closeSidebar);
         }
         
         async function initializeApp() {
