@@ -80,7 +80,6 @@
                 <div class="p-4 flex space-x-2">
                     <button id="new-folder-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="folder-plus" class="w-4 h-4 mr-2"></i>新建文件夹</button>
                     <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="file-plus" class="w-4 h-4 mr-2"></i>新建文章</button>
-                    <button id="refresh-button" title="同步数据" class="p-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors"><i data-feather="refresh-cw" class="w-4 h-4"></i></button>
                 </div>
                 <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-1"></div>
             </aside>
@@ -101,6 +100,7 @@
                     <div id="mobile-actions-menu" class="hidden absolute top-full right-2 mt-1 w-40 bg-white rounded-md shadow-lg border z-40">
                         <a href="#" id="mobile-move-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="move" class="w-4 h-4 mr-2"></i>移动</a>
                         <a href="#" id="mobile-export-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="download" class="w-4 h-4 mr-2"></i>导出</a>
+                        <a href="#" id="mobile-refresh-button" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="refresh-cw" class="w-4 h-4 mr-2"></i>同步</a>
                         <a href="#" id="mobile-delete-button" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
                     </div>
                 </header>
@@ -117,6 +117,7 @@
                              <button id="save-button" class="hidden flex items-center px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"><i data-feather="save" class="w-4 h-4 mr-1.5"></i>保存</button>
                              <button id="move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4 mr-1.5"></i>移动</button>
                              <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出</button>
+                             <button id="refresh-button" title="同步数据" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="refresh-cw" class="w-4 h-4 mr-1.5"></i>同步</button>
                              <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-1.5"></i>删除</button>
                         </div>
                     </div>
@@ -134,6 +135,17 @@
                 <div class="mt-6 flex justify-end space-x-3">
                     <button id="cancel-move" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
                     <button id="confirm-move" class="px-4 py-2 bg-blue-500 text-white rounded-md">确认移动</button>
+                </div>
+            </div>
+        </div>
+        <div id="export-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 class="text-lg font-medium">选择导出格式</h3>
+                <p class="text-sm text-slate-500 mt-2">请选择您想要导出的文件格式。</p>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="export-as-pdf" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">导出为 PDF</button>
+                    <button id="export-as-txt" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">导出为 TXT</button>
+                    <button id="cancel-export" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
                 </div>
             </div>
         </div>
@@ -166,10 +178,12 @@
             mobileEditControls: document.getElementById('mobile-edit-controls'), mobileEditButton: document.getElementById('mobile-edit-button'),
             mobileSaveButton: document.getElementById('mobile-save-button'), mobileMoreButton: document.getElementById('mobile-more-button'),
             mobileActionsMenu: document.getElementById('mobile-actions-menu'), mobileMoveButton: document.getElementById('mobile-move-button'),
-            mobileExportButton: document.getElementById('mobile-export-button'), mobileDeleteButton: document.getElementById('mobile-delete-button'),
-            toast: document.getElementById('toast'), moveModal: document.getElementById('move-modal'),
-            moveFolderSelect: document.getElementById('move-folder-select'), cancelMove: document.getElementById('cancel-move'),
-            confirmMove: document.getElementById('confirm-move'),
+            mobileExportButton: document.getElementById('mobile-export-button'), mobileRefreshButton: document.getElementById('mobile-refresh-button'), mobileDeleteButton: document.getElementById('mobile-delete-button'),
+            toast: document.getElementById('toast'),
+            moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'),
+            cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'),
+            exportModal: document.getElementById('export-modal'), exportAsPdf: document.getElementById('export-as-pdf'),
+            exportAsTxt: document.getElementById('export-as-txt'), cancelExport: document.getElementById('cancel-export'),
         };
 
         function showToast(message, type = 'success') {
@@ -252,12 +266,7 @@
 
         function handleExportArticle() {
             if (!state.selectedArticleId) return;
-            const format = prompt('请选择导出格式: "pdf" 或 "txt"', 'pdf');
-            if (!format) return;
-            const lowerFormat = format.toLowerCase().trim();
-            if (lowerFormat === 'pdf') exportAsPDF();
-            else if (lowerFormat === 'txt') exportAsTXT();
-            else showToast('无效的格式，请输入 "pdf" 或 "txt"', 'error');
+            dom.exportModal.classList.remove('hidden');
         }
 
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
@@ -270,13 +279,18 @@
             dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
+            const refreshAction = async () => { showToast('正在同步数据...'); await fetchData(); showToast('数据同步完成！'); };
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
-            dom.refreshButton.addEventListener('click', async () => { showToast('正在同步数据...'); await fetchData(); showToast('数据同步完成！'); });
+            dom.refreshButton.addEventListener('click', refreshAction);
+            dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); handleFolderMenu(fmb.dataset.id); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
             dom.editButton.addEventListener('click', switchToEditMode); dom.saveButton.addEventListener('click', handleSaveArticle); dom.deleteButton.addEventListener('click', handleDeleteArticle); dom.exportButton.addEventListener('click', handleExportArticle); dom.moveButton.addEventListener('click', openMoveModal);
             dom.mobileEditButton.addEventListener('click', switchToEditMode); dom.mobileSaveButton.addEventListener('click', handleSaveArticle); dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
             dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileExportButton.addEventListener('click', () => { handleExportArticle(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileDeleteButton.addEventListener('click', () => { handleDeleteArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden')); dom.confirmMove.addEventListener('click', handleConfirmMove);
+            dom.exportAsPdf.addEventListener('click', () => { exportAsPDF(); dom.exportModal.classList.add('hidden'); });
+            dom.exportAsTxt.addEventListener('click', () => { exportAsTXT(); dom.exportModal.classList.add('hidden'); });
+            dom.cancelExport.addEventListener('click', () => dom.exportModal.classList.add('hidden'));
             dom.toggleSidebarButton.addEventListener('click', (e) => { e.stopPropagation(); if (dom.sidebar.classList.contains('-translate-x-full')) openSidebar(); else closeSidebar(); });
             dom.sidebarOverlay.addEventListener('click', closeSidebar); document.addEventListener('click', () => dom.mobileActionsMenu.classList.add('hidden'));
         }
@@ -287,9 +301,12 @@
                 [{ 'header': [1, 2, false] }],
                 ['bold', 'italic', 'underline'],
                 [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['blockquote', 'code-block'],
+                ['blockquote', 'code-block', 'divider'],
                 ['clean']
             ];
+            var divider = Quill.import('blots/divider');
+            Quill.register(divider, true);
+
             quill = new Quill('#editor-container', { modules: { toolbar: toolbarOptions }, theme: 'snow' });
 
             const { data: { session } } = await supabase.auth.getSession();
@@ -310,3 +327,4 @@
     </script>
 </body>
 </html>
+
