@@ -140,7 +140,17 @@
                 </div>
             </div>
         </div>
-         <div id="folder-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
+        <div id="creation-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 id="creation-modal-title" class="text-lg font-medium">创建</h3>
+                <input id="creation-modal-input" type="text" class="w-full mt-4 p-2 border rounded-md" placeholder="请输入名称...">
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="cancel-creation" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
+                    <button id="confirm-creation" class="px-4 py-2 bg-blue-500 text-white rounded-md">创建</button>
+                </div>
+            </div>
+        </div>
+        <div id="folder-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
             <a href="#" id="rename-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
             <a href="#" id="delete-folder-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
         </div>
@@ -151,7 +161,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null } };
+        let state = { user: null, folders: [], articles: [], selectedArticleId: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null, creationType: null } };
         let quill;
         let toastTimeout;
 
@@ -179,6 +189,9 @@
             cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'),
             folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'),
             deleteFolderBtn: document.getElementById('delete-folder-btn'),
+            creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'),
+            creationModalInput: document.getElementById('creation-modal-input'), cancelCreation: document.getElementById('cancel-creation'),
+            confirmCreation: document.getElementById('confirm-creation'),
         };
 
         function showToast(message, type = 'success') {
@@ -221,8 +234,33 @@
             feather.replace();
         }
 
-        async function handleNewFolder() { const n = prompt('请输入新文件夹的名称：'); if (n && n.trim()) { const { error } = await supabase.from('folders').insert({ name: n.trim(), user_id: state.user.id }); if (error) showToast(`创建失败: ${error.message}`, 'error'); else { showToast('文件夹创建成功！'); fetchData(); } } }
-        async function handleNewArticle() { const t = prompt('请输入新文章的标题：') || '无标题文章'; if (t && t.trim()) { const { data, error } = await supabase.from('articles').insert({ title: t.trim(), content: '', user_id: state.user.id }).select(); if (error) showToast(`创建失败: ${error.message}`, 'error'); else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id); } } }
+        function openCreationModal(type) {
+            state.ui.creationType = type;
+            dom.creationModalTitle.textContent = type === 'folder' ? '创建新文件夹' : '创建新文章';
+            dom.creationModalInput.value = '';
+            dom.creationModalInput.placeholder = type === 'folder' ? '请输入文件夹名称...' : '请输入文章标题...';
+            dom.creationModal.classList.remove('hidden');
+            dom.creationModalInput.focus();
+        }
+
+        async function handleConfirmCreation() {
+            const type = state.ui.creationType;
+            const name = dom.creationModalInput.value.trim();
+            if (!name) { showToast('名称不能为空', 'error'); return; }
+            dom.creationModal.classList.add('hidden');
+            if (type === 'folder') {
+                const { error } = await supabase.from('folders').insert({ name: name, user_id: state.user.id });
+                if (error) { showToast(`创建文件夹失败: ${error.message}`, 'error'); } 
+                else { showToast('文件夹创建成功！'); fetchData(); }
+            } else if (type === 'article') {
+                const { data, error } = await supabase.from('articles').insert({ title: name, content: '', user_id: state.user.id }).select();
+                if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } 
+                else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id); }
+            }
+        }
+
+        function handleNewFolder() { openCreationModal('folder'); }
+        function handleNewArticle() { openCreationModal('article'); }
         async function handleRenameFolder(id) { const f = state.folders.find(i => i.id === id); if (!f) return; const n = prompt('请输入新的文件夹名称:', f.name); if (n && n.trim() && n !== f.name) { const { error } = await supabase.from('folders').update({ name: n.trim() }).eq('id', id); if(error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文件夹已重命名'); fetchData(); } } }
         async function handleDeleteFolder(id) { if(confirm('确定要删除这个文件夹吗？其内的所有文章也将被删除！')) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
         
@@ -265,6 +303,9 @@
             
             dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
             dom.deleteFolderBtn.addEventListener('click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
+            dom.cancelCreation.addEventListener('click', () => dom.creationModal.classList.add('hidden'));
+            dom.confirmCreation.addEventListener('click', handleConfirmCreation);
+            dom.creationModalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
 
             dom.refreshButton.addEventListener('click', refreshAction);
             dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
@@ -311,4 +352,5 @@
     </script>
 </body>
 </html>
+
 
