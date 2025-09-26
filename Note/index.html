@@ -1,1075 +1,462 @@
+<!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Markdown 日记</title>
-
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-
-    <style>
-
-        :root {
-
-            --bg-main: #1e1e2e;
-
-            --bg-sidebar: #181825;
-
-            --bg-editor: #11111b;
-
-            --text-main: #cdd6f4;
-
-            --text-muted: #a6adc8;
-
-            --border-color: #313244;
-
-            --accent-color: #89b4fa;
-
-            --accent-hover: #74c7ec;
-
-            --danger-color: #f38ba8;
-
-            --success-color: #a6e3a1;
-
-        }
-
-        body {
-
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-
-            background-color: var(--bg-main);
-
-            color: var(--text-main);
-
-        }
-
-        .sidebar { background-color: var(--bg-sidebar); }
-
-        .editor-container { background-color: var(--bg-editor); }
-
-        .btn-primary { background-color: var(--accent-color); color: var(--bg-main); }
-
-        .btn-primary:hover { background-color: var(--accent-hover); }
-
-        .btn-danger { background-color: var(--danger-color); color: var(--bg-main); }
-
-        .btn-success { background-color: var(--success-color); color: var(--bg-main); }
-
-        .border-custom { border-color: var(--border-color); }
-
-        .folder-item.active, .diary-item.active { background-color: rgba(137, 180, 250, 0.2); }
-
-        .folder-item:hover, .diary-item:hover { background-color: rgba(137, 180, 250, 0.1); }
-
-        #editor {
-
-            background-color: var(--bg-editor);
-
-            color: var(--text-main);
-
-            border: 1px solid var(--border-color);
-
-            border-radius: 8px;
-
-            min-height: 400px;
-
-        }
-
-        .prose-custom {
-
-            color: var(--text-main);
-
-        }
-
-        .prose-custom h1, .prose-custom h2, .prose-custom h3, .prose-custom h4, .prose-custom h5, .prose-custom h6 {
-
-            color: var(--text-main);
-
-        }
-
-        .prose-custom a { color: var(--accent-color); }
-
-        .prose-custom strong { color: var(--text-main); }
-
-        .prose-custom blockquote { border-left-color: var(--accent-color); color: var(--text-muted); }
-
-        .prose-custom code { background-color: var(--bg-sidebar); color: var(--accent-color); padding: 2px 4px; border-radius: 4px; }
-
-        .prose-custom pre { background-color: var(--bg-sidebar); padding: 1rem; border-radius: 8px; }
-
-  
-
-        /* Mobile specific styles */
-
-        @media (max-width: 768px) {
-
-            .sidebar {
-
-                position: fixed;
-
-                top: 0;
-
-                left: 0;
-
-                bottom: 0;
-
-                z-index: 50;
-
-                transform: translateX(-100%);
-
-                transition: transform 0.3s ease-in-out;
-
-            }
-
-            .sidebar.open {
-
-                transform: translateX(0);
-
-            }
-
-            .main-content {
-
-                margin-left: 0;
-
-            }
-
-            #sidebar-overlay {
-
-                position: fixed;
-
-                top: 0;
-
-                left: 0;
-
-                right: 0;
-
-                bottom: 0;
-
-                background-color: rgba(0,0,0,0.5);
-
-                z-index: 40;
-
-            }
-
-        }
-
-    </style>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 日记</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f8f9fa; --bg-sidebar: #ffffff; --bg-editor: #ffffff;
+            --text-main: #212529; --text-muted: #6c757d; --border-color: #dee2e6;
+            --accent-color: #0d6efd; --accent-hover: #0b5ed7;
+            --danger-color: #dc3545; --success-color: #198754;
+        }
+        body { font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; background-color: var(--bg-main); color: var(--text-main); }
+        .btn-primary { background-color: var(--accent-color); color: white; } .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-danger { background-color: var(--danger-color); color: white; }
+        .btn-success { background-color: var(--success-color); color: white; }
+        .btn-secondary { background-color: #6c757d; color: white; } .btn-secondary:hover { background-color: #5c636a; }
+        .border-custom { border-color: var(--border-color); }
+        .folder-item.active > div:first-child, .diary-item.active { background-color: rgba(13, 110, 253, 0.1); }
+        .folder-item > div:first-child:hover, .diary-item:hover { background-color: rgba(13, 110, 253, 0.05); }
+        .prose-custom h1, .prose-custom h2, .prose-custom h3 { border-bottom: 1px solid var(--border-color); padding-bottom: .3em; }
+        .prose-custom a { color: var(--accent-color); text-decoration: none; } .prose-custom a:hover { text-decoration: underline; }
+        .prose-custom blockquote { border-left: .25em solid var(--accent-color); color: var(--text-muted); background-color: #f8f9fa; padding-left: 1em; }
+        .prose-custom code { background-color: rgba(0,0,0,0.05); color: #d63384; padding: .2em .4em; border-radius: 6px; }
+        .prose-custom pre { background-color: #f6f8fa; padding: 1rem; border-radius: 8px; }
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; transform: translateX(-100%); transition: transform 0.3s ease-in-out; }
+            .sidebar.open { transform: translateX(0); }
+            #sidebar-overlay { display: block; }
+        }
+    </style>
 </head>
-
 <body class="overflow-hidden h-screen">
 
-  
-
-    <!-- Auth Screen -->
-
-    <div id="auth-screen" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-[100]">
-
-        <div class="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-sm">
-
-            <h2 class="text-2xl font-bold text-white mb-6 text-center">欢迎来到日记本</h2>
-
-            <div id="auth-container">
-
-                <p class="text-center text-gray-400 mb-4">请使用邮箱登录或注册</p>
-
-                <input type="email" id="email-input" placeholder="输入您的邮箱" class="w-full bg-gray-700 text-white p-3 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-                <button id="send-magic-link-btn" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition font-semibold">发送魔法链接</button>
-
-            </div>
-
-            <div id="loading-spinner" class="hidden text-center text-white">
-
-                <i class="fas fa-spinner fa-spin text-3xl"></i>
-
-                <p class="mt-2">正在处理...</p>
-
-            </div>
-
-            <p id="auth-message" class="text-center mt-4 text-green-400"></p>
-
-        </div>
-
-    </div>
-
-  
-
-    <!-- Main Content -->
-
-    <div id="app-container" class="hidden h-screen md:flex">
-
-        <!-- Sidebar -->
-
-        <aside id="sidebar" class="sidebar w-64 md:w-80 lg:w-96 p-4 border-r border-custom flex flex-col h-full overflow-y-auto">
-
-            <div class="flex items-center justify-between mb-4">
-
-                <h1 class="text-xl font-bold">我的日记</h1>
-
-                <button id="close-sidebar-btn" class="md:hidden text-2xl text-gray-400 hover:text-white">
-
-                    <i class="fas fa-times"></i>
-
-                </button>
-
-            </div>
-
-            <div class="flex items-center mb-4">
-
-                <input type="text" id="new-folder-name" placeholder="新建文件夹..." class="w-full bg-gray-700 p-2 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-                <button id="add-folder-btn" class="bg-blue-600 px-3 py-2 rounded-r hover:bg-blue-700"><i class="fas fa-plus"></i></button>
-
-            </div>
-
-            <nav id="folder-list" class="flex-grow">
-
-                <!-- Folders and diaries will be populated here -->
-
-            </nav>
-
-            <div class="mt-auto">
-
-                <button id="logout-btn" class="w-full text-left p-2 rounded hover:bg-red-500/20 text-red-400">
-
-                    <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
-
-                </button>
-
-            </div>
-
-        </aside>
-
-  
-
-        <!-- Sidebar overlay for mobile -->
-
-        <div id="sidebar-overlay" class="hidden md:hidden"></div>
-
-  
-
-        <!-- Main content -->
-
-        <main class="main-content flex-1 flex flex-col h-screen overflow-hidden">
-
-            <!-- Top Bar -->
-
-            <div class="flex items-center p-4 border-b border-custom">
-
-                 <button id="menu-btn" class="md:hidden mr-4 text-2xl">
-
-                    <i class="fas fa-bars"></i>
-
-                </button>
-
-                <div id="current-diary-title" class="text-lg font-semibold truncate">请选择或创建一篇日记</div>
-
-                <div class="ml-auto flex items-center space-x-2">
-
-                    <button id="delete-diary-btn" class="btn-danger px-3 py-1.5 rounded-md hidden"><i class="fas fa-trash"></i> <span class="hidden sm:inline ml-1">删除</span></button>
-
-                    <button id="edit-btn" class="btn-primary px-3 py-1.5 rounded-md hidden"><i class="fas fa-pencil-alt"></i> <span class="hidden sm:inline ml-1">编辑</span></button>
-
-                    <button id="save-btn" class="btn-success px-3 py-1.5 rounded-md hidden"><i class="fas fa-save"></i> <span class="hidden sm:inline ml-1">保存</span></button>
-
-                </div>
-
-            </div>
-
-  
-
-            <!-- Editor/Preview Area -->
-
-            <div id="content-area" class="flex-1 p-4 md:p-6 overflow-y-auto">
-
-                <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
-
-                    <i class="fas fa-book-open text-6xl mb-4"></i>
-
-                    <h2 class="text-2xl font-semibold">开始您的写作之旅</h2>
-
-                    <p class="mt-2">从左侧选择一个文件夹和日记，或者创建一个新的。</p>
-
-                </div>
-
-                <div id="editor-view" class="hidden h-full">
-
-                    <textarea id="editor" class="w-full h-full p-4 resize-none focus:outline-none"></textarea>
-
-                </div>
-
-                <div id="preview-view" class="hidden prose-custom max-w-none">
-
-                    <!-- Rendered markdown will be here -->
-
-                </div>
-
-            </div>
-
-        </main>
-
-    </div>
-
-  
-
-    <script type="module">
-
-        const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-
-        const { createClient } = supabase;
-
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  
-
-        // DOM Elements
-
-        const authScreen = document.getElementById('auth-screen');
-
-        const appContainer = document.getElementById('app-container');
-
-        const emailInput = document.getElementById('email-input');
-
-        const sendMagicLinkBtn = document.getElementById('send-magic-link-btn');
-
-        const authMessage = document.getElementById('auth-message');
-
-        const logoutBtn = document.getElementById('logout-btn');
-
-        const folderList = document.getElementById('folder-list');
-
-        const newFolderNameInput = document.getElementById('new-folder-name');
-
-        const addFolderBtn = document.getElementById('add-folder-btn');
-
-        const currentDiaryTitle = document.getElementById('current-diary-title');
-
-        const editorView = document.getElementById('editor-view');
-
-        const previewView = document.getElementById('preview-view');
-
-        const editor = document.getElementById('editor');
-
-        const editBtn = document.getElementById('edit-btn');
-
-        const saveBtn = document.getElementById('save-btn');
-
-        const deleteDiaryBtn = document.getElementById('delete-diary-btn');
-
-        const welcomeScreen = document.getElementById('welcome-screen');
-
-  
-
-        // Mobile UI elements
-
-        const menuBtn = document.getElementById('menu-btn');
-
-        const sidebar = document.getElementById('sidebar');
-
-        const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-
-        const sidebarOverlay = document.getElementById('sidebar-overlay');
-
-  
-
-        // App State
-
-        let state = {
-
-            user: null,
-
-            folders: [],
-
-            diaries: {},
-
-            activeFolderId: null,
-
-            activeDiaryId: null,
-
-            isEditing: false,
-
-        };
-
-  
-
-        // --- AUTHENTICATION ---
-
-        const handleAuth = async () => {
-
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
-
-            if (session) {
-
-                state.user = session.user;
-
-                authScreen.classList.add('hidden');
-
-                appContainer.classList.remove('hidden');
-
-                await loadInitialData();
-
-            } else {
-
-                authScreen.classList.remove('hidden');
-
-                appContainer.classList.add('hidden');
-
-            }
-
-        };
-
-  
-
-        sendMagicLinkBtn.addEventListener('click', async () => {
-
-            const email = emailInput.value;
-
-            if (!email) {
-
-                authMessage.textContent = '请输入邮箱地址。';
-
-                authMessage.className = 'text-center mt-4 text-red-400';
-
-                return;
-
-            }
-
-            document.getElementById('auth-container').classList.add('hidden');
-
-            document.getElementById('loading-spinner').classList.remove('hidden');
-
-            authMessage.textContent = '';
-
-  
-
-            const { error } = await supabaseClient.auth.signInWithOtp({ email });
-
-  
-
-            document.getElementById('loading-spinner').classList.add('hidden');
-
-            if (error) {
-
-                authMessage.textContent = `错误: ${error.message}`;
-
-                authMessage.className = 'text-center mt-4 text-red-400';
-
-                 document.getElementById('auth-container').classList.remove('hidden');
-
-            } else {
-
-                authMessage.textContent = '已发送链接，请检查您的邮箱！';
-
-                authMessage.className = 'text-center mt-4 text-green-400';
-
-            }
-
-        });
-
-  
-
-        logoutBtn.addEventListener('click', async () => {
-
-            await supabaseClient.auth.signOut();
-
-            state = { user: null, folders: [], diaries: {}, activeFolderId: null, activeDiaryId: null, isEditing: false };
-
-            window.location.reload();
-
-        });
-
-  
-
-        supabaseClient.auth.onAuthStateChange((_event, session) => {
-
-             handleAuth();
-
-        });
-
-  
-
-        // --- DATA FETCHING & RENDERING ---
-
-        async function loadInitialData() {
-
-            if (!state.user) return;
-
-            await fetchFolders();
-
-            renderFolders();
-
-        }
-
-  
-
-        async function fetchFolders() {
-
-            const { data, error } = await supabaseClient
-
-                .from('folders')
-
-                .select('*')
-
-                .eq('user_id', state.user.id)
-
-                .order('created_at', { ascending: true });
-
-            if (error) {
-
-                console.error('Error fetching folders:', error);
-
-                return;
-
-            }
-
-            state.folders = data;
-
-            // Fetch diaries for each folder
-
-            for (const folder of state.folders) {
-
-                await fetchDiaries(folder.id);
-
-            }
-
-        }
-
-  
-
-        async function fetchDiaries(folderId) {
-
-            const { data, error } = await supabaseClient
-
-                .from('diaries')
-
-                .select('*')
-
-                .eq('folder_id', folderId)
-
-                .order('created_at', { ascending: false });
-
-            if (error) {
-
-                console.error(`Error fetching diaries for folder ${folderId}:`, error);
-
-                return;
-
-            }
-
-            state.diaries[folderId] = data;
-
-        }
-
-  
-
-        function renderFolders() {
-
-            folderList.innerHTML = '';
-
-            state.folders.forEach(folder => {
-
-                const folderEl = document.createElement('div');
-
-                folderEl.innerHTML = `
-
-                    <div class="folder-item cursor-pointer p-2 rounded flex justify-between items-center ${folder.id === state.activeFolderId ? 'active' : ''}">
-
-                        <div class="folder-name-container flex items-center">
-
-                            <i class="fas fa-folder mr-2 ${folder.id === state.activeFolderId ? 'fa-folder-open' : ''}"></i>
-
-                            <span class="font-semibold">${folder.name}</span>
-
-                        </div>
-
-                        <div>
-
-                            <button class="add-diary-btn text-gray-400 hover:text-white mr-2" data-folder-id="${folder.id}"><i class="fas fa-plus-circle"></i></button>
-
-                            <button class="delete-folder-btn text-gray-400 hover:text-red-500" data-folder-id="${folder.id}"><i class="fas fa-trash-alt"></i></button>
-
-                        </div>
-
-                    </div>
-
-                    <div class="diary-list pl-4 ${folder.id === state.activeFolderId ? '' : 'hidden'}">
-
-                        <!-- Diaries here -->
-
-                    </div>
-
-                `;
-
-                folderList.appendChild(folderEl);
-
-  
-
-                const folderNameContainer = folderEl.querySelector('.folder-name-container');
-
-                folderNameContainer.addEventListener('click', () => {
-
-                    setActiveFolder(folder.id);
-
-                });
-
-            });
-
-            if(state.activeFolderId) renderDiaries(state.activeFolderId);
-
-        }
-
-  
-
-        function renderDiaries(folderId) {
-
-            const activeFolderEl = Array.from(folderList.querySelectorAll('.folder-item')).find(el => el.querySelector('.delete-folder-btn').dataset.folderId === folderId);
-
-            if (!activeFolderEl) return;
-
-  
-
-            const diaryListContainer = activeFolderEl.nextElementSibling;
-
-            diaryListContainer.innerHTML = '';
-
-            const diaries = state.diaries[folderId] || [];
-
-            diaries.forEach(diary => {
-
-                const diaryEl = document.createElement('div');
-
-                diaryEl.className = `diary-item cursor-pointer p-2 rounded flex justify-between items-center ${diary.id === state.activeDiaryId ? 'active' : ''}`;
-
-                diaryEl.dataset.diaryId = diary.id;
-
-                diaryEl.dataset.folderId = folderId;
-
-                const date = new Date(diary.created_at);
-
-                const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-
-  
-
-                diaryEl.innerHTML = `
-
-                    <div class="flex items-center truncate">
-
-                       <i class="far fa-file-alt mr-2"></i>
-
-                       <span class="truncate">${diary.title} <span class="text-xs text-gray-500 ml-2">${formattedDate}</span></span>
-
-                    </div>
-
-                `;
-
-                diaryListContainer.appendChild(diaryEl);
-
-                diaryEl.addEventListener('click', () => {
-
-                    setActiveDiary(folderId, diary.id);
-
-                });
-
-            });
-
-        }
-
-        function renderContent() {
-
-            if (state.activeDiaryId) {
-
-                const diary = state.diaries[state.activeFolderId].find(d => d.id === state.activeDiaryId);
-
-                welcomeScreen.classList.add('hidden');
-
-                currentDiaryTitle.textContent = diary.title;
-
-                editor.value = diary.content;
-
-                previewView.innerHTML = marked.parse(diary.content || '');
-
-  
-
-                deleteDiaryBtn.classList.remove('hidden');
-
-  
-
-                if (state.isEditing) {
-
-                    editorView.classList.remove('hidden');
-
-                    previewView.classList.add('hidden');
-
-                    editBtn.classList.add('hidden');
-
-                    saveBtn.classList.remove('hidden');
-
-                } else {
-
-                    editorView.classList.add('hidden');
-
-                    previewView.classList.remove('hidden');
-
-                    editBtn.classList.remove('hidden');
-
-                    saveBtn.classList.add('hidden');
-
-                }
-
-            } else {
-
-                welcomeScreen.classList.remove('hidden');
-
-                editorView.classList.add('hidden');
-
-                previewView.classList.add('hidden');
-
-                currentDiaryTitle.textContent = '请选择或创建一篇日记';
-
-                editBtn.classList.add('hidden');
-
-                saveBtn.classList.add('hidden');
-
-                deleteDiaryBtn.classList.add('hidden');
-
-            }
-
-        }
-
-        // --- STATE MANAGEMENT ---
-
-        function setActiveFolder(folderId) {
-
-            if (state.activeFolderId === folderId) {
-
-                state.activeFolderId = null; // Toggle off
-
-                setActiveDiary(null, null);
-
-            } else {
-
-                state.activeFolderId = folderId;
-
-            }
-
-            renderFolders();
-
-        }
-
-  
-
-        function setActiveDiary(folderId, diaryId) {
-
-            state.activeFolderId = folderId;
-
-            state.activeDiaryId = diaryId;
-
-            state.isEditing = false;
-
-            renderFolders(); // to update active states
-
-            renderContent();
-
-  
-
-            if (sidebar.classList.contains('open')) {
-
-                toggleSidebar();
-
-            }
-
-        }
-
-  
-
-        // --- ACTIONS ---
-
-        async function addFolder() {
-
-            const name = newFolderNameInput.value.trim();
-
-            if (!name || !state.user) return;
-
-            const { data, error } = await supabaseClient
-
-                .from('folders')
-
-                .insert([{ name, user_id: state.user.id }])
-
-                .select()
-
-                .single();
-
-            if (error) {
-
-                console.error('Error adding folder:', error);
-
-                return;
-
-            }
-
-            state.folders.push(data);
-
-            state.diaries[data.id] = [];
-
-            newFolderNameInput.value = '';
-
-            setActiveFolder(data.id);
-
-        }
-
-  
-
-        async function deleteFolder(folderId) {
-
-            if (!confirm('确定要删除这个文件夹及其所有日记吗？此操作无法撤销。')) return;
-
-  
-
-            const { error } = await supabaseClient
-
-                .from('folders')
-
-                .delete()
-
-                .eq('id', folderId);
-
-            if(error) {
-
-                console.error('Error deleting folder:', error);
-
-                return;
-
-            }
-
-  
-
-            state.folders = state.folders.filter(f => f.id !== folderId);
-
-            delete state.diaries[folderId];
-
-            if (state.activeFolderId === folderId) {
-
-                setActiveDiary(null, null);
-
-                state.activeFolderId = null;
-
-            }
-
-            renderFolders();
-
-        }
-
-  
-
-        async function addDiary(folderId) {
-
-            const today = new Date();
-
-            const title = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')} 的日记`;
-
-  
-
-            const { data, error } = await supabaseClient
-
-                .from('diaries')
-
-                .insert([{ title, content: '# 新日记\n\n开始写作...', folder_id: folderId, user_id: state.user.id }])
-
-                .select()
-
-                .single();
-
-  
-
-            if (error) {
-
-                console.error('Error adding diary:', error);
-
-                return;
-
-            }
-
-  
-
-            state.diaries[folderId].unshift(data);
-
-            setActiveDiary(folderId, data.id);
-
-        }
-
-  
-
-        async function saveDiary() {
-
-            if (!state.activeDiaryId) return;
-
-            const newContent = editor.value;
-
-  
-
-            const { data, error } = await supabaseClient
-
-                .from('diaries')
-
-                .update({ content: newContent })
-
-                .eq('id', state.activeDiaryId)
-
-                .select()
-
-                .single();
-
-  
-
-            if (error) {
-
-                console.error('Error saving diary:', error);
-
-                return;
-
-            }
-
-            const diaryIndex = state.diaries[state.activeFolderId].findIndex(d => d.id === state.activeDiaryId);
-
-            state.diaries[state.activeFolderId][diaryIndex] = data;
-
-            state.isEditing = false;
-
-            renderContent();
-
-        }
-
-  
-
-        async function deleteDiary() {
-
-            if (!state.activeDiaryId) return;
-
-            if (!confirm('确定要删除这篇日记吗？')) return;
-
-  
-
-            const { error } = await supabaseClient
-
-                .from('diaries')
-
-                .delete()
-
-                .eq('id', state.activeDiaryId);
-
-            if (error) {
-
-                console.error('Error deleting diary:', error);
-
-                return;
-
-            }
-
-  
-
-            state.diaries[state.activeFolderId] = state.diaries[state.activeFolderId].filter(d => d.id !== state.activeDiaryId);
-
-            setActiveDiary(state.activeFolderId, null);
-
-        }
-
-  
-
-        // --- EVENT LISTENERS ---
-
-        addFolderBtn.addEventListener('click', addFolder);
-
-        newFolderNameInput.addEventListener('keypress', (e) => {
-
-            if (e.key === 'Enter') addFolder();
-
-        });
-
-  
-
-        folderList.addEventListener('click', (e) => {
-
-            const addBtn = e.target.closest('.add-diary-btn');
-
-            const deleteBtn = e.target.closest('.delete-folder-btn');
-
-            if (addBtn) {
-
-                e.stopPropagation();
-
-                addDiary(addBtn.dataset.folderId);
-
-            }
-
-            if (deleteBtn) {
-
-                e.stopPropagation();
-
-                deleteFolder(deleteBtn.dataset.folderId);
-
-            }
-
-        });
-
-  
-
-        editBtn.addEventListener('click', () => {
-
-            state.isEditing = true;
-
-            renderContent();
-
-            editor.focus();
-
-        });
-
-  
-
-        saveBtn.addEventListener('click', saveDiary);
-
-        deleteDiaryBtn.addEventListener('click', deleteDiary);
-
-  
-
-        // Mobile sidebar toggle
-
-        function toggleSidebar() {
-
-            sidebar.classList.toggle('open');
-
-            sidebarOverlay.classList.toggle('hidden');
-
-        }
-
-  
-
-        menuBtn.addEventListener('click', toggleSidebar);
-
-        closeSidebarBtn.addEventListener('click', toggleSidebar);
-
-        sidebarOverlay.addEventListener('click', toggleSidebar);
-
-  
-
-        // --- INITIALIZATION ---
-
-        handleAuth();
-
-    </script>
-
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="fixed inset-0 bg-gray-100 flex items-center justify-center z-[100]">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm border border-custom">
+            <h2 id="auth-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">登录您的账户</h2>
+            <div id="auth-container" class="space-y-4">
+                 <input type="email" id="email-input" placeholder="邮箱地址" class="w-full border border-custom p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 <input type="password" id="password-input" placeholder="密码 (至少6位)" class="w-full border border-custom p-3 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                 <button id="auth-action-btn" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700 transition font-semibold">登录</button>
+            </div>
+            <div id="loading-spinner" class="hidden text-center text-gray-700">
+                <i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2">正在处理...</p>
+            </div>
+            <p id="auth-message" class="text-center mt-4 text-sm"></p>
+            <p class="text-center text-sm text-gray-500 mt-4">
+                <span id="auth-toggle-text">还没有账号？</span>
+                <a href="#" id="auth-toggle-link" class="font-medium text-blue-600 hover:underline">立即注册</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="app-container" class="hidden h-screen md:flex">
+        <aside id="sidebar" class="sidebar w-64 md:w-80 lg:w-96 p-4 flex flex-col h-full overflow-y-auto bg-white border-r border-custom">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-xl font-bold">我的日记</h1>
+                <button id="close-sidebar-btn" class="md:hidden text-2xl text-gray-500 hover:text-gray-800"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex items-center mb-4">
+                <input type="text" id="new-folder-name" placeholder="新建文件夹..." class="w-full border border-custom p-2 rounded-l focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="add-folder-btn" class="bg-blue-600 text-white px-3 py-2 rounded-r hover:bg-blue-700"><i class="fas fa-plus"></i></button>
+            </div>
+            <nav id="folder-list" class="flex-grow"></nav>
+            <div class="mt-auto pt-4 border-t border-custom">
+                <button id="logout-btn" class="w-full text-left p-2 rounded hover:bg-red-500/10 text-red-600"><i class="fas fa-sign-out-alt mr-2"></i> 退出登录</button>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+
+        <main class="flex-1 flex flex-col h-screen overflow-hidden">
+            <div class="flex items-center p-4 border-b border-custom bg-white">
+                 <button id="menu-btn" class="md:hidden mr-4 text-2xl"><i class="fas fa-bars"></i></button>
+                <div id="current-diary-title" class="text-lg font-semibold truncate">请选择或创建一篇文章</div>
+                <div class="ml-auto flex items-center space-x-2">
+                    <button id="move-diary-btn" class="btn-secondary px-3 py-1.5 rounded-md hidden"><i class="fas fa-folder-tree"></i> <span class="hidden sm:inline ml-1">移动</span></button>
+                    <button id="export-diary-btn" class="btn-secondary px-3 py-1.5 rounded-md hidden"><i class="fas fa-file-export"></i> <span class="hidden sm:inline ml-1">导出</span></button>
+                    <button id="delete-diary-btn" class="btn-danger px-3 py-1.5 rounded-md hidden"><i class="fas fa-trash"></i> <span class="hidden sm:inline ml-1">删除</span></button>
+                    <button id="edit-btn" class="btn-primary px-3 py-1.5 rounded-md hidden"><i class="fas fa-pencil-alt"></i> <span class="hidden sm:inline ml-1">编辑</span></button>
+                    <button id="save-btn" class="btn-success px-3 py-1.5 rounded-md hidden"><i class="fas fa-save"></i> <span class="hidden sm:inline ml-1">保存</span></button>
+                </div>
+            </div>
+
+            <div class="flex-1 p-4 md:p-6 overflow-y-auto">
+                <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+                    <i class="fas fa-book-open text-6xl mb-4"></i>
+                    <h2 class="text-2xl font-semibold text-gray-700">开始您的写作之旅</h2>
+                    <p class="mt-2">从左侧选择或创建一个文件夹和文章。</p>
+                </div>
+                <div id="editor-view" class="hidden h-full"><textarea id="editor" class="w-full h-full p-4 resize-none focus:outline-none border border-custom rounded-lg"></textarea></div>
+                <div id="preview-view" class="hidden prose-custom max-w-none"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="move-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[60]">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4 text-gray-800">移动文章到...</h3>
+            <select id="move-folder-select" class="w-full p-2 border border-custom rounded mb-4 text-gray-800"></select>
+            <div class="flex justify-end space-x-2">
+                <button id="cancel-move-btn" class="btn-secondary px-4 py-2 rounded">取消</button>
+                <button id="confirm-move-btn" class="btn-primary px-4 py-2 rounded">确认移动</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+    const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+    const { createClient } = supabase;
+
+    const App = {
+        state: {
+            user: null, folders: [], diariesByFolder: {},
+            activeFolderId: null, activeDiaryId: null,
+            isEditing: false, isLoginMode: true
+        },
+        elements: {},
+        supabase: null,
+
+        init() {
+            this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            this.cacheDOMElements();
+            this.bindEventListeners();
+            this.supabase.auth.onAuthStateChange((event, session) => this.handleAuthStateChange(session));
+        },
+        
+        cacheDOMElements() {
+            const ids = [
+                'auth-screen', 'app-container', 'email-input', 'password-input', 'auth-action-btn', 
+                'auth-message', 'auth-title', 'auth-toggle-text', 'auth-toggle-link', 'auth-container', 
+                'loading-spinner', 'logout-btn', 'folder-list', 'new-folder-name', 'add-folder-btn', 
+                'current-diary-title', 'editor-view', 'preview-view', 'editor', 'welcome-screen', 
+                'edit-btn', 'save-btn', 'delete-diary-btn', 'export-diary-btn', 'move-diary-btn', 
+                'menu-btn', 'sidebar', 'close-sidebar-btn', 'sidebar-overlay', 'move-modal', 
+                'move-folder-select', 'cancel-move-btn', 'confirm-move-btn'
+            ];
+            ids.forEach(id => {
+                const key = id.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+                this.elements[key] = document.getElementById(id);
+            });
+        },
+
+        bindEventListeners() {
+            this.elements.authActionBtn.addEventListener('click', () => this.handleAuthAction());
+            this.elements.authToggleLink.addEventListener('click', e => {
+                e.preventDefault();
+                this.state.isLoginMode = !this.state.isLoginMode;
+                this.ui.updateAuthForm();
+            });
+            this.elements.logoutBtn.addEventListener('click', () => this.supabase.auth.signOut());
+            this.elements.addFolderBtn.addEventListener('click', () => this.handlers.addFolder());
+            this.elements.newFolderName.addEventListener('keypress', e => { if (e.key === 'Enter') this.handlers.addFolder(); });
+            this.elements.folderList.addEventListener('click', e => this.handlers.handleSidebarClick(e));
+            this.elements.editBtn.addEventListener('click', () => this.handlers.setEditing(true));
+            this.elements.saveBtn.addEventListener('click', () => this.handlers.saveDiary());
+            this.elements.deleteDiaryBtn.addEventListener('click', () => this.handlers.deleteDiary());
+            this.elements.exportDiaryBtn.addEventListener('click', () => this.handlers.exportDiary());
+            this.elements.moveDiaryBtn.addEventListener('click', () => this.ui.showMoveModal());
+            this.elements.cancelMoveBtn.addEventListener('click', () => this.elements.moveModal.style.display = 'none');
+            this.elements.confirmMoveBtn.addEventListener('click', () => this.handlers.moveDiary());
+            const toggleSidebar = () => this.ui.toggleSidebar();
+            this.elements.menuBtn.addEventListener('click', toggleSidebar);
+            this.elements.closeSidebarBtn.addEventListener('click', toggleSidebar);
+            this.elements.sidebarOverlay.addEventListener('click', toggleSidebar);
+        },
+
+        async handleAuthStateChange(session) {
+            if (session) {
+                this.state.user = session.user;
+                this.elements.authScreen.style.display = 'none';
+                this.elements.appContainer.classList.remove('hidden');
+                this.ui.showAuthLoading(false);
+                await this.handlers.loadInitialData();
+            } else {
+                this.state.user = null;
+                this.elements.authScreen.style.display = 'flex';
+                this.elements.appContainer.classList.add('hidden');
+                this.ui.showAuthLoading(false);
+            }
+        },
+
+        handleAuthAction() {
+            this.state.isLoginMode ? this.auth.signIn() : this.auth.signUp();
+        },
+
+        auth: {
+            async signUp() {
+                App.ui.setAuthMessage('');
+                if (!App.elements.emailInput.value || !App.elements.passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
+                if (App.elements.passwordInput.value.length < 6) return App.ui.setAuthMessage('密码至少需要6位。', true);
+                App.ui.showAuthLoading(true);
+                const { error } = await App.supabase.auth.signUp({ email: App.elements.emailInput.value, password: App.elements.passwordInput.value });
+                App.ui.showAuthLoading(false);
+                if (error) App.ui.setAuthMessage(`注册失败: ${error.message}`, true);
+                else App.ui.setAuthMessage('注册成功！请检查您的邮箱以完成验证。');
+            },
+            async signIn() {
+                App.ui.setAuthMessage('');
+                if (!App.elements.emailInput.value || !App.elements.passwordInput.value) return App.ui.setAuthMessage('邮箱和密码不能为空。', true);
+                App.ui.showAuthLoading(true);
+                const { error } = await App.supabase.auth.signInWithPassword({ email: App.elements.emailInput.value, password: App.elements.passwordInput.value });
+                if (error) {
+                    App.ui.showAuthLoading(false);
+                    App.ui.setAuthMessage(`登录失败: ${error.message}`, true);
+                }
+            }
+        },
+
+        handlers: {
+            async loadInitialData() {
+                if (!App.state.user) return;
+                const { data: folders, error } = await App.supabase.from('folders').select('*').eq('user_id', App.state.user.id).order('created_at', { ascending: true });
+                if (error) return console.error('Error fetching folders:', error);
+                App.state.folders = folders;
+                App.state.diariesByFolder = {};
+                for (const folder of folders) {
+                    const { data: diaries, error: diariesError } = await App.supabase.from('diaries').select('*').eq('folder_id', folder.id).order('created_at', { ascending: false });
+                    if (diariesError) console.error(`Error fetching diaries for ${folder.id}:`, diariesError);
+                    else App.state.diariesByFolder[folder.id] = diaries;
+                }
+                App.ui.renderAll();
+            },
+            
+            handleSidebarClick(e) {
+                const target = e.target.closest('button, [data-folder-id], [data-diary-id]');
+                if (!target) return;
+
+                const folderId = target.closest('[data-folder-id]')?.dataset.folderId;
+                const diaryId = target.closest('[data-diary-id]')?.dataset.diaryId;
+
+                if (target.matches('.add-diary-btn')) this.addDiary(folderId);
+                else if (target.matches('.rename-folder-btn')) this.renameFolder(folderId);
+                else if (target.matches('.delete-folder-btn')) this.deleteFolder(folderId);
+                else if (target.matches('.rename-diary-btn')) this.renameDiary(diaryId, folderId);
+                else if (diaryId) this.setActiveDiary(folderId, diaryId);
+                else if (folderId) this.setActiveFolder(folderId);
+            },
+
+            setActiveFolder(folderId) {
+                App.state.activeFolderId = (App.state.activeFolderId === folderId) ? null : folderId;
+                this.setActiveDiary(null, null); // Always deselect diary when changing folder
+            },
+
+            setActiveDiary(folderId, diaryId) {
+                App.state.activeFolderId = folderId;
+                App.state.activeDiaryId = diaryId;
+                App.state.isEditing = false;
+                App.ui.renderAll();
+                if (window.innerWidth < 768) App.ui.toggleSidebar();
+            },
+            
+            setEditing(isEditing) {
+                App.state.isEditing = isEditing;
+                App.ui.renderContent();
+            },
+
+            async addFolder() {
+                const name = App.elements.newFolderName.value.trim();
+                if (!name) return;
+                const { data, error } = await App.supabase.from('folders').insert({ name, user_id: App.state.user.id }).select().single();
+                if (error) return console.error('Error adding folder:', error);
+                App.state.folders.push(data);
+                App.state.diariesByFolder[data.id] = [];
+                App.elements.newFolderName.value = '';
+                this.setActiveFolder(data.id);
+            },
+            
+            async renameFolder(folderId) {
+                const folder = App.state.folders.find(f => f.id === folderId);
+                const newName = prompt('输入新的文件夹名称:', folder.name);
+                if (!newName || newName.trim() === '' || newName.trim() === folder.name) return;
+                const { data, error } = await App.supabase.from('folders').update({ name: newName.trim() }).eq('id', folderId).select().single();
+                if (error) return console.error('Error renaming folder:', error);
+                folder.name = data.name;
+                App.ui.renderFolders();
+            },
+            
+            async deleteFolder(folderId) {
+                if (!confirm('确定要删除这个文件夹及其所有文章吗？此操作无法撤销。')) return;
+                const { error } = await App.supabase.from('folders').delete().eq('id', folderId);
+                if (error) return console.error('Error deleting folder:', error);
+                App.state.folders = App.state.folders.filter(f => f.id !== folderId);
+                delete App.state.diariesByFolder[folderId];
+                if (App.state.activeFolderId === folderId) this.setActiveFolder(null);
+                else App.ui.renderFolders();
+            },
+
+            async addDiary(folderId) {
+                const title = prompt("请输入新文章的标题：");
+                if (!title || title.trim() === '') return;
+                const content = `# ${title.trim()}\n\n开始写作...`;
+                const { data, error } = await App.supabase.from('diaries').insert({ title: title.trim(), content, folder_id: folderId, user_id: App.state.user.id }).select().single();
+                if (error) return console.error('Error adding diary:', error);
+                App.state.diariesByFolder[folderId].unshift(data);
+                this.setActiveDiary(folderId, data.id);
+            },
+            
+            async renameDiary(diaryId, folderId) {
+                const diary = App.state.diariesByFolder[folderId].find(d => d.id === diaryId);
+                const newTitle = prompt("输入新的文章标题:", diary.title);
+                if (!newTitle || newTitle.trim() === '' || newTitle.trim() === diary.title) return;
+                const { data, error } = await App.supabase.from('diaries').update({ title: newTitle.trim() }).eq('id', diaryId).select().single();
+                if (error) return console.error('Error renaming diary:', error);
+                diary.title = data.title;
+                App.ui.renderAll();
+            },
+
+            async saveDiary() {
+                if (!App.state.activeDiaryId) return;
+                const content = App.elements.editor.value;
+                const { data, error } = await App.supabase.from('diaries').update({ content }).eq('id', App.state.activeDiaryId).select().single();
+                if (error) return console.error('Error saving diary:', error);
+                const diaryIndex = App.state.diariesByFolder[App.state.activeFolderId].findIndex(d => d.id === App.state.activeDiaryId);
+                App.state.diariesByFolder[App.state.activeFolderId][diaryIndex] = data;
+                this.setEditing(false);
+            },
+            
+            async deleteDiary() {
+                if (!App.state.activeDiaryId || !confirm('确定要删除这篇文章吗？')) return;
+                const { error } = await App.supabase.from('diaries').delete().eq('id', App.state.activeDiaryId);
+                if (error) return console.error('Error deleting diary:', error);
+                const folderId = App.state.activeFolderId;
+                App.state.diariesByFolder[folderId] = App.state.diariesByFolder[folderId].filter(d => d.id !== App.state.activeDiaryId);
+                this.setActiveDiary(folderId, null);
+            },
+
+            exportDiary() {
+                const diary = App.state.diariesByFolder[App.state.activeFolderId]?.find(d => d.id === App.state.activeDiaryId);
+                if (!diary) return;
+                const blob = new Blob([diary.content], { type: 'text/markdown;charset=utf-8' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${diary.title.replace(/[\/\\?%*:|"<>]/g, '-')}.md`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            },
+
+            async moveDiary() {
+                const newFolderId = App.elements.moveFolderSelect.value;
+                const { activeDiaryId, activeFolderId } = App.state;
+                if (!newFolderId || !activeDiaryId) return;
+                const { data, error } = await App.supabase.from('diaries').update({ folder_id: newFolderId }).eq('id', activeDiaryId).select().single();
+                if (error) return console.error('Error moving diary:', error);
+                const diaryToMove = App.state.diariesByFolder[activeFolderId].find(d => d.id === activeDiaryId);
+                App.state.diariesByFolder[activeFolderId] = App.state.diariesByFolder[activeFolderId].filter(d => d.id !== activeDiaryId);
+                App.state.diariesByFolder[newFolderId].unshift(data);
+                App.elements.moveModal.style.display = 'none';
+                this.setActiveDiary(newFolderId, activeDiaryId);
+            }
+        },
+
+        ui: {
+            renderAll() { this.renderFolders(); this.renderContent(); },
+            
+            renderFolders() {
+                App.elements.folderList.innerHTML = App.state.folders.map(folder => `
+                    <div class="folder-item group" data-folder-id="${folder.id}">
+                        <div class="flex justify-between items-center p-2 rounded cursor-pointer ${folder.id === App.state.activeFolderId ? 'active' : ''}">
+                            <div class="folder-name-container flex items-center flex-grow truncate mr-2">
+                                <i class="fas fa-folder mr-2 ${folder.id === App.state.activeFolderId ? 'fa-folder-open text-blue-500' : 'text-gray-500'}"></i>
+                                <span class="font-semibold truncate">${folder.name}</span>
+                            </div>
+                            <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button class="rename-folder-btn text-gray-400 hover:text-blue-500 p-1" title="重命名"><i class="fas fa-edit"></i></button>
+                                <button class="add-diary-btn text-gray-400 hover:text-green-500 p-1" title="新建文章"><i class="fas fa-plus-circle"></i></button>
+                                <button class="delete-folder-btn text-gray-400 hover:text-red-500 p-1" title="删除"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>
+                        <div class="diary-list pl-4 border-l border-custom ml-2 ${folder.id === App.state.activeFolderId ? '' : 'hidden'}">
+                            ${(App.state.diariesByFolder[folder.id] || []).map(diary => this.getDiaryHTML(diary)).join('')}
+                        </div>
+                    </div>
+                `).join('');
+            },
+
+            getDiaryHTML(diary) {
+                return `
+                    <div class="diary-item p-2 my-1 rounded flex justify-between items-center group cursor-pointer ${diary.id === App.state.activeDiaryId ? 'active' : ''}" data-diary-id="${diary.id}" data-folder-id="${diary.folder_id}">
+                        <div class="flex items-center truncate">
+                           <i class="far fa-file-alt mr-2 text-gray-500"></i>
+                           <span class="truncate">${diary.title}</span>
+                        </div>
+                        <button class="rename-diary-btn text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 p-1" title="重命名"><i class="fas fa-edit"></i></button>
+                    </div>`;
+            },
+            
+            renderContent() {
+                const diary = App.state.activeDiaryId ? App.state.diariesByFolder[App.state.activeFolderId]?.find(d => d.id === App.state.activeDiaryId) : null;
+                const { welcomeScreen, editorView, previewView, currentDiaryTitle, editor, editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn } = App.elements;
+                if (diary) {
+                    welcomeScreen.classList.add('hidden');
+                    currentDiaryTitle.textContent = diary.title;
+                    editor.value = diary.content;
+                    previewView.innerHTML = marked.parse(diary.content || '');
+                    [deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.remove('hidden'));
+                    if (App.state.isEditing) {
+                        editorView.classList.remove('hidden'); previewView.classList.add('hidden');
+                        editBtn.classList.add('hidden'); saveBtn.classList.remove('hidden');
+                        editor.focus();
+                    } else {
+                        editorView.classList.add('hidden'); previewView.classList.remove('hidden');
+                        editBtn.classList.remove('hidden'); saveBtn.classList.add('hidden');
+                    }
+                } else {
+                    welcomeScreen.classList.remove('hidden');
+                    editorView.classList.add('hidden'); previewView.classList.add('hidden');
+                    currentDiaryTitle.textContent = '请选择或创建一篇文章';
+                    [editBtn, saveBtn, deleteDiaryBtn, exportDiaryBtn, moveDiaryBtn].forEach(btn => btn.classList.add('hidden'));
+                }
+            },
+            
+            updateAuthForm() {
+                App.ui.setAuthMessage('');
+                const { authTitle, authActionBtn, authToggleText, authToggleLink } = App.elements;
+                if (App.state.isLoginMode) {
+                    authTitle.textContent = '登录您的账户'; authActionBtn.textContent = '登录';
+                    authToggleText.textContent = '还没有账号？'; authToggleLink.textContent = '立即注册';
+                } else {
+                    authTitle.textContent = '创建新账户'; authActionBtn.textContent = '注册';
+                    authToggleText.textContent = '已有账号？'; authToggleLink.textContent = '立即登录';
+                }
+            },
+
+            showAuthLoading(isLoading) {
+                App.elements.authContainer.classList.toggle('hidden', isLoading);
+                App.elements.loadingSpinner.classList.toggle('hidden', !isLoading);
+            },
+            
+            setAuthMessage(message, isError = false) {
+                App.elements.authMessage.textContent = message;
+                App.elements.authMessage.className = `text-center mt-4 text-sm ${isError ? 'text-red-500' : 'text-green-600'}`;
+            },
+
+            toggleSidebar() {
+                App.elements.sidebar.classList.toggle('open');
+                App.elements.sidebarOverlay.classList.toggle('hidden');
+            },
+            
+            showMoveModal() {
+                App.elements.moveFolderSelect.innerHTML = App.state.folders
+                    .filter(f => f.id !== App.state.activeFolderId)
+                    .map(folder => `<option value="${folder.id}">${folder.name}</option>`).join('');
+                if (App.elements.moveFolderSelect.options.length > 0) App.elements.moveModal.style.display = 'flex';
+                else alert('没有其他文件夹可以移动。');
+            }
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => App.init());
+    </script>
 </body>
-
 </html>
+
