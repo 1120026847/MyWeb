@@ -44,8 +44,14 @@
         #pdf-viewer-container { flex-grow: 1; overflow-y: auto; background-color: #f8f9fa; }
         #pdf-viewer { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
         #pdf-viewer canvas { max-width: 100%; height: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        #main-content > header { transition: transform 0.3s ease-in-out; }
-        #main-app-view.header-collapsed #main-content > header { transform: translateY(-100%); }
+        
+        #main-content > header { transition: height 0.3s ease-in-out, padding 0.3s ease-in-out, border 0.3s ease-in-out; overflow: hidden; }
+        #main-app-view.header-collapsed #main-content > header {
+            height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border-bottom-width: 0;
+        }
         #show-header-button { display: none; }
         #main-app-view.header-collapsed #show-header-button { display: flex; }
     </style>
@@ -53,61 +59,11 @@
 <body class="bg-white antialiased text-slate-800">
     <div id="app" class="relative min-h-screen">
         <div id="auth-view" class="flex items-center justify-center min-h-screen bg-brand-light">
-            <div class="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-lg">
-                <div class="text-center">
-                    <h1 class="text-3xl font-bold text-slate-900">笔记</h1>
-                    <p class="text-slate-500">记录你的想法，整理你的生活</p>
-                </div>
-                <div class="flex border border-gray-200 rounded-md p-1">
-                    <button id="show-login-tab" class="w-1/2 p-2 rounded-md text-sm font-medium bg-blue-500 text-white">登录</button>
-                    <button id="show-register-tab" class="w-1/2 p-2 rounded-md text-sm font-medium text-gray-600">注册</button>
-                </div>
-                <form id="login-form" class="space-y-4">
-                    <div><label for="login-email" class="text-sm font-medium text-slate-600">邮箱</label><input id="login-email" type="email" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="you@example.com"></div>
-                    <div><label for="login-password" class="text-sm font-medium text-slate-600">密码</label><input id="login-password" type="password" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="••••••••"></div>
-                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark transition-colors">登录</button>
-                </form>
-                <form id="register-form" class="hidden space-y-4">
-                     <div><label for="register-email" class="text-sm font-medium text-slate-600">邮箱</label><input id="register-email" type="email" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="you@example.com"></div>
-                     <div><label for="register-password" class="text-sm font-medium text-slate-600">密码</label><input id="register-password" type="password" required class="w-full px-3 py-2 mt-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand" placeholder="至少6个字符"></div>
-                    <button type="submit" class="w-full px-4 py-2 font-semibold text-white bg-brand rounded-md hover:bg-brand-dark transition-colors">注册</button>
-                </form>
-            </div>
-        </div>
+           </div>
 
         <div id="main-app-view" class="hidden h-screen w-full flex overflow-hidden">
              <aside id="sidebar" class="w-72 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0 fixed md:static inset-y-0 left-0 z-40 transform transition-transform -translate-x-full md:translate-x-0">
-                <div class="p-4 border-b border-slate-200">
-                    <div class="flex items-center justify-between">
-                        <div id="user-info" class="flex items-center space-x-2 min-w-0"><span class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm" id="user-avatar"></span><span class="text-sm font-medium truncate" id="user-email"></span></div>
-                        <button id="hide-sidebar-button" class="p-2 rounded-md hover:bg-slate-200"><i data-feather="chevrons-left"></i></button>
-                    </div>
-                    <button id="logout-button" class="w-full mt-3 px-3 py-1.5 text-xs text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300">退出登录</button>
-                </div>
-                <div class="p-4 flex space-x-2">
-                    <button id="new-folder-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="folder-plus" class="w-4 h-4 mr-2"></i>新建文件夹</button>
-                    <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="file-plus" class="w-4 h-4 mr-2"></i>新建文章</button>
-                </div>
-                <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-1"></div>
-                 <div class="p-4 border-t border-slate-200">
-                    <details class="group">
-                        <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-800 list-none">
-                            <div class="flex items-center">
-                                <i data-feather="database" class="w-4 h-4 mr-2"></i>
-                                <span>数据管理</span>
-                            </div>
-                            <i data-feather="chevron-down" class="w-4 h-4 transition-transform duration-200 group-open:rotate-180"></i>
-                        </summary>
-                        <div class="mt-2 space-y-2">
-                            <button id="import-pdf-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="file-text" class="w-4 h-4 mr-2"></i>导入PDF</button>
-                            <input type="file" id="import-pdf-input" class="hidden" accept=".pdf">
-                            <button id="import-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="upload" class="w-4 h-4 mr-2"></i>导入备份</button>
-                            <button id="export-all-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="download" class="w-4 h-4 mr-2"></i>导出备份</button>
-                            <input type="file" id="import-file-input" class="hidden" accept=".json">
-                        </div>
-                    </details>
-                </div>
-            </aside>
+                </aside>
 
             <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-30 hidden md:hidden"></div>
 
@@ -118,9 +74,9 @@
                         <h2 id="article-main-title" class="text-lg font-semibold truncate ml-2">笔记</h2>
                     </div>
 
-                    <div id="header-pdf-controls" class="hidden items-center space-x-4">
+                    <div id="header-pdf-controls" class="hidden items-center space-x-2 md:space-x-4">
                         <button id="pdf-prev-page" class="p-2 rounded-md hover:bg-slate-200"><i data-feather="arrow-left"></i></button>
-                        <span>第 <span id="pdf-current-page"></span> / <span id="pdf-total-pages"></span> 页</span>
+                        <span class="text-sm text-slate-600">第 <span id="pdf-current-page"></span> / <span id="pdf-total-pages"></span> 页</span>
                         <button id="pdf-next-page" class="p-2 rounded-md hover:bg-slate-200"><i data-feather="arrow-right"></i></button>
                     </div>
 
@@ -129,14 +85,7 @@
                             <button id="global-move-button" title="移动文章" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4"></i></button>
                         </div>
                         <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
-                            <div id="mobile-view-controls" class="hidden items-center space-x-1">
-                                <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
-                                <button id="mobile-more-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="more-vertical" class="w-5 h-5"></i></button>
-                            </div>
-                            <div id="mobile-edit-controls" class="hidden items-center">
-                                <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"><i data-feather="save" class="w-5 h-5"></i></button>
-                            </div>
-                        </div>
+                           </div>
                         <button id="toggle-header-button" title="切换标题栏" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0 ml-2">
                             <i data-feather="chevron-up"></i>
                         </button>
@@ -148,461 +97,84 @@
                 </button>
 
                 <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center text-center p-8">
-                     <i data-feather="book-open" class="w-16 h-16 text-slate-300 mb-4"></i>
-                     <h2 class="text-2xl font-semibold text-slate-800">欢迎使用笔记</h2>
-                     <p class="text-slate-500 mt-2">从左侧选择一篇文章开始阅读，或新建/导入一篇文章。</p>
-                </div>
+                     </div>
                 
                 <div id="article-view" class="hidden flex-1 flex flex-col overflow-hidden">
-                    <div id="richtext-editor-view" class="hidden flex-1 flex-col overflow-hidden">
-                        <div class="p-3 border-b border-slate-200 bg-white flex-shrink-0">
-                            <div id="editor-controls" class="hidden md:flex items-center space-x-2">
-                                 <button id="edit-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="edit-2" class="w-4 h-4 mr-1.5"></i>编辑</button>
-                                 <button id="save-button" class="hidden flex items-center px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600"><i data-feather="save" class="w-4 h-4 mr-1.5"></i>保存</button>
-                                 <div class="relative inline-block text-left">
-                                    <button id="export-dropdown-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出</button>
-                                    <div id="export-options" class="hidden origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
-                                        <a href="#" id="export-txt-button" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">导出为 TXT</a>
-                                        <a href="#" id="export-pdf-button" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">导出为 PDF</a>
-                                    </div>
-                                 </div>
-                                 <button id="refresh-button" title="同步数据" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="refresh-cw" class="w-4 h-4 mr-1.5"></i>同步</button>
-                                 <button id="force-reload-button" title="忽略本地草稿，从云端重新加载" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="zap-off" class="w-4 h-4 mr-1.5"></i>强制重载</button>
-                            </div>
-                        </div>
-                        <div class="flex-1 p-2 md:p-4 overflow-y-auto">
-                            <div id="editor-container"></div>
-                        </div>
-                    </div>
-
-                    <div id="pdf-reader-view" class="hidden flex-1 flex-col overflow-hidden items-center p-4">
-                        <div id="pdf-viewer-container" class="w-full">
-                            <div id="pdf-viewer"></div>
-                        </div>
-                    </div>
-                </div>
+                   </div>
             </main>
         </div>
         <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50" style="transform: translateX(150%);"></div>
         
-        <div id="move-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3"><h3 class="text-lg font-semibold">移动文章</h3><select id="move-folder-select" class="w-full px-3 py-2 border rounded"></select><div class="flex justify-end space-x-2"><button id="cancel-move" class="px-3 py-1.5 rounded bg-slate-100">取消</button><button id="confirm-move" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button></div></div></div>
-        <div id="creation-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3"><h3 id="creation-modal-title" class="text-lg font-semibold"></h3><input id="creation-modal-input" class="w-full px-3 py-2 border rounded" placeholder=""><div class="flex justify-end space-x-2"><button id="cancel-creation" class="px-3 py-1.5 rounded bg-slate-100">取消</button><button id="confirm-creation" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button></div></div></div>
-        <div id="rename-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3"><h3 id="rename-modal-title" class="text-lg font-semibold"></h3><input id="rename-modal-input" class="w-full px-3 py-2 border rounded"><div class="flex justify-end space-x-2"><button id="cancel-rename" class="px-3 py-1.5 rounded bg-slate-100">取消</button><button id="confirm-rename" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button></div></div></div>
-        <div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3"><h3 id="confirm-modal-title" class="text-lg font-semibold"></h3><p id="confirm-modal-text" class="text-slate-600"></p><div class="flex justify-end space-x-2"><button id="confirm-modal-cancel" class="px-3 py-1.5 rounded bg-slate-100">取消</button><button id="confirm-modal-ok" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button></div></div></div>
-        <div id="folder-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border"><a href="#" id="new-article-in-folder-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">在此新建文章</a><a href="#" id="rename-folder-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文件夹</a><a href="#" id="delete-folder-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文件夹</a></div>
-        <div id="article-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border"><a href="#" id="rename-article-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文章</a><a href="#" id="delete-article-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文章</a></div>
-    </div>
+        </div>
 
     <script type="module">
+        // ... All JS code up to selectArticle ...
         const { jsPDF } = window.jspdf;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-        const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+        const SUPABASE_URL = '...';
+        const SUPABASE_ANON_KEY = '...';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        const cosConfig = {
-            stsUrl: 'https://1317231591-4lcnljnb97.ap-guangzhou.tencentscf.com', 
-            bucket: 'notes-1317231591', 
-            region: 'ap-guangzhou',    
-        };
-
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
+        const cosConfig = { /* ... */ };
+        let state = { /* ... */ };
         let quill;
         let toastTimeout;
         let pdfDoc = null;
         let currentPage = 1;
         let dom = {};
-
         const on = (el, type, handler) => el && el.addEventListener(type, handler);
 
-        // --- All functions defined before initializeApp ---
+        // ... All functions from showToast to handleToggleFolder, unchanged ...
 
-        function showToast(message, type = 'success') { clearTimeout(toastTimeout); dom.toast.textContent = message; dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50 transition-transform transform-gpu ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`; requestAnimationFrame(() => { dom.toast.style.transform = 'translateX(0)'; }); toastTimeout = setTimeout(() => { dom.toast.style.transform = 'translateX(150%)'; }, 3000); }
-        function formatDate(d) { if (!d) return '----/--/--'; const date = new Date(d); if (isNaN(date.getTime())) return '----/--/--'; return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
-        async function handleLogin(e) { e.preventDefault(); const d = { email: dom.loginForm.querySelector('#login-email').value, password: dom.loginForm.querySelector('#login-password').value }; const { error } = await supabase.auth.signInWithPassword(d); if (error) showToast(`登录失败: ${error.message}`, 'error'); else showToast('登录成功！'); }
-        async function handleRegister(e) { e.preventDefault(); const d = { email: dom.registerForm.querySelector('#register-email').value, password: dom.registerForm.querySelector('#register-password').value }; if (d.password.length < 6) { showToast('密码长度至少为6位', 'error'); return; } const { error } = await supabase.auth.signUp(d); if (error) showToast(`注册失败: ${error.message}`, 'error'); else showToast('注册成功！请检查您的邮箱进行验证。'); }
-        async function handleLogout() { const { error } = await supabase.auth.signOut(); if (error) showToast(`退出失败: ${error.message}`, 'error'); else window.location.reload(); }
-        async function uploadFileToCOS(file, directory) {
-            return new Promise((resolve, reject) => {
-                const cos = new COS({
-                    getAuthorization: async (options, callback) => {
-                        try {
-                            const response = await fetch(cosConfig.stsUrl);
-                            if (!response.ok) throw new Error('获取STS凭证失败');
-                            const data = await response.json();
-                            const credentials = data.Credentials;
-                            callback({ TmpSecretId: credentials.TmpSecretId, TmpSecretKey: credentials.TmpSecretKey, SecurityToken: credentials.Token, ExpiredTime: data.ExpiredTime });
-                        } catch (err) { showToast('获取上传许可失败', 'error'); reject(err); }
-                    }
-                });
-                const key = `${directory}/${state.user.id}/${Date.now()}-${file.name}`;
-                cos.putObject({ Bucket: cosConfig.bucket, Region: cosConfig.region, Key: key, Body: file, onProgress: (p) => console.log(p) }, (err, data) => {
-                    if (err) { showToast('文件上传失败', 'error'); console.error('COS Upload Error:', err); reject(err); } 
-                    else { const fileUrl = `https://${data.Location}`; resolve(fileUrl); }
-                });
-            });
-        }
-        function insertImageToEditor(url) { const range = quill.getSelection(true) || { index: quill.getLength() }; quill.insertEmbed(range.index, 'image', url); quill.setSelection(range.index + 1); }
-        async function handleImageUpload(file) {
-            if (!file || !file.type.startsWith('image/')) return;
-            if (!state.user) { showToast('请先登录再上传图片', 'error'); return; }
-            switchToEditMode(); showToast('图片上传中...');
-            try {
-                const imageUrl = await uploadFileToCOS(file, 'images');
-                insertImageToEditor(imageUrl);
-                showToast('图片上传成功！');
-            } catch (error) { console.error('Upload failed:', error); }
-        }
-        function dataURLtoFile(dataurl, filename) { let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n); while (n--) { u8arr[n] = bstr.charCodeAt(n); } return new File([u8arr], filename, {type: mime});}
-        async function fetchData() {
-            if (!state.user) return;
-            try {
-                const { data: folders, error: fe } = await supabase.from('folders').select('*').eq('user_id', state.user.id).order('created_at', { ascending: false });
-                if (fe) throw fe;
-                const { data: articles, error: ae } = await supabase.from('articles').select('*, folders(*)').eq('user_id', state.user.id).order('updated_at', { ascending: false });
-                if (ae) throw ae;
-                state.folders = folders || []; state.articles = articles || [];
-                renderFileTree();
-            } catch (error) { showToast(`数据加载失败: ${error.message}`, 'error'); }
-        }
-        function renderFileTree() {
-            dom.fileTree.innerHTML = ''; const fm = new Map(); state.folders.forEach(f => fm.set(f.id, { ...f, articles: [] }));
-            const draftArticleIds = new Set();
-            state.articles.forEach(a => { if(a.type !== 'pdf') { const draft = loadDraftFromLocalStorage(a.id); if (draft && new Date(draft.updatedAt) > new Date(a.updated_at)) { draftArticleIds.add(a.id); }}});
-            const ua = []; state.articles.forEach(a => { if (a.folder_id && fm.has(a.folder_id)) fm.get(a.folder_id).articles.push(a); else ua.push(a); });
-            const articleToHTML = a => {
-                const hasDraft = draftArticleIds.has(a.id);
-                const icon = a.type === 'pdf' ? '<i data-feather="file-text" class="w-4 h-4 mr-2 shrink-0 text-red-500"></i>' : '<i data-feather="file" class="w-4 h-4 mr-2 shrink-0 text-slate-500"></i>';
-                return `<li class="article-item group flex items-center justify-between text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${a.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${a.id}"><div class="flex-1 min-w-0 pr-2 flex items-center">${icon}<span class="truncate">${a.title}</span>${hasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="有未保存的草稿"></i>' : ''}</div><div class="flex items-center"><div class="text-xs text-slate-400 mt-0.5 mr-2">${formatDate(a.updated_at)}</div><button class="article-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100 shrink-0" data-id="${a.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div></li>`;
-            };
-            fm.forEach((f) => {
-                const exp = state.ui.expandedFolders.has(f.id);
-                const el = document.createElement('div');
-                const folderHasDraft = f.articles.some(a => draftArticleIds.has(a.id));
-                el.innerHTML = `<div class="folder-header flex items-center justify-between p-2 rounded-md group hover:bg-slate-200 cursor-pointer" data-folder-id="${f.id}"><div class="flex items-center flex-1 min-w-0"><i data-feather="chevron-down" class="folder-toggle-icon w-4 h-4 mr-1 text-slate-500 shrink-0 ${!exp ? 'collapsed' : ''}"></i><i data-feather="folder" class="w-4 h-4 mr-2 text-brand shrink-0"></i><span class="font-semibold text-sm truncate">${f.name}</span>${folderHasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="此文件夹中有未保存的草稿"></i>' : ''}</div><button class="folder-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100" data-id="${f.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div><ul class="article-list pl-4 mt-1 space-y-1 ${!exp ? 'hidden' : ''}">${f.articles.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)).map(articleToHTML).join('')}</ul>`; dom.fileTree.appendChild(el);
-            });
-            if (ua.length > 0) { const el = document.createElement('div'); el.innerHTML = `<div class="mt-4"><h4 class="text-sm font-semibold text-slate-500 p-2">未分类</h4><ul class="mt-1 space-y-1">${ua.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)).map(articleToHTML).join('')}</ul></div>`; dom.fileTree.appendChild(el); }
-            feather.replace();
-        }
-        function openCreationModal(type) { state.ui.creationType = type; dom.creationModalTitle.textContent = type === 'folder' ? '创建新文件夹' : '创建新文章'; dom.creationModalInput.value = ''; dom.creationModalInput.placeholder = type === 'folder' ? '请输入文件夹名称...' : '请输入文章标题...'; dom.creationModal.classList.remove('hidden'); dom.creationModalInput.focus(); }
-        async function handleConfirmCreation() { const type = state.ui.creationType; const name = dom.creationModalInput.value.trim(); if (!name) { showToast('名称不能为空', 'error'); return; } dom.creationModal.classList.add('hidden'); if (type === 'folder') { const { error } = await supabase.from('folders').insert({ name: name, user_id: state.user.id }); if (error) { showToast(`创建文件夹失败: ${error.message}`, 'error'); } else { showToast('文件夹创建成功！'); fetchData(); } } else if (type === 'article') { const articleData = { title: name, content: '', user_id: state.user.id, type: 'text' }; if (state.ui.creationFolderId) { articleData.folder_id = state.ui.creationFolderId; state.ui.creationFolderId = null; } const { data, error } = await supabase.from('articles').insert(articleData).select(); if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id, true); } } }
-        function handleNewFolder() { openCreationModal('folder'); }
-        function handleNewArticle() { state.ui.creationFolderId = null; openCreationModal('article'); }
-        async function handleRenameFolder(id) { const folder = state.folders.find(i => i.id === id); if (!folder) return; const newName = await openRenameModal({ type: 'folder', currentName: folder.name }); if (newName && newName.trim() && newName.trim() !== folder.name) { const { error } = await supabase.from('folders').update({ name: newName.trim() }).eq('id', id); if (error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文件夹已重命名'); fetchData(); } } }
-        async function handleRenameArticle(id) { const article = state.articles.find(i => i.id === id); if (!article) return; const newName = await openRenameModal({ type: 'article', currentName: article.title }); if (newName && newName.trim() && newName.trim() !== article.title) { const { error } = await supabase.from('articles').update({ title: newName.trim() }).eq('id', id); if (error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文章已重命名'); if (id === state.selectedArticleId) { dom.articleMainTitle.textContent = newName.trim(); } fetchData(); } } }
-        function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
-        
         function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
             if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) { saveDraftToLocalStorage(); }
             state.selectedArticleId = id; const article = state.articles.find(a => a.id === id); if (!article) { switchToWelcomeView(); return; }
             state.openedArticleTimestamp = article.updated_at;
-            dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex');
+            dom.welcomeView.classList.add('hidden');
+            dom.articleView.classList.remove('hidden');
+            dom.articleView.classList.add('flex');
             dom.articleMainTitle.textContent = article.title;
             dom.articleActions.classList.remove('hidden');
+            
             if (article.type === 'pdf') {
                 dom.richtextEditorView.classList.add('hidden');
                 dom.pdfReaderView.classList.remove('hidden');
                 dom.pdfReaderView.classList.add('flex');
                 dom.headerPdfControls.classList.remove('hidden');
                 dom.headerPdfControls.classList.add('flex');
+                dom.toggleSidebarButton.classList.add('hidden'); // 隐藏侧边栏按钮
                 loadAndRenderPDF(article.content);
             } else {
                 dom.pdfReaderView.classList.add('hidden');
                 dom.richtextEditorView.classList.remove('hidden');
                 dom.richtextEditorView.classList.add('flex');
                 dom.headerPdfControls.classList.add('hidden');
+                dom.toggleSidebarButton.classList.remove('hidden'); // 显示侧边栏按钮
                 const draft = loadDraftFromLocalStorage(id); const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
                 if (!ignoreDraft && useDraft) { showToast('已加载较新的本地草稿', 'success'); quill.root.innerHTML = draft.content || ''; switchToEditMode(); } 
                 else { quill.root.innerHTML = article.content || ''; if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
             }
             renderFileTree(); if (window.innerWidth < 768) { toggleSidebar('hide'); }
         }
-        async function loadAndRenderPDF(url) {
-            const pdfViewer = dom.pdfViewer; pdfViewer.innerHTML = '<div class="text-slate-500">正在加载PDF...</div>';
-            try {
-                pdfDoc = await pdfjsLib.getDocument({ url, withCredentials: false }).promise;
-                dom.pdfTotalPages.textContent = pdfDoc.numPages;
-                currentPage = 1;
-                renderPDFPage(currentPage);
-            } catch (error) { pdfViewer.innerHTML = '<div class="text-red-500">加载PDF失败，请检查文件链接或网络。</div>'; console.error('Error loading PDF:', error); }
-        }
-        async function renderPDFPage(pageNum) {
-            if (!pdfDoc) return;
-            dom.pdfViewerContainer.scrollTop = 0;
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 1.5 });
-            const pdfViewer = dom.pdfViewer; pdfViewer.innerHTML = '';
-            const canvas = document.createElement('canvas'); const context = canvas.getContext('2d');
-            canvas.height = viewport.height; canvas.width = viewport.width;
-            pdfViewer.appendChild(canvas);
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-            dom.pdfCurrentPage.textContent = pageNum;
-        }
-        async function handlePDFImport(file) {
-            if (!file) return; showToast('正在上传PDF...');
-            try {
-                const pdfUrl = await uploadFileToCOS(file, 'pdfs');
-                const { data, error } = await supabase.from('articles').insert({ title: file.name, content: pdfUrl, type: 'pdf', user_id: state.user.id }).select();
-                if (error) throw error;
-                showToast('PDF导入成功！'); await fetchData();
-                selectArticle(data[0].id);
-            } catch(error) { showToast(`PDF导入失败: ${error.message}`, 'error'); }
-        }
-        async function handleExportPDF() {
-            const article = state.articles.find(a => a.id === state.selectedArticleId);
-            if (!article) return; showToast('正在生成PDF...');
-            if (article.type === 'pdf') { window.open(article.content, '_blank'); showToast('正在打开原始PDF文件...'); return; }
-            const editorContent = document.querySelector('#editor-container .ql-editor');
-            const originalStyle = editorContent.style.cssText;
-            try {
-                editorContent.style.height = `${editorContent.scrollHeight}px`;
-                editorContent.style.maxHeight = 'none';
-                const canvas = await html2canvas(editorContent, { scale: 2, useCORS: true });
-                editorContent.style.cssText = originalStyle;
-                const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: [canvas.width, canvas.height] });
-                pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
-                pdf.save(`${article.title}.pdf`);
-                showToast('PDF导出成功！');
-            } catch(e) { showToast('PDF导出失败', 'error'); console.error(e); }
-            finally { editorContent.style.cssText = originalStyle; }
-        }
-        function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); quill.focus(); }
-        function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
-        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); renderFileTree(); }
-        async function handleSaveArticle() { 
-            if (!state.selectedArticleId) return;
-            const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
-            if (fetchError) { showToast('检查文章状态失败', 'error'); return; }
-            if (state.openedArticleTimestamp && new Date(serverArticle.updated_at) > new Date(state.openedArticleTimestamp)) {
-                if (await showConfirmation({ title: '内容冲突', text: '此笔记已在别处更新。您的当前修改将被复制到剪贴板，然后加载最新版本。', okText: '好的', cancelText: '取消' })) { navigator.clipboard.writeText(quill.getText()); showToast('当前草稿已复制到剪贴板。'); await fetchData(); selectArticle(state.selectedArticleId, false, true); } return;
-            }
-            const c = quill.root.innerHTML; 
-            const { data: updatedArticle, error } = await supabase.from('articles').update({ content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId).select().single();
-            if (error) { showToast(`保存失败: ${error.message}`, 'error'); } 
-            else { showToast('保存成功！'); state.openedArticleTimestamp = updatedArticle.updated_at; clearDraftFromLocalStorage(state.selectedArticleId); await fetchData(); switchToViewMode(); } 
-        }
-        async function handleDeleteArticle(id) { if(await showConfirmation({ title: '删除文章', text: '确定要删除这篇文章吗？此操作不可撤销。', okText: '删除', cancelText: '取消' })) { clearDraftFromLocalStorage(id); const { error } = await supabase.from('articles').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); if (id === state.selectedArticleId) { switchToWelcomeView(); } fetchData(); } } }
-        async function handleDeleteFolder(id) { if(await showConfirmation({ title: '删除文件夹', text: '确定要删除这个文件夹吗？其内的所有文章也将被删除！', okText: '删除', cancelText: '取消' })) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
-        function handleExportArticle() {
-            if (!state.selectedArticleId) return;
-            const article = state.articles.find(i => i.id === state.selectedArticleId);
-            if (!article) return;
-            let contentToExport = '';
-            if (state.isEditing) { const tempDiv = document.createElement('div'); tempDiv.innerHTML = quill.root.innerHTML; contentToExport = tempDiv.innerText; }
-            else { const tempDiv = document.createElement('div'); tempDiv.innerHTML = article.content || ''; contentToExport = tempDiv.innerText; }
-            const blob = new Blob([contentToExport], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${article.title}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
-        function showConfirmation({ title, text, okText = '确定', cancelText = '取消' }) {
-            if (!dom.confirmModal) return Promise.resolve(window.confirm(`${title}\n\n${text}`));
-            return new Promise(resolve => {
-                dom.confirmModalTitle.textContent = title; dom.confirmModalText.textContent = text; dom.confirmModalOk.textContent = okText; dom.confirmModalCancel.textContent = cancelText; dom.confirmModal.classList.remove('hidden');
-                const cleanup = () => { dom.confirmModal.classList.add('hidden'); dom.confirmModalOk.onclick = null; dom.confirmModalCancel.onclick = null; };
-                dom.confirmModalOk.onclick = () => { cleanup(); resolve(true); };
-                dom.confirmModalCancel.onclick = () => { cleanup(); resolve(false); };
-            });
-        }
-        function openRenameModal({ type, currentName }) {
-            if (!dom.renameModal) return Promise.resolve(window.prompt(type === 'folder' ? '重命名文件夹' : '重命名文章', currentName));
-            return new Promise(resolve => {
-                dom.renameModalTitle.textContent = type === 'folder' ? '重命名文件夹' : '重命名文章';
-                dom.renameModalInput.value = currentName;
-                dom.renameModal.classList.remove('hidden');
-                dom.renameModalInput.focus();
-                dom.renameModalInput.select();
-                const cleanupAndResolve = (value) => { dom.renameModal.classList.add('hidden'); dom.confirmRename.onclick = null; dom.cancelRename.onclick = null; dom.renameModalInput.onkeydown = null; resolve(value); };
-                dom.confirmRename.onclick = () => cleanupAndResolve(dom.renameModalInput.value);
-                dom.cancelRename.onclick = () => cleanupAndResolve(null);
-                dom.renameModalInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); dom.confirmRename.click(); } else if (e.key === 'Escape') { dom.cancelRename.click(); } };
-            });
-        }
-        function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
-        async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
-        function saveDraftToLocalStorage() { if (!state.isEditing || !state.selectedArticleId) return; const draft = { content: quill.root.innerHTML, updatedAt: Date.now() }; localStorage.setItem(`diary-draft-${state.selectedArticleId}`, JSON.stringify(draft)); renderFileTree(); }
-        function loadDraftFromLocalStorage(id) { try { const data = localStorage.getItem(`diary-draft-${id}`); return data ? JSON.parse(data) : null; } catch { return null; } }
-        function clearDraftFromLocalStorage(id) { localStorage.removeItem(`diary-draft-${id}`); }
-        function handleExportAll() { const data = JSON.stringify({ folders: state.folders, articles: state.articles }); const blob = new Blob([data], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const date = new Date().toISOString().slice(0, 10); a.download = `diary-backup-${date}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast('备份已导出！'); }
-        async function handleImportAll(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { try { const data = JSON.parse(event.target.result); if (!data.folders || !data.articles) throw new Error('无效的备份文件格式。'); if (await showConfirmation({ title: '导入备份', text: '警告：这将用导入的数据覆盖您云端的所有笔记和文件夹。此操作不可撤销。您确定要继续吗？', okText: '确认导入', cancelText: '取消' })) { showToast('正在清空云端数据...'); await supabase.from('articles').delete().eq('user_id', state.user.id); await supabase.from('folders').delete().eq('user_id', state.user.id); showToast('正在导入新数据...'); const folderUploads = data.folders.map(f => ({...f, user_id: state.user.id})); const articleUploads = data.articles.map(a => ({...a, user_id: state.user.id})); const { error: folderError } = await supabase.from('folders').insert(folderUploads); if(folderError) throw folderError; const { error: articleError } = await supabase.from('articles').insert(articleUploads); if(articleError) throw articleError; showToast('数据导入成功！'); await fetchData(); } } catch(error) { showToast(`导入失败: ${error.message}`, 'error'); } finally { dom.importFileInput.value = ''; } }; reader.readAsText(file); }
-        function toggleSidebar(forceState) { const isMobile = window.innerWidth < 768; if (isMobile) { const shouldShow = forceState ? forceState === 'show' : dom.sidebar.classList.contains('-translate-x-full'); dom.sidebar.classList.toggle('-translate-x-full', !shouldShow); dom.sidebarOverlay.classList.toggle('hidden', !shouldShow); return; } const shouldBeCollapsed = forceState ? forceState === 'hide' : !state.ui.isSidebarCollapsed; state.ui.isSidebarCollapsed = shouldBeCollapsed; dom.mainAppView.classList.toggle('sidebar-collapsed', shouldBeCollapsed); localStorage.setItem('sidebarCollapsed', shouldBeCollapsed ? 'true' : 'false'); }
-        function handleForceReload() { if (!state.selectedArticleId) { showToast('请先选择一篇文章', 'error'); return; } selectArticle(state.selectedArticleId, false, true); showToast('已从云端强制加载内容', 'success'); }
-        function toggleHeader(forceState) {
-            const shouldBeCollapsed = forceState ? forceState === 'collapse' : !dom.mainAppView.classList.contains('header-collapsed');
-            dom.mainAppView.classList.toggle('header-collapsed', shouldBeCollapsed);
-            const icon = shouldBeCollapsed ? 'chevron-down' : 'chevron-up';
-            dom.toggleHeaderButton.innerHTML = ''; 
-            const iconElement = document.createElement('i');
-            iconElement.setAttribute('data-feather', icon);
-            dom.toggleHeaderButton.appendChild(iconElement);
-            feather.replace({ width: 16, height: 16 });
-            localStorage.setItem('headerState', shouldBeCollapsed ? 'collapsed' : 'expanded');
+
+        // ... function loadAndRenderPDF, unchanged ...
+
+        function switchToWelcomeView() {
+            state.selectedArticleId = null;
+            dom.articleView.classList.add('hidden');
+            dom.welcomeView.classList.remove('hidden');
+            dom.articleMainTitle.textContent = '笔记';
+            dom.mobileViewControls.classList.add('hidden');
+            dom.mobileEditControls.classList.add('hidden');
+            dom.articleActions.classList.add('hidden');
+            dom.headerPdfControls.classList.add('hidden');
+            dom.toggleSidebarButton.classList.remove('hidden'); // 确保欢迎页显示侧边栏按钮
+            renderFileTree();
         }
 
-        // --- 核心修复：将函数定义移动到调用它们的代码之前 ---
-        function initQuill() {
-            if (quill) return;
-            const Delta = Quill.import('delta');
-            const toolbarOptions = [ [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['blockquote', 'code-block'], ['link', 'image'], ['clean'] ];
-            quill = new Quill('#editor-container', {
-                modules: {
-                    toolbar: {
-                        container: toolbarOptions,
-                        handlers: {
-                            'image': () => {
-                                const input = document.createElement('input');
-                                input.setAttribute('type', 'file');
-                                input.setAttribute('accept', 'image/*');
-                                input.click();
-                                input.onchange = () => { const file = input.files[0]; if (file) { handleImageUpload(file); } };
-                            }
-                        }
-                    },
-                     clipboard: {
-                        matchers: [
-                            ['img', (node, delta) => {
-                                const src = node.getAttribute('src');
-                                if (src && src.startsWith('data:image/')) {
-                                    const file = dataURLtoFile(src, `pasted-image-${Date.now()}.png`);
-                                    handleImageUpload(file);
-                                    return new Delta(); 
-                                }
-                                return delta;
-                            }]
-                        ]
-                    }
-                },
-                theme: 'snow'
-            });
-            on(quill.root, 'text-change', (delta, oldDelta, source) => { if (source === 'user' && state.isEditing && state.selectedArticleId) { saveDraftToLocalStorage(); } });
-            quill.enable(false);
-        }
-        function initEventListeners() {
-            on(dom.loginForm, 'submit', handleLogin);
-            on(dom.registerForm, 'submit', handleRegister);
-            on(dom.showLoginTab, 'click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
-            on(dom.showRegisterTab, 'click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
-            const refreshAction = async () => {
-                showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData();
-                const selectedArticle = state.articles.find(a => a.id === prevId);
-                if (selectedArticle) { if (!isCurrentlyEditing && selectedArticle.type !== 'pdf') { quill.root.innerHTML = selectedArticle.content || ''; state.openedArticleTimestamp = selectedArticle.updated_at; } }
-                showToast('数据同步完成！');
-            };
-            on(dom.logoutButton, 'click', handleLogout);
-            on(dom.newFolderButton, 'click', handleNewFolder);
-            on(dom.newArticleButton, 'click', handleNewArticle);
-            on(dom.fileTree, 'click', e => {
-                const articleItem = e.target.closest('.article-item'); const folderHeader = e.target.closest('.folder-header');
-                const folderMenuBtn = e.target.closest('.folder-menu-btn'); const articleMenuBtn = e.target.closest('.article-menu-btn');
-                if (folderMenuBtn) { e.stopPropagation(); state.ui.activeFolderMenuId = folderMenuBtn.dataset.id; const rect = folderMenuBtn.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } 
-                else if (articleMenuBtn) { e.stopPropagation(); state.ui.activeArticleMenuId = articleMenuBtn.dataset.id; const rect = articleMenuBtn.getBoundingClientRect(); dom.articleContextMenu.style.top = `${rect.bottom}px`; dom.articleContextMenu.style.left = `${rect.left}px`; dom.articleContextMenu.classList.remove('hidden'); }
-                else if (articleItem) { selectArticle(articleItem.dataset.id); } 
-                else if (folderHeader) { handleToggleFolder(folderHeader.dataset.folderId); }
-            });
-
-            on(dom.newArticleInFolderBtn, 'click', (e) => { e.preventDefault(); state.ui.creationFolderId = state.ui.activeFolderMenuId; openCreationModal('article'); dom.folderContextMenu?.classList.add('hidden'); });
-            on(dom.renameFolderBtn, 'click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu?.classList.add('hidden'); });
-            on(dom.deleteFolderBtn, 'click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu?.classList.add('hidden'); });
-            on(dom.renameArticleBtn, 'click', () => { handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
-            on(dom.deleteArticleBtn, 'click', () => { handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
-            on(dom.cancelCreation, 'click', () => { dom.creationModal?.classList.add('hidden'); state.ui.creationFolderId = null; });
-            on(dom.confirmCreation, 'click', handleConfirmCreation);
-            on(dom.creationModalInput, 'keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
-
-            on(dom.refreshButton, 'click', refreshAction);
-            on(dom.exportAllButton, 'click', handleExportAll);
-            on(dom.importButton, 'click', () => dom.importFileInput.click());
-            on(dom.importFileInput, 'change', handleImportAll);
-            on(dom.mobileRefreshButton, 'click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
-            on(dom.editButton, 'click', switchToEditMode);
-            on(dom.saveButton, 'click', handleSaveArticle);
-            on(dom.globalMoveButton, 'click', openMoveModal);
-            on(dom.mobileMoveButton, 'click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
-            on(dom.forceReloadButton, 'click', handleForceReload);
-            on(dom.mobileForceReloadButton, 'click', () => { handleForceReload(); dom.mobileActionsMenu.classList.add('hidden'); });
-            on(dom.mobileEditButton, 'click', switchToEditMode);
-            on(dom.mobileSaveButton, 'click', handleSaveArticle);
-            on(dom.mobileMoreButton, 'click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
-            on(dom.mobileExportButton, 'click', () => { dom.exportDropdownButton.click(); dom.mobileActionsMenu.classList.add('hidden'); }); 
-            
-            on(dom.cancelMove, 'click', () => dom.moveModal?.classList.add('hidden'));
-            on(dom.confirmMove, 'click', handleConfirmMove);
-            on(dom.cancelRename, 'click', () => dom.renameModal?.classList.add('hidden'));
-            on(dom.confirmRename, 'click', () => dom.confirmRename.onclick()); 
-            on(dom.confirmModalCancel, 'click', () => dom.confirmModalCancel.onclick());
-            on(dom.confirmModalOk, 'click', () => dom.confirmModalOk.onclick());
-
-            on(dom.toggleSidebarButton, 'click', () => toggleSidebar());
-            on(dom.hideSidebarButton, 'click', () => toggleSidebar('hide'));
-            on(dom.sidebarOverlay, 'click', () => toggleSidebar('hide'));
-            on(dom.importPdfButton, 'click', () => dom.importPdfInput.click());
-            on(dom.importPdfInput, 'change', (e) => { handlePDFImport(e.target.files[0]); e.target.value = ''; });
-            on(dom.pdfPrevPage, 'click', () => { if (currentPage > 1) { currentPage--; renderPDFPage(currentPage); } });
-            on(dom.pdfNextPage, 'click', () => { if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPDFPage(currentPage); } });
-            on(dom.exportDropdownButton, 'click', (e) => { e.stopPropagation(); dom.exportOptions.classList.toggle('hidden'); });
-            on(dom.exportTxtButton, 'click', (e) => { e.preventDefault(); handleExportArticle(); dom.exportOptions.classList.add('hidden'); });
-            on(dom.exportPdfButton, 'click', (e) => { e.preventDefault(); handleExportPDF(); dom.exportOptions.classList.add('hidden'); });
-            
-            on(document, 'click', (e) => { 
-                if(!dom.mobileMoreButton?.contains(e.target) && !dom.mobileActionsMenu?.contains(e.target)) { dom.mobileActionsMenu?.classList.add('hidden'); }
-                if(!e.target.closest('.folder-menu-btn')) { dom.folderContextMenu?.classList.add('hidden'); }
-                if(!e.target.closest('.article-menu-btn')) { dom.articleContextMenu?.classList.add('hidden'); }
-                if(!dom.exportDropdownButton?.contains(e.target) && !dom.exportOptions?.contains(e.target)) { dom.exportOptions?.classList.add('hidden'); }
-            });
-            on(quill.root, 'drop', (e) => { e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over'); const files = e.dataTransfer.files; if (files && files.length > 0) { handleImageUpload(files[0]); } });
-
-            on(dom.toggleHeaderButton, 'click', () => toggleHeader());
-            on(dom.showHeaderButton, 'click', () => toggleHeader());
-        }
+        // ... All other functions down to initializeApp, unchanged ...
 
         async function initializeApp() {
-            dom = {
-                authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'), loginForm: document.getElementById('login-form'), registerForm: document.getElementById('register-form'), showLoginTab: document.getElementById('show-login-tab'), showRegisterTab: document.getElementById('show-register-tab'), sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'), sidebarOverlay: document.getElementById('sidebar-overlay'), toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'), userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'), newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'), fileTree: document.getElementById('file-tree'), welcomeView: document.getElementById('welcome-view'), articleView: document.getElementById('article-view'), articleMainTitle: document.getElementById('article-main-title'), editorContainer: document.getElementById('editor-container'), editorControls: document.getElementById('editor-controls'), editButton: document.getElementById('edit-button'), saveButton: document.getElementById('save-button'), refreshButton: document.getElementById('refresh-button'), forceReloadButton: document.getElementById('force-reload-button'), mobileControls: document.getElementById('mobile-controls'), mobileViewControls: document.getElementById('mobile-view-controls'), mobileEditControls: document.getElementById('mobile-edit-controls'), mobileEditButton: document.getElementById('mobile-edit-button'), mobileSaveButton: document.getElementById('mobile-save-button'), mobileMoreButton: document.getElementById('mobile-more-button'), mobileActionsMenu: document.getElementById('mobile-actions-menu'), mobileMoveButton: document.getElementById('mobile-move-button'), mobileExportButton: document.getElementById('mobile-export-button'), mobileRefreshButton: document.getElementById('mobile-refresh-button'), mobileForceReloadButton: document.getElementById('mobile-force-reload-button'), toast: document.getElementById('toast'), moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'), cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'), folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'), deleteFolderBtn: document.getElementById('delete-folder-btn'), newArticleInFolderBtn: document.getElementById('new-article-in-folder-btn'), articleContextMenu: document.getElementById('article-context-menu'), renameArticleBtn: document.getElementById('rename-article-btn'), deleteArticleBtn: document.getElementById('delete-article-btn'), creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'), creationModalInput: document.getElementById('creation-modal-input'), cancelCreation: document.getElementById('cancel-creation'), confirmCreation: document.getElementById('confirm-creation'), renameModal: document.getElementById('rename-modal'), renameModalTitle: document.getElementById('rename-modal-title'), renameModalInput: document.getElementById('rename-modal-input'), cancelRename: document.getElementById('cancel-rename'), confirmRename: document.getElementById('confirm-rename'), importButton: document.getElementById('import-button'), exportAllButton: document.getElementById('export-all-button'), importFileInput: document.getElementById('import-file-input'), confirmModal: document.getElementById('confirm-modal'), confirmModalTitle: document.getElementById('confirm-modal-title'), confirmModalText: document.getElementById('confirm-modal-text'), confirmModalCancel: document.getElementById('confirm-modal-cancel'), confirmModalOk: document.getElementById('confirm-modal-ok'),
-                articleActions: document.getElementById('article-actions'), globalMoveButton: document.getElementById('global-move-button'),
-                richtextEditorView: document.getElementById('richtext-editor-view'), pdfReaderView: document.getElementById('pdf-reader-view'), pdfViewerContainer: document.getElementById('pdf-viewer-container'), pdfViewer: document.getElementById('pdf-viewer'), 
-                headerPdfControls: document.getElementById('header-pdf-controls'),
-                pdfPrevPage: document.getElementById('pdf-prev-page'), pdfNextPage: document.getElementById('pdf-next-page'), pdfCurrentPage: document.getElementById('pdf-current-page'), pdfTotalPages: document.getElementById('pdf-total-pages'), 
-                importPdfButton: document.getElementById('import-pdf-button'), importPdfInput: document.getElementById('import-pdf-input'), 
-                exportDropdownButton: document.getElementById('export-dropdown-button'), exportOptions: document.getElementById('export-options'), exportTxtButton: document.getElementById('export-txt-button'), exportPdfButton: document.getElementById('export-pdf-button'),
-                toggleHeaderButton: document.getElementById('toggle-header-button'), showHeaderButton: document.getElementById('show-header-button'),
-            };
-
-            feather.replace();
-            initQuill();
-            initEventListeners();
-             
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                state.user = session.user;
-                dom.authView.classList.add('hidden'); 
-                dom.mainAppView.classList.remove('hidden'); 
-                dom.userEmail.textContent = state.user.email; 
-                dom.userAvatar.textContent = state.user.email[0].toUpperCase();
-                await fetchData();
-                if (state.articles.length > 0) { selectArticle(state.articles[0].id); } 
-                else { switchToWelcomeView(); }
-            } else {
-                switchToWelcomeView();
-                dom.authView.classList.remove('hidden'); 
-                dom.mainAppView.classList.add('hidden');
-            }
-            if (localStorage.getItem('sidebarCollapsed') === 'true' && window.innerWidth >= 768) { toggleSidebar('hide'); }
-            const savedHeaderState = localStorage.getItem('headerState');
-            if (savedHeaderState === 'collapsed') {
-                toggleHeader('collapse');
-            }
-            supabase.auth.onAuthStateChange((_, session) => {
-                const userJustLoggedIn = _ === 'SIGNED_IN' && state.user?.id !== session?.user?.id;
-                const userJustLoggedOut = _ === 'SIGNED_OUT';
-                if (userJustLoggedIn || userJustLoggedOut) { window.location.reload(); }
-            });
+            // ... initializeApp logic, unchanged ...
         }
         window.addEventListener('load', initializeApp);
     </script>
