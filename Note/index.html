@@ -120,8 +120,7 @@
                 <header class="flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0 z-20">
                     <div class="flex items-center flex-1 min-w-0">
                         <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
-                        <div id="pdf-header-actions" class="hidden items-center space-x-2 ml-2">
-                            <button id="global-move-button" title="移动文章" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4"></i></button>
+                        <div id="pdf-header-actions" class="hidden items-center space-x-2">
                             <button id="pdf-close-button" title="展开侧边栏" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="x"></i></button>
                         </div>
                         <h2 id="article-main-title" class="text-lg font-semibold truncate ml-2">笔记</h2>
@@ -135,11 +134,10 @@
 
                     <div class="flex items-center flex-1 justify-end">
                         <div id="article-actions" class="hidden md:flex items-center space-x-2">
-                            </div>
+                        </div>
                         <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
                             <div id="mobile-view-controls" class="hidden items-center space-x-1">
                                 <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
-                                <button id="mobile-more-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="more-vertical" class="w-5 h-5"></i></button>
                             </div>
                             <div id="mobile-edit-controls" class="hidden items-center">
                                 <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"><i data-feather="save" class="w-5 h-5"></i></button>
@@ -198,7 +196,11 @@
         <div id="rename-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3"><h3 id="rename-modal-title" class="text-lg font-semibold"></h3><input id="rename-modal-input" class="w-full px-3 py-2 border rounded"><div class="flex justify-end space-x-2"><button id="cancel-rename" class="px-3 py-1.5 rounded bg-slate-100">取消</button><button id="confirm-rename" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button></div></div></div>
         <div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40"><div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3"><h3 id="confirm-modal-title" class="text-lg font-semibold"></h3><p id="confirm-modal-text" class="text-slate-600"></p><div class="flex justify-end space-x-2"><button id="confirm-modal-cancel" class="px-3 py-1.5 rounded bg-slate-100">取消</button><button id="confirm-modal-ok" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button></div></div></div>
         <div id="folder-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border"><a href="#" id="new-article-in-folder-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">在此新建文章</a><a href="#" id="rename-folder-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文件夹</a><a href="#" id="delete-folder-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文件夹</a></div>
-        <div id="article-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border"><a href="#" id="rename-article-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文章</a><a href="#" id="delete-article-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文章</a></div>
+        <div id="article-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border">
+            <a href="#" id="rename-article-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文章</a>
+            <a href="#" id="move-article-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">移动文章</a>
+            <a href="#" id="delete-article-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文章</a>
+        </div>
     </div>
 
     <script type="module">
@@ -218,7 +220,7 @@
 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
+        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null, movingArticleId: null } };
         let quill;
         let toastTimeout;
         let pdfDoc = null;
@@ -317,7 +319,6 @@
                 dom.pdfHeaderActions.classList.remove('hidden');
                 dom.pdfHeaderActions.classList.add('flex');
                 dom.articleMainTitle.classList.add('hidden');
-                dom.mobileMoreButton.classList.add('hidden');
                 loadAndRenderPDF(article.content);
             } else {
                 dom.pdfReaderView.classList.add('hidden');
@@ -328,7 +329,6 @@
                 dom.pdfHeaderActions.classList.add('hidden');
                 dom.articleMainTitle.classList.remove('hidden');
                 dom.articleMainTitle.textContent = article.title;
-                dom.mobileMoreButton.classList.remove('hidden');
                 const draft = loadDraftFromLocalStorage(id); const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
                 if (!ignoreDraft && useDraft) { showToast('已加载较新的本地草稿', 'success'); quill.root.innerHTML = draft.content || ''; switchToEditMode(); } 
                 else { quill.root.innerHTML = article.content || ''; if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
@@ -387,7 +387,7 @@
         }
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
-        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.articleMainTitle.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); dom.pdfHeaderActions.classList.add('hidden'); dom.toggleSidebarButton.classList.remove('hidden'); dom.mobileMoreButton.classList.remove('hidden'); renderFileTree(); }
+        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.articleMainTitle.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); dom.pdfHeaderActions.classList.add('hidden'); dom.toggleSidebarButton.classList.remove('hidden'); renderFileTree(); }
         async function handleSaveArticle() { 
             if (!state.selectedArticleId) return;
             const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
@@ -442,8 +442,30 @@
                 dom.renameModalInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); dom.confirmRename.click(); } else if (e.key === 'Escape') { dom.cancelRename.click(); } };
             });
         }
-        function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
-        async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
+        function openMoveModal(articleId) { 
+            if(!articleId) return; 
+            state.ui.movingArticleId = articleId;
+            dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; 
+            state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); 
+            const a = state.articles.find(i => i.id === articleId); 
+            if (!a) return;
+            dom.moveFolderSelect.value = a.folder_id || ""; 
+            dom.moveModal.classList.remove('hidden'); 
+        }
+        async function handleConfirmMove() { 
+            const folderId = dom.moveFolderSelect.value || null; 
+            const articleId = state.ui.movingArticleId;
+            if (!articleId) return;
+            const { error } = await supabase.from('articles').update({ folder_id: folderId }).eq('id', articleId); 
+            if(error) {
+                showToast(`移动失败: ${error.message}`, 'error'); 
+            } else { 
+                showToast('文章已移动'); 
+                fetchData(); 
+            } 
+            dom.moveModal.classList.add('hidden'); 
+            state.ui.movingArticleId = null;
+        }
         function saveDraftToLocalStorage() { if (!state.isEditing || !state.selectedArticleId) return; const draft = { content: quill.root.innerHTML, updatedAt: Date.now() }; localStorage.setItem(`diary-draft-${state.selectedArticleId}`, JSON.stringify(draft)); renderFileTree(); }
         function loadDraftFromLocalStorage(id) { try { const data = localStorage.getItem(`diary-draft-${id}`); return data ? JSON.parse(data) : null; } catch { return null; } }
         function clearDraftFromLocalStorage(id) { localStorage.removeItem(`diary-draft-${id}`); }
@@ -525,8 +547,9 @@
             on(dom.newArticleInFolderBtn, 'click', (e) => { e.preventDefault(); state.ui.creationFolderId = state.ui.activeFolderMenuId; openCreationModal('article'); dom.folderContextMenu?.classList.add('hidden'); });
             on(dom.renameFolderBtn, 'click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu?.classList.add('hidden'); });
             on(dom.deleteFolderBtn, 'click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu?.classList.add('hidden'); });
-            on(dom.renameArticleBtn, 'click', () => { handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
-            on(dom.deleteArticleBtn, 'click', () => { handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
+            on(dom.renameArticleBtn, 'click', (e) => { e.preventDefault(); handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
+            on(dom.moveArticleBtn, 'click', (e) => { e.preventDefault(); openMoveModal(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
+            on(dom.deleteArticleBtn, 'click', (e) => { e.preventDefault(); handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
             on(dom.cancelCreation, 'click', () => { dom.creationModal?.classList.add('hidden'); state.ui.creationFolderId = null; });
             on(dom.confirmCreation, 'click', handleConfirmCreation);
             on(dom.creationModalInput, 'keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
@@ -535,17 +558,11 @@
             on(dom.exportAllButton, 'click', handleExportAll);
             on(dom.importButton, 'click', () => dom.importFileInput.click());
             on(dom.importFileInput, 'change', handleImportAll);
-            on(dom.mobileRefreshButton, 'click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
             on(dom.editButton, 'click', switchToEditMode);
             on(dom.saveButton, 'click', handleSaveArticle);
-            on(dom.globalMoveButton, 'click', openMoveModal);
-            on(dom.mobileMoveButton, 'click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
             on(dom.forceReloadButton, 'click', handleForceReload);
-            on(dom.mobileForceReloadButton, 'click', () => { handleForceReload(); dom.mobileActionsMenu.classList.add('hidden'); });
             on(dom.mobileEditButton, 'click', switchToEditMode);
             on(dom.mobileSaveButton, 'click', handleSaveArticle);
-            on(dom.mobileMoreButton, 'click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
-            on(dom.mobileExportButton, 'click', () => { dom.exportDropdownButton.click(); dom.mobileActionsMenu.classList.add('hidden'); }); 
             
             on(dom.cancelMove, 'click', () => dom.moveModal?.classList.add('hidden'));
             on(dom.confirmMove, 'click', handleConfirmMove);
@@ -566,7 +583,6 @@
             on(dom.exportPdfButton, 'click', (e) => { e.preventDefault(); handleExportPDF(); dom.exportOptions.classList.add('hidden'); });
             
             on(document, 'click', (e) => { 
-                if(!dom.mobileMoreButton?.contains(e.target) && !dom.mobileActionsMenu?.contains(e.target)) { dom.mobileActionsMenu?.classList.add('hidden'); }
                 if(!e.target.closest('.folder-menu-btn')) { dom.folderContextMenu?.classList.add('hidden'); }
                 if(!e.target.closest('.article-menu-btn')) { dom.articleContextMenu?.classList.add('hidden'); }
                 if(!dom.exportDropdownButton?.contains(e.target) && !dom.exportOptions?.contains(e.target)) { dom.exportOptions?.classList.add('hidden'); }
@@ -580,8 +596,8 @@
         
         async function initializeApp() {
             dom = {
-                authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'), loginForm: document.getElementById('login-form'), registerForm: document.getElementById('register-form'), showLoginTab: document.getElementById('show-login-tab'), showRegisterTab: document.getElementById('show-register-tab'), sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'), sidebarOverlay: document.getElementById('sidebar-overlay'), toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'), userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'), newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'), fileTree: document.getElementById('file-tree'), welcomeView: document.getElementById('welcome-view'), articleView: document.getElementById('article-view'), articleMainTitle: document.getElementById('article-main-title'), editorContainer: document.getElementById('editor-container'), editorControls: document.getElementById('editor-controls'), editButton: document.getElementById('edit-button'), saveButton: document.getElementById('save-button'), refreshButton: document.getElementById('refresh-button'), forceReloadButton: document.getElementById('force-reload-button'), mobileControls: document.getElementById('mobile-controls'), mobileViewControls: document.getElementById('mobile-view-controls'), mobileEditControls: document.getElementById('mobile-edit-controls'), mobileEditButton: document.getElementById('mobile-edit-button'), mobileSaveButton: document.getElementById('mobile-save-button'), mobileMoreButton: document.getElementById('mobile-more-button'), mobileActionsMenu: document.getElementById('mobile-actions-menu'), mobileMoveButton: document.getElementById('mobile-move-button'), mobileExportButton: document.getElementById('mobile-export-button'), mobileRefreshButton: document.getElementById('mobile-refresh-button'), mobileForceReloadButton: document.getElementById('mobile-force-reload-button'), toast: document.getElementById('toast'), moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'), cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'), folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'), deleteFolderBtn: document.getElementById('delete-folder-btn'), newArticleInFolderBtn: document.getElementById('new-article-in-folder-btn'), articleContextMenu: document.getElementById('article-context-menu'), renameArticleBtn: document.getElementById('rename-article-btn'), deleteArticleBtn: document.getElementById('delete-article-btn'), creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'), creationModalInput: document.getElementById('creation-modal-input'), cancelCreation: document.getElementById('cancel-creation'), confirmCreation: document.getElementById('confirm-creation'), renameModal: document.getElementById('rename-modal'), renameModalTitle: document.getElementById('rename-modal-title'), renameModalInput: document.getElementById('rename-modal-input'), cancelRename: document.getElementById('cancel-rename'), confirmRename: document.getElementById('confirm-rename'), importButton: document.getElementById('import-button'), exportAllButton: document.getElementById('export-all-button'), importFileInput: document.getElementById('import-file-input'), confirmModal: document.getElementById('confirm-modal'), confirmModalTitle: document.getElementById('confirm-modal-title'), confirmModalText: document.getElementById('confirm-modal-text'), confirmModalCancel: document.getElementById('confirm-modal-cancel'), confirmModalOk: document.getElementById('confirm-modal-ok'),
-                articleActions: document.getElementById('article-actions'), globalMoveButton: document.getElementById('global-move-button'),
+                authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'), loginForm: document.getElementById('login-form'), registerForm: document.getElementById('register-form'), showLoginTab: document.getElementById('show-login-tab'), showRegisterTab: document.getElementById('show-register-tab'), sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'), sidebarOverlay: document.getElementById('sidebar-overlay'), toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'), userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'), newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'), fileTree: document.getElementById('file-tree'), welcomeView: document.getElementById('welcome-view'), articleView: document.getElementById('article-view'), articleMainTitle: document.getElementById('article-main-title'), editorContainer: document.getElementById('editor-container'), editorControls: document.getElementById('editor-controls'), editButton: document.getElementById('edit-button'), saveButton: document.getElementById('save-button'), refreshButton: document.getElementById('refresh-button'), forceReloadButton: document.getElementById('force-reload-button'), mobileControls: document.getElementById('mobile-controls'), mobileViewControls: document.getElementById('mobile-view-controls'), mobileEditControls: document.getElementById('mobile-edit-controls'), mobileEditButton: document.getElementById('mobile-edit-button'), mobileSaveButton: document.getElementById('mobile-save-button'), toast: document.getElementById('toast'), moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'), cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'), folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'), deleteFolderBtn: document.getElementById('delete-folder-btn'), newArticleInFolderBtn: document.getElementById('new-article-in-folder-btn'), articleContextMenu: document.getElementById('article-context-menu'), renameArticleBtn: document.getElementById('rename-article-btn'), moveArticleBtn: document.getElementById('move-article-btn'), deleteArticleBtn: document.getElementById('delete-article-btn'), creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'), creationModalInput: document.getElementById('creation-modal-input'), cancelCreation: document.getElementById('cancel-creation'), confirmCreation: document.getElementById('confirm-creation'), renameModal: document.getElementById('rename-modal'), renameModalTitle: document.getElementById('rename-modal-title'), renameModalInput: document.getElementById('rename-modal-input'), cancelRename: document.getElementById('cancel-rename'), confirmRename: document.getElementById('confirm-rename'), importButton: document.getElementById('import-button'), exportAllButton: document.getElementById('export-all-button'), importFileInput: document.getElementById('import-file-input'), confirmModal: document.getElementById('confirm-modal'), confirmModalTitle: document.getElementById('confirm-modal-title'), confirmModalText: document.getElementById('confirm-modal-text'), confirmModalCancel: document.getElementById('confirm-modal-cancel'), confirmModalOk: document.getElementById('confirm-modal-ok'),
+                articleActions: document.getElementById('article-actions'),
                 pdfHeaderActions: document.getElementById('pdf-header-actions'), pdfCloseButton: document.getElementById('pdf-close-button'),
                 richtextEditorView: document.getElementById('richtext-editor-view'), pdfReaderView: document.getElementById('pdf-reader-view'), pdfViewerContainer: document.getElementById('pdf-viewer-container'), pdfViewer: document.getElementById('pdf-viewer'), 
                 headerPdfControls: document.getElementById('header-pdf-controls'),
