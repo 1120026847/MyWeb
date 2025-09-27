@@ -325,7 +325,6 @@
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
-        // --- FINAL BUG FIX: Reverting to a more robust content setting method ---
         function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
             if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) { saveDraftToLocalStorage(); }
             state.selectedArticleId = id; const article = state.articles.find(a => a.id === id); if (!article) { switchToWelcomeView(); return; }
@@ -338,10 +337,10 @@
 
             if (!ignoreDraft && useDraft) {
                 showToast('已加载较新的本地草稿', 'success');
-                quill.root.innerHTML = draft.content || ''; // USE innerHTML
+                quill.root.innerHTML = draft.content || '';
                 switchToEditMode();
             } else {
-                quill.root.innerHTML = article.content || ''; // USE innerHTML
+                quill.root.innerHTML = article.content || '';
                 if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); }
             }
             renderFileTree(); if (window.innerWidth < 768) { toggleSidebar('hide'); }
@@ -369,7 +368,38 @@
         async function handleDeleteArticle(id) { if(await showConfirmation({ title: '删除文章', text: '确定要删除这篇文章吗？此操作不可撤销。', okText: '删除', cancelText: '取消' })) { clearDraftFromLocalStorage(id); const { error } = await supabase.from('articles').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); if (id === state.selectedArticleId) { switchToWelcomeView(); } fetchData(); } } }
         async function handleDeleteFolder(id) { if(await showConfirmation({ title: '删除文件夹', text: '确定要删除这个文件夹吗？其内的所有文章也将被删除！', okText: '删除', cancelText: '取消' })) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
         
-        function handleExportArticle() { if (!state.selectedArticleId) return; const a = state.articles.find(i => i.id === state.selectedArticleId); if (!a) return; const t = quill.getText(); const b = new Blob([t], { type: 'text/plain;charset=utf-8' }); const u = URL.createObjectURL(b); const l = document.createElement('a'); l.href = u; l.download = `${a.title}.txt`; document.body.appendChild(l); l.click(); document.body.removeChild(l); URL.revokeObjectURL(u); }
+        // --- FINAL BUG FIX for EXPORT ---
+        function handleExportArticle() {
+            if (!state.selectedArticleId) return;
+            const article = state.articles.find(i => i.id === state.selectedArticleId);
+            if (!article) return;
+
+            let contentToExport = '';
+
+            // If we are in editing mode, the most up-to-date content is in the editor.
+            if (state.isEditing) {
+                // Create a temporary div to convert HTML to plain text
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = quill.root.innerHTML;
+                contentToExport = tempDiv.innerText;
+            } else {
+                // If in view mode, the definitive content is in our state object.
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = article.content || '';
+                contentToExport = tempDiv.innerText;
+            }
+
+            const blob = new Blob([contentToExport], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${article.title}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
         async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
         
