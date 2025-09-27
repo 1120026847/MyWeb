@@ -120,6 +120,10 @@
                 <header class="flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0 z-20">
                     <div class="flex items-center flex-1 min-w-0">
                         <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
+                        <div id="pdf-header-actions" class="hidden items-center space-x-2 ml-2">
+                            <button id="global-move-button" title="移动文章" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4"></i></button>
+                            <button id="pdf-close-button" title="展开侧边栏" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="x"></i></button>
+                        </div>
                         <h2 id="article-main-title" class="text-lg font-semibold truncate ml-2">笔记</h2>
                     </div>
 
@@ -131,9 +135,7 @@
 
                     <div class="flex items-center flex-1 justify-end">
                         <div id="article-actions" class="hidden md:flex items-center space-x-2">
-                            <button id="global-move-button" title="移动文章" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4"></i></button>
-                            <button id="pdf-close-button" title="关闭PDF" class="hidden items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="x"></i></button>
-                        </div>
+                            </div>
                         <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
                             <div id="mobile-view-controls" class="hidden items-center space-x-1">
                                 <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
@@ -203,16 +205,19 @@
         const { jsPDF } = window.jspdf;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
+        // --- 请务必修改为您自己的配置 ---
         const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         const cosConfig = {
             stsUrl: 'https://1317231591-4lcnljnb97.ap-guangzhou.tencentscf.com', 
             bucket: 'notes-1317231591', 
             region: 'ap-guangzhou',    
         };
+        // --- 配置结束 ---
 
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
         let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
         let quill;
         let toastTimeout;
@@ -301,7 +306,6 @@
             state.selectedArticleId = id; const article = state.articles.find(a => a.id === id); if (!article) { switchToWelcomeView(); return; }
             state.openedArticleTimestamp = article.updated_at;
             dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex');
-            dom.articleMainTitle.textContent = article.title;
             dom.articleActions.classList.remove('hidden');
             if (article.type === 'pdf') {
                 dom.richtextEditorView.classList.add('hidden');
@@ -310,8 +314,9 @@
                 dom.headerPdfControls.classList.remove('hidden');
                 dom.headerPdfControls.classList.add('flex');
                 dom.toggleSidebarButton.classList.add('hidden');
-                dom.pdfCloseButton.classList.remove('hidden');
-                dom.pdfCloseButton.classList.add('flex');
+                dom.pdfHeaderActions.classList.remove('hidden');
+                dom.pdfHeaderActions.classList.add('flex');
+                dom.articleMainTitle.classList.add('hidden');
                 dom.mobileMoreButton.classList.add('hidden');
                 loadAndRenderPDF(article.content);
             } else {
@@ -320,7 +325,9 @@
                 dom.richtextEditorView.classList.add('flex');
                 dom.headerPdfControls.classList.add('hidden');
                 dom.toggleSidebarButton.classList.remove('hidden');
-                dom.pdfCloseButton.classList.add('hidden');
+                dom.pdfHeaderActions.classList.add('hidden');
+                dom.articleMainTitle.classList.remove('hidden');
+                dom.articleMainTitle.textContent = article.title;
                 dom.mobileMoreButton.classList.remove('hidden');
                 const draft = loadDraftFromLocalStorage(id); const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
                 if (!ignoreDraft && useDraft) { showToast('已加载较新的本地草稿', 'success'); quill.root.innerHTML = draft.content || ''; switchToEditMode(); } 
@@ -380,7 +387,7 @@
         }
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
-        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); dom.toggleSidebarButton.classList.remove('hidden'); dom.pdfCloseButton.classList.add('hidden'); dom.mobileMoreButton.classList.remove('hidden'); renderFileTree(); }
+        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.articleMainTitle.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); dom.pdfHeaderActions.classList.add('hidden'); dom.toggleSidebarButton.classList.remove('hidden'); dom.mobileMoreButton.classList.remove('hidden'); renderFileTree(); }
         async function handleSaveArticle() { 
             if (!state.selectedArticleId) return;
             const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
@@ -568,13 +575,14 @@
 
             on(dom.toggleHeaderButton, 'click', () => toggleHeader());
             on(dom.showHeaderButton, 'click', () => toggleHeader());
-            on(dom.pdfCloseButton, 'click', switchToWelcomeView);
+            on(dom.pdfCloseButton, 'click', () => toggleSidebar('show'));
         }
         
         async function initializeApp() {
             dom = {
                 authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'), loginForm: document.getElementById('login-form'), registerForm: document.getElementById('register-form'), showLoginTab: document.getElementById('show-login-tab'), showRegisterTab: document.getElementById('show-register-tab'), sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'), sidebarOverlay: document.getElementById('sidebar-overlay'), toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'), userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'), newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'), fileTree: document.getElementById('file-tree'), welcomeView: document.getElementById('welcome-view'), articleView: document.getElementById('article-view'), articleMainTitle: document.getElementById('article-main-title'), editorContainer: document.getElementById('editor-container'), editorControls: document.getElementById('editor-controls'), editButton: document.getElementById('edit-button'), saveButton: document.getElementById('save-button'), refreshButton: document.getElementById('refresh-button'), forceReloadButton: document.getElementById('force-reload-button'), mobileControls: document.getElementById('mobile-controls'), mobileViewControls: document.getElementById('mobile-view-controls'), mobileEditControls: document.getElementById('mobile-edit-controls'), mobileEditButton: document.getElementById('mobile-edit-button'), mobileSaveButton: document.getElementById('mobile-save-button'), mobileMoreButton: document.getElementById('mobile-more-button'), mobileActionsMenu: document.getElementById('mobile-actions-menu'), mobileMoveButton: document.getElementById('mobile-move-button'), mobileExportButton: document.getElementById('mobile-export-button'), mobileRefreshButton: document.getElementById('mobile-refresh-button'), mobileForceReloadButton: document.getElementById('mobile-force-reload-button'), toast: document.getElementById('toast'), moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'), cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'), folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'), deleteFolderBtn: document.getElementById('delete-folder-btn'), newArticleInFolderBtn: document.getElementById('new-article-in-folder-btn'), articleContextMenu: document.getElementById('article-context-menu'), renameArticleBtn: document.getElementById('rename-article-btn'), deleteArticleBtn: document.getElementById('delete-article-btn'), creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'), creationModalInput: document.getElementById('creation-modal-input'), cancelCreation: document.getElementById('cancel-creation'), confirmCreation: document.getElementById('confirm-creation'), renameModal: document.getElementById('rename-modal'), renameModalTitle: document.getElementById('rename-modal-title'), renameModalInput: document.getElementById('rename-modal-input'), cancelRename: document.getElementById('cancel-rename'), confirmRename: document.getElementById('confirm-rename'), importButton: document.getElementById('import-button'), exportAllButton: document.getElementById('export-all-button'), importFileInput: document.getElementById('import-file-input'), confirmModal: document.getElementById('confirm-modal'), confirmModalTitle: document.getElementById('confirm-modal-title'), confirmModalText: document.getElementById('confirm-modal-text'), confirmModalCancel: document.getElementById('confirm-modal-cancel'), confirmModalOk: document.getElementById('confirm-modal-ok'),
-                articleActions: document.getElementById('article-actions'), globalMoveButton: document.getElementById('global-move-button'), pdfCloseButton: document.getElementById('pdf-close-button'),
+                articleActions: document.getElementById('article-actions'), globalMoveButton: document.getElementById('global-move-button'),
+                pdfHeaderActions: document.getElementById('pdf-header-actions'), pdfCloseButton: document.getElementById('pdf-close-button'),
                 richtextEditorView: document.getElementById('richtext-editor-view'), pdfReaderView: document.getElementById('pdf-reader-view'), pdfViewerContainer: document.getElementById('pdf-viewer-container'), pdfViewer: document.getElementById('pdf-viewer'), 
                 headerPdfControls: document.getElementById('header-pdf-controls'),
                 pdfPrevPage: document.getElementById('pdf-prev-page'), pdfNextPage: document.getElementById('pdf-next-page'), pdfCurrentPage: document.getElementById('pdf-current-page'), pdfTotalPages: document.getElementById('pdf-total-pages'), 
