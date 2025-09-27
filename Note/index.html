@@ -132,6 +132,7 @@
                     <div class="flex items-center flex-1 justify-end">
                         <div id="article-actions" class="hidden md:flex items-center space-x-2">
                             <button id="global-move-button" title="移动文章" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4"></i></button>
+                            <button id="pdf-close-button" title="关闭PDF" class="hidden items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="x"></i></button>
                         </div>
                         <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
                             <div id="mobile-view-controls" class="hidden items-center space-x-1">
@@ -202,19 +203,16 @@
         const { jsPDF } = window.jspdf;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        // --- 请务必修改为您自己的配置 ---
         const SUPABASE_URL = 'https://cvkqzkipgmtzqprqadyn.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         const cosConfig = {
             stsUrl: 'https://1317231591-4lcnljnb97.ap-guangzhou.tencentscf.com', 
             bucket: 'notes-1317231591', 
             region: 'ap-guangzhou',    
         };
-        // --- 配置结束 ---
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
         let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
         let quill;
         let toastTimeout;
@@ -312,6 +310,9 @@
                 dom.headerPdfControls.classList.remove('hidden');
                 dom.headerPdfControls.classList.add('flex');
                 dom.toggleSidebarButton.classList.add('hidden');
+                dom.pdfCloseButton.classList.remove('hidden');
+                dom.pdfCloseButton.classList.add('flex');
+                dom.mobileMoreButton.classList.add('hidden');
                 loadAndRenderPDF(article.content);
             } else {
                 dom.pdfReaderView.classList.add('hidden');
@@ -319,6 +320,8 @@
                 dom.richtextEditorView.classList.add('flex');
                 dom.headerPdfControls.classList.add('hidden');
                 dom.toggleSidebarButton.classList.remove('hidden');
+                dom.pdfCloseButton.classList.add('hidden');
+                dom.mobileMoreButton.classList.remove('hidden');
                 const draft = loadDraftFromLocalStorage(id); const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
                 if (!ignoreDraft && useDraft) { showToast('已加载较新的本地草稿', 'success'); quill.root.innerHTML = draft.content || ''; switchToEditMode(); } 
                 else { quill.root.innerHTML = article.content || ''; if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
@@ -377,7 +380,7 @@
         }
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
-        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); dom.toggleSidebarButton.classList.remove('hidden'); renderFileTree(); }
+        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); dom.headerPdfControls.classList.add('hidden'); dom.toggleSidebarButton.classList.remove('hidden'); dom.pdfCloseButton.classList.add('hidden'); dom.mobileMoreButton.classList.remove('hidden'); renderFileTree(); }
         async function handleSaveArticle() { 
             if (!state.selectedArticleId) return;
             const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
