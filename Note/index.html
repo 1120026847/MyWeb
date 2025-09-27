@@ -179,7 +179,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null, creationType: null } };
+        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null, creationType: null } };
         let quill;
         let toastTimeout;
 
@@ -257,6 +257,7 @@
             state.selectedArticleId = id;
             const article = state.articles.find(a => a.id === id);
             if (!article) { switchToWelcomeView(); return; }
+            state.openedArticleTimestamp = article.updated_at;
             
             dom.welcomeView.classList.add('hidden');
             dom.articleView.classList.remove('hidden');
@@ -293,7 +294,38 @@
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); dom.articleTitleInput.readOnly = true; dom.articleTitleInput.classList.remove('bg-slate-100'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
         function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '日记本'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
         
-        async function handleSaveArticle() { if (!state.selectedArticleId) return; const t = dom.articleTitleInput.value.trim(); const c = quill.root.innerHTML; if (!t) { showToast('标题不能为空', 'error'); return; } const { error } = await supabase.from('articles').update({ title: t, content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId); if (error) showToast(`保存失败: ${error.message}`, 'error'); else { showToast('保存成功！'); clearDraftFromLocalStorage(state.selectedArticleId); await fetchData(); dom.mobileArticleTitle.textContent = t; switchToViewMode(); } }
+        async function handleSaveArticle() { 
+            if (!state.selectedArticleId) return;
+
+            const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
+            if (fetchError) { showToast('检查文章状态失败', 'error'); return; }
+
+            if (new Date(serverArticle.updated_at) > new Date(state.openedArticleTimestamp)) {
+                if (confirm('此笔记已在别处更新。若要保存，您的更改将覆盖新版本。\n\n点击“确定”以复制您的当前草稿并查看最新版本，或点击“取消”继续编辑。')) {
+                    navigator.clipboard.writeText(quill.getText());
+                    showToast('草稿已复制到剪贴板。');
+                    await fetchData();
+                    selectArticle(state.selectedArticleId);
+                }
+                return;
+            }
+
+            const t = dom.articleTitleInput.value.trim(); 
+            const c = quill.root.innerHTML; 
+            if (!t) { showToast('标题不能为空', 'error'); return; } 
+            
+            const { data: updatedArticle, error } = await supabase.from('articles').update({ title: t, content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId).select().single();
+            
+            if (error) { showToast(`保存失败: ${error.message}`, 'error'); } 
+            else { 
+                showToast('保存成功！'); 
+                state.openedArticleTimestamp = updatedArticle.updated_at;
+                clearDraftFromLocalStorage(state.selectedArticleId); 
+                await fetchData(); 
+                dom.mobileArticleTitle.textContent = t; 
+                switchToViewMode(); 
+            } 
+        }
         async function handleDeleteArticle() { if (!state.selectedArticleId || !confirm('确定要删除这篇文章吗？')) return; clearDraftFromLocalStorage(state.selectedArticleId); const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); } }
         
         function handleExportArticle() { if (!state.selectedArticleId) return; const a = state.articles.find(i => i.id === state.selectedArticleId); if (!a) return; const t = quill.getText(); const b = new Blob([t], { type: 'text/plain;charset=utf-8' }); const u = URL.createObjectURL(b); const l = document.createElement('a'); l.href = u; l.download = `${a.title}.txt`; document.body.appendChild(l); l.click(); document.body.removeChild(l); URL.revokeObjectURL(u); }
@@ -314,7 +346,7 @@
             dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
-            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { const newArticleData = state.articles.find(a=>a.id === prevId); if(newArticleData) quill.root.innerHTML = newArticleData.content || ''; } showToast('数据同步完成！'); };
+            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { const newArticleData = state.articles.find(a=>a.id === prevId); if(newArticleData) { quill.root.innerHTML = newArticleData.content || ''; state.openedArticleTimestamp = newArticleData.updated_at; }} showToast('数据同步完成！'); };
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
             dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); state.ui.activeFolderMenuId = fmb.dataset.id; const rect = fmb.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
             dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
@@ -367,3 +399,4 @@
     </script>
 </body>
 </html>
+
