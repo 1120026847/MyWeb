@@ -138,7 +138,7 @@
                              <button id="move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4 mr-1.5"></i>移动</button>
                              <button id="export-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="download" class="w-4 h-4 mr-1.5"></i>导出为 TXT</button>
                              <button id="refresh-button" title="同步数据" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="refresh-cw" class="w-4 h-4 mr-1.5"></i>同步</button>
-                             <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-1.5"></i>删除</button>
+                             <button id="delete-button" class="flex items-center px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-md hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-1.5"></i>删除</a>
                         </div>
                     </div>
                     <div class="flex-1 p-2 md:p-4 overflow-y-auto">
@@ -318,7 +318,7 @@
                     cancelText: '继续编辑'
                 });
 
-                if (userChoice) { // User chose "复制并更新"
+                if (userChoice) { 
                     navigator.clipboard.writeText(quill.getText());
                     showToast('当前草稿已复制到剪贴板。');
                     await fetchData();
@@ -390,7 +390,23 @@
             dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
-            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { if (!isCurrentlyEditing) { const newArticleData = state.articles.find(a=>a.id === prevId); if (newArticleData) { quill.root.innerHTML = newArticleData.content || ''; state.openedArticleTimestamp = newArticleData.updated_at; } } } showToast('数据同步完成！'); };
+            const refreshAction = async () => {
+                showToast('正在同步数据...');
+                const prevId = state.selectedArticleId;
+                const isCurrentlyEditing = state.isEditing;
+                await fetchData();
+                if (prevId && state.articles.some(a => a.id === prevId)) {
+                    if (!isCurrentlyEditing) {
+                        const newArticleData = state.articles.find(a => a.id === prevId);
+                        if (newArticleData) {
+                            quill.root.innerHTML = newArticleData.content || '';
+                            state.openedArticleTimestamp = newArticleData.updated_at;
+                        }
+                    }
+                }
+                showToast('数据同步完成！');
+            };
+
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
             dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); state.ui.activeFolderMenuId = fmb.dataset.id; const rect = fmb.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
             dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
