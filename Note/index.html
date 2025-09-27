@@ -250,7 +250,15 @@
         };
 
         function showToast(message, type = 'success') { clearTimeout(toastTimeout); dom.toast.textContent = message; dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50 transition-transform transform-gpu ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`; requestAnimationFrame(() => { dom.toast.style.transform = 'translateX(0)'; }); toastTimeout = setTimeout(() => { dom.toast.style.transform = 'translateX(150%)'; }, 3000); }
-        function formatDate(d) { return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
+        
+        // --- BUG FIX STARTS HERE ---
+        function formatDate(d) {
+            if (!d) return '----/--/--';
+            const date = new Date(d);
+            if (isNaN(date.getTime())) return '----/--/--';
+            return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        }
+        // --- BUG FIX ENDS HERE ---
         
         async function handleLogin(e) { e.preventDefault(); const d = { email: dom.loginForm.querySelector('#login-email').value, password: dom.loginForm.querySelector('#login-password').value }; const { error } = await supabase.auth.signInWithPassword(d); if (error) showToast(`登录失败: ${error.message}`, 'error'); else showToast('登录成功！'); }
         async function handleRegister(e) { e.preventDefault(); const d = { email: dom.registerForm.querySelector('#register-email').value, password: dom.registerForm.querySelector('#register-password').value }; if (d.password.length < 6) { showToast('密码长度至少为6位', 'error'); return; } const { error } = await supabase.auth.signUp(d); if (error) showToast(`注册失败: ${error.message}`, 'error'); else showToast('注册成功！请检查您的邮箱进行验证。'); }
@@ -268,23 +276,55 @@
             } catch (error) { showToast(`数据加载失败: ${error.message}`, 'error'); }
         }
         
+        // --- BUG FIX STARTS HERE ---
         function renderFileTree() {
-            dom.fileTree.innerHTML = ''; const fm = new Map(); state.folders.forEach(f => fm.set(f.id, { ...f, articles: [] }));
+            dom.fileTree.innerHTML = '';
+            const fm = new Map();
+            state.folders.forEach(f => fm.set(f.id, { ...f, articles: [] }));
+            
             const draftArticleIds = new Set();
             state.articles.forEach(a => { if (loadDraftFromLocalStorage(a.id)) { draftArticleIds.add(a.id); } });
-            const ua = []; state.articles.forEach(a => { if (a.folder_id && fm.has(a.folder_id)) fm.get(a.folder_id).articles.push(a); else ua.push(a); });
+            
+            const ua = [];
+            state.articles.forEach(a => {
+                if (a.folder_id && fm.has(a.folder_id)) {
+                    fm.get(a.folder_id).articles.push(a);
+                } else {
+                    ua.push(a);
+                }
+            });
+
             const articleToHTML = a => {
                 const hasDraft = draftArticleIds.has(a.id);
-                return `<li class="article-item group flex items-center justify-between text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${a.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${a.id}"><div class="flex-1 min-w-0 pr-2 flex items-center"><div class="truncate">${a.title}</div>${hasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="有未保存的草稿"></i>' : ''}</div><div class="flex items-center"><div class="text-xs text-slate-400 mt-0.5 mr-2">${formatDate(a.updated_at)}</div><button class="article-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100 shrink-0" data-id="${a.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div></li>`;
+                return `<li class="article-item group flex items-center justify-between text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${a.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${a.id}">
+                            <div class="flex-1 min-w-0 pr-2">
+                                <div class="flex items-center">
+                                    <span class="truncate">${a.title}</span>
+                                    ${hasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="有未保存的草稿"></i>' : ''}
+                                </div>
+                                <div class="text-xs text-slate-400 mt-0.5">${formatDate(a.updated_at)}</div>
+                            </div>
+                            <button class="article-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100 shrink-0" data-id="${a.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button>
+                        </li>`;
             };
+
             fm.forEach((f) => {
                 const exp = state.ui.expandedFolders.has(f.id);
                 const el = document.createElement('div');
                 const folderHasDraft = f.articles.some(a => draftArticleIds.has(a.id));
-                el.innerHTML = `<div class="folder-header flex items-center justify-between p-2 rounded-md group hover:bg-slate-200 cursor-pointer" data-folder-id="${f.id}"><div class="flex items-center flex-1 min-w-0"><i data-feather="chevron-down" class="folder-toggle-icon w-4 h-4 mr-1 text-slate-500 shrink-0 ${!exp ? 'collapsed' : ''}"></i><i data-feather="folder" class="w-4 h-4 mr-2 text-brand shrink-0"></i><span class="font-semibold text-sm truncate">${f.name}</span>${folderHasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="此文件夹中有未保存的草稿"></i>' : ''}</div><button class="folder-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100" data-id="${f.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div><ul class="article-list pl-4 mt-1 space-y-1 ${!exp ? 'hidden' : ''}">${f.articles.map(articleToHTML).join('')}</ul>`; dom.fileTree.appendChild(el); });
-            if (ua.length > 0) { const el = document.createElement('div'); el.innerHTML = `<div class="mt-4"><h4 class="text-sm font-semibold text-slate-500 p-2">未分类</h4><ul class="mt-1 space-y-1">${ua.map(articleToHTML).join('')}</ul></div>`; dom.fileTree.appendChild(el); }
+                el.innerHTML = `<div class="folder-header flex items-center justify-between p-2 rounded-md group hover:bg-slate-200 cursor-pointer" data-folder-id="${f.id}"><div class="flex items-center flex-1 min-w-0"><i data-feather="chevron-down" class="folder-toggle-icon w-4 h-4 mr-1 text-slate-500 shrink-0 ${!exp ? 'collapsed' : ''}"></i><i data-feather="folder" class="w-4 h-4 mr-2 text-brand shrink-0"></i><span class="font-semibold text-sm truncate">${f.name}</span>${folderHasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="此文件夹中有未保存的草稿"></i>' : ''}</div><button class="folder-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100" data-id="${f.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div><ul class="article-list pl-4 mt-1 space-y-1 ${!exp ? 'hidden' : ''}">${f.articles.map(articleToHTML).join('')}</ul>`;
+                dom.fileTree.appendChild(el);
+            });
+            
+            if (ua.length > 0) {
+                const el = document.createElement('div');
+                el.innerHTML = `<div class="mt-4"><h4 class="text-sm font-semibold text-slate-500 p-2">未分类</h4><ul class="mt-1 space-y-1">${ua.map(articleToHTML).join('')}</ul></div>`;
+                dom.fileTree.appendChild(el);
+            }
+            
             feather.replace();
         }
+        // --- BUG FIX ENDS HERE ---
 
         function openCreationModal(type) { state.ui.creationType = type; dom.creationModalTitle.textContent = type === 'folder' ? '创建新文件夹' : '创建新文章'; dom.creationModalInput.value = ''; dom.creationModalInput.placeholder = type === 'folder' ? '请输入文件夹名称...' : '请输入文章标题...'; dom.creationModal.classList.remove('hidden'); dom.creationModalInput.focus(); }
         async function handleConfirmCreation() { const type = state.ui.creationType; const name = dom.creationModalInput.value.trim(); if (!name) { showToast('名称不能为空', 'error'); return; } dom.creationModal.classList.add('hidden'); if (type === 'folder') { const { error } = await supabase.from('folders').insert({ name: name, user_id: state.user.id }); if (error) { showToast(`创建文件夹失败: ${error.message}`, 'error'); } else { showToast('文件夹创建成功！'); fetchData(); } } else if (type === 'article') { const articleData = { title: name, content: '', user_id: state.user.id }; if (state.ui.creationFolderId) { articleData.folder_id = state.ui.creationFolderId; state.ui.creationFolderId = null; } const { data, error } = await supabase.from('articles').insert(articleData).select(); if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id, true); } } }
