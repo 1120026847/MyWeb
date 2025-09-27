@@ -202,11 +202,16 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        const cosConfig = {
-            stsUrl: '请替换为您的云函数URL', 
-            bucket: '请替换为您的存储桶名称, e.g., notes-1250000000', 
-            region: '请替换为您的存储桶所在地域, e.g., ap-guangzhou', 
-        };
+// --- 请务必修改为您自己的配置 ---
+const cosConfig = {
+    // ↓↓↓ 请将这里的URL替换为您自己的函数URL ↓↓↓
+    stsUrl: 'https://1317231591-4lcnljnb97.ap-guangzhou.tencentscf.com', 
+
+    // ↓↓↓ 下面这两行根据您的截图，已经是正确的了，不需要修改 ↓↓↓
+    bucket: 'notes-1317231591', 
+    region: 'ap-guangzhou',    
+};
+// --- 配置结束 ---
 
         let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
         let quill;
