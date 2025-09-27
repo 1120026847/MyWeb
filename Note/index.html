@@ -43,6 +43,8 @@
         .ql-container.ql-snow { border-radius: 0 0 8px 8px; height: calc(100% - 42px); }
         /* Toast 提示动画 */
         #toast { transition: transform 0.3s ease-in-out; }
+        /* 隐藏 details 默认箭头 */
+        summary::-webkit-details-marker { display: none; }
     </style>
 </head>
 <body class="bg-white antialiased text-slate-800">
@@ -84,10 +86,21 @@
                     <button id="new-article-button" class="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="file-plus" class="w-4 h-4 mr-2"></i>新建文章</button>
                 </div>
                 <div id="file-tree" class="flex-1 overflow-y-auto p-4 space-y-1"></div>
-                 <div class="p-4 border-t border-slate-200 space-y-2">
-                    <button id="import-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="upload" class="w-4 h-4 mr-2"></i>导入备份</button>
-                    <button id="export-all-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="download" class="w-4 h-4 mr-2"></i>导出备份</button>
-                    <input type="file" id="import-file-input" class="hidden" accept=".json">
+                 <div class="p-4 border-t border-slate-200">
+                    <details class="group">
+                        <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-slate-600 hover:text-slate-800 list-none">
+                            <div class="flex items-center">
+                                <i data-feather="database" class="w-4 h-4 mr-2"></i>
+                                <span>备份与恢复</span>
+                            </div>
+                            <i data-feather="chevron-down" class="w-4 h-4 transition-transform duration-200 group-open:rotate-180"></i>
+                        </summary>
+                        <div class="mt-2 space-y-2">
+                            <button id="import-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="upload" class="w-4 h-4 mr-2"></i>导入备份</button>
+                            <button id="export-all-button" class="w-full flex items-center justify-center px-3 py-2 text-sm bg-white border border-slate-300 rounded-md hover:bg-slate-50"><i data-feather="download" class="w-4 h-4 mr-2"></i>导出备份</button>
+                            <input type="file" id="import-file-input" class="hidden" accept=".json">
+                        </div>
+                    </details>
                 </div>
             </aside>
 
@@ -237,7 +250,45 @@
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
-        function selectArticle(id, startInEditMode = false) { state.selectedArticleId = id; const a = state.articles.find(i => i.id === id); if (!a) { switchToWelcomeView(); return; } dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex'); dom.articleTitleInput.value = a.title; dom.mobileArticleTitle.textContent = a.title; const draft = loadDraftFromLocalStorage(id); if (draft) { if (confirm('发现未保存的草稿，是否恢复？')) { dom.articleTitleInput.value = draft.title; quill.root.innerHTML = draft.content; } clearDraftFromLocalStorage(id); } else { quill.root.innerHTML = a.content || ''; } if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } renderFileTree(); if (window.innerWidth < 768) closeSidebar(); }
+        function selectArticle(id, startInEditMode = false) {
+            if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) {
+                 saveDraftToLocalStorage();
+            }
+            state.selectedArticleId = id;
+            const article = state.articles.find(a => a.id === id);
+            if (!article) { switchToWelcomeView(); return; }
+            
+            dom.welcomeView.classList.add('hidden');
+            dom.articleView.classList.remove('hidden');
+            dom.articleView.classList.add('flex');
+            dom.articleTitleInput.value = article.title;
+            dom.mobileArticleTitle.textContent = article.title;
+            
+            let recoveredDraft = false;
+            const draft = loadDraftFromLocalStorage(id);
+            if (draft) {
+                if (confirm('发现未保存的草稿，是否恢复？')) {
+                    dom.articleTitleInput.value = draft.title;
+                    quill.root.innerHTML = draft.content;
+                    recoveredDraft = true;
+                } else {
+                    clearDraftFromLocalStorage(id);
+                    quill.root.innerHTML = article.content || '';
+                }
+            } else {
+                quill.root.innerHTML = article.content || '';
+            }
+            
+            if (startInEditMode || recoveredDraft) {
+                switchToEditMode();
+            } else {
+                switchToViewMode();
+            }
+            
+            renderFileTree();
+            if (window.innerWidth < 768) closeSidebar();
+        }
+
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); dom.articleTitleInput.readOnly = false; dom.articleTitleInput.classList.add('bg-slate-100'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); dom.articleTitleInput.readOnly = true; dom.articleTitleInput.classList.remove('bg-slate-100'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
         function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '日记本'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
@@ -316,4 +367,3 @@
     </script>
 </body>
 </html>
-
