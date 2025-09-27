@@ -250,7 +250,7 @@
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
-        function selectArticle(id, startInEditMode = false) {
+        function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
             if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) {
                  saveDraftToLocalStorage();
             }
@@ -266,16 +266,15 @@
             dom.mobileArticleTitle.textContent = article.title;
             
             const draft = loadDraftFromLocalStorage(id);
-            if (draft && !startInEditMode) { // Only check for drafts if not creating a new article
-                if (confirm('发现未保存的草稿，是否恢复？')) {
-                    dom.articleTitleInput.value = draft.title;
-                    quill.root.innerHTML = draft.content;
-                    switchToEditMode();
-                } else {
-                    clearDraftFromLocalStorage(id);
-                    quill.root.innerHTML = article.content || '';
-                    switchToViewMode();
-                }
+
+            if (ignoreDraft) {
+                clearDraftFromLocalStorage(id);
+                quill.root.innerHTML = article.content || '';
+                switchToViewMode();
+            } else if (draft) {
+                dom.articleTitleInput.value = draft.title;
+                quill.root.innerHTML = draft.content;
+                switchToEditMode();
             } else {
                 quill.root.innerHTML = article.content || '';
                 if (startInEditMode) {
@@ -304,7 +303,7 @@
                     navigator.clipboard.writeText(quill.getText());
                     showToast('当前草稿已复制到剪贴板。');
                     await fetchData();
-                    selectArticle(state.selectedArticleId);
+                    selectArticle(state.selectedArticleId, false, true);
                 }
                 return;
             }
@@ -398,4 +397,3 @@
     </script>
 </body>
 </html>
-
