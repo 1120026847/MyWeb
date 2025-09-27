@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>笔记</title>
+    <title>日记本</title>
     <!-- 使用在中国访问更快的 CDN 加载 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Quill.js 编辑器 -->
@@ -53,7 +53,7 @@
         <div id="auth-view" class="flex items-center justify-center min-h-screen bg-brand-light">
             <div class="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-lg">
                 <div class="text-center">
-                    <h1 class="text-3xl font-bold text-slate-900">笔记</h1>
+                    <h1 class="text-3xl font-bold text-slate-900">日记本</h1>
                     <p class="text-slate-500">记录你的想法，整理你的生活</p>
                 </div>
                 <div class="flex border border-gray-200 rounded-md p-1">
@@ -107,7 +107,7 @@
             <main id="main-content" class="flex-1 flex flex-col bg-white overflow-hidden">
                 <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0">
                     <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
-                    <div class="flex-1 min-w-0 mx-2 text-center"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">笔记</h2></div>
+                    <div class="flex-1 min-w-0 mx-2 text-center"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2></div>
                     <div id="mobile-controls" class="flex items-center flex-shrink-0">
                         <div id="mobile-view-controls" class="hidden items-center space-x-1">
                             <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
@@ -126,7 +126,7 @@
                 </header>
                 <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center text-center p-8">
                      <i data-feather="book-open" class="w-16 h-16 text-slate-300 mb-4"></i>
-                     <h2 class="text-2xl font-semibold text-slate-800">欢迎使用笔记</h2>
+                     <h2 class="text-2xl font-semibold text-slate-800">欢迎使用日记本</h2>
                      <p class="text-slate-500 mt-2">从左侧选择一篇文章开始阅读，或新建一篇文章开始创作。</p>
                 </div>
                 <div id="article-view" class="hidden flex-1 flex flex-col overflow-hidden">
@@ -302,7 +302,7 @@
 
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); dom.articleTitleInput.readOnly = false; dom.articleTitleInput.classList.add('bg-slate-100'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); dom.articleTitleInput.readOnly = true; dom.articleTitleInput.classList.remove('bg-slate-100'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
-        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
+        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '日记本'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
         
         async function handleSaveArticle() { 
             if (!state.selectedArticleId) return;
@@ -390,7 +390,7 @@
             dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
-            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { const newArticleData = state.articles.find(a=>a.id === prevId); if(newArticleData) { quill.root.innerHTML = newArticleData.content || ''; state.openedArticleTimestamp = newArticleData.updated_at; }} showToast('数据同步完成！'); };
+            const refreshAction = async () => { showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData(); if (prevId && state.articles.some(a => a.id === prevId)) { if (!isCurrentlyEditing) { const newArticleData = state.articles.find(a=>a.id === prevId); if (newArticleData) { quill.root.innerHTML = newArticleData.content || ''; state.openedArticleTimestamp = newArticleData.updated_at; } } } showToast('数据同步完成！'); };
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
             dom.fileTree.addEventListener('click', e => { const ai = e.target.closest('.article-item'), fmb = e.target.closest('.folder-menu-btn'), fh = e.target.closest('.folder-header'); if (fmb) { e.stopPropagation(); state.ui.activeFolderMenuId = fmb.dataset.id; const rect = fmb.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } else if (ai) { selectArticle(ai.dataset.id); } else if (fh) { handleToggleFolder(fh.dataset.folderId); } });
             dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
