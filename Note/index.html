@@ -208,9 +208,9 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         const cosConfig = {
-            stsUrl: '请替换为您的云函数URL', 
-            bucket: '请替换为您的存储桶名称', 
-            region: '请替换为您的存储桶地域',    
+            stsUrl: 'https://1317231591-4lcnljnb97.ap-guangzhou.tencentscf.com', 
+            bucket: 'notes-1317231591', 
+            region: 'ap-guangzhou',    
         };
 
         let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
