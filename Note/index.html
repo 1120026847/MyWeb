@@ -34,14 +34,15 @@
         ::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         
-        #sidebar { transition: margin 0.3s ease-in-out; }
-        .sidebar-collapsed #sidebar {
-            margin-left: -100%;
+        #sidebar { transition: transform 0.3s ease-in-out; }
+        
+        /* 默认隐藏侧边栏 */
+        #main-app-view.sidebar-collapsed #sidebar {
+            transform: translateX(-100%);
         }
-        @media (min-width: 768px) {
-            .sidebar-collapsed #sidebar {
-                margin-left: -18rem; /* w-72 */
-            }
+        /* 在非折叠状态下，确保侧边栏可见 */
+        #main-app-view:not(.sidebar-collapsed) #sidebar {
+            transform: translateX(0);
         }
 
         .folder-toggle-icon.collapsed { transform: rotate(-90deg); }
@@ -83,8 +84,9 @@
         </div>
 
         <!-- 主应用界面 -->
-        <div id="main-app-view" class="hidden h-screen w-full md:flex overflow-x-hidden">
-            <aside id="sidebar" class="w-72 md:w-72 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0">
+        <div id="main-app-view" class="hidden h-screen w-full relative md:flex overflow-hidden">
+            <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden hidden"></div>
+            <aside id="sidebar" class="absolute md:relative z-30 w-72 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0">
                 <div class="p-4 border-b border-slate-200">
                     <div class="flex items-center justify-between">
                         <div id="user-info" class="flex items-center space-x-2 min-w-0"><span class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm" id="user-avatar"></span><span class="text-sm font-medium truncate" id="user-email"></span></div>
@@ -208,7 +210,7 @@
             authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'),
             loginForm: document.getElementById('login-form'), registerForm: document.getElementById('register-form'),
             showLoginTab: document.getElementById('show-login-tab'), showRegisterTab: document.getElementById('show-register-tab'),
-            sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'),
+            sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'), sidebarOverlay: document.getElementById('sidebar-overlay'),
             toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'),
             userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'),
             newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'),
@@ -308,7 +310,7 @@
             }
             
             renderFileTree();
-            if (window.innerWidth < 768 && !dom.sidebar.classList.contains('-translate-x-full')) {
+            if (window.innerWidth < 768) {
                 toggleSidebar('hide');
             }
         }
@@ -406,6 +408,9 @@
                 dom.mainAppView.classList.remove('sidebar-collapsed');
                 localStorage.setItem('sidebarCollapsed', 'false');
             }
+            if (window.innerWidth < 768) {
+                dom.sidebarOverlay.classList.toggle('hidden', shouldBeCollapsed);
+            }
         }
 
         function initEventListeners() {
@@ -442,7 +447,15 @@
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden')); dom.confirmMove.addEventListener('click', handleConfirmMove);
             dom.toggleSidebarButton.addEventListener('click', () => toggleSidebar()); 
             dom.hideSidebarButton.addEventListener('click', () => toggleSidebar('hide'));
-            document.addEventListener('click', () => { dom.mobileActionsMenu.classList.add('hidden'); dom.folderContextMenu.classList.add('hidden'); });
+            dom.sidebarOverlay.addEventListener('click', () => toggleSidebar('hide'));
+            document.addEventListener('click', (e) => { 
+                if(!dom.mobileMoreButton.contains(e.target) && !dom.mobileActionsMenu.contains(e.target)) {
+                    dom.mobileActionsMenu.classList.add('hidden');
+                }
+                if(!e.target.closest('.folder-menu-btn')) {
+                    dom.folderContextMenu.classList.add('hidden');
+                }
+            });
         }
         
         async function initializeApp() {
@@ -459,6 +472,8 @@
             dom.articleTitleInput.addEventListener('input', () => saveDraftToLocalStorage());
             
             if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                toggleSidebar('hide');
+            } else if (window.innerWidth < 768) {
                 toggleSidebar('hide');
             }
 
@@ -486,3 +501,4 @@
     </script>
 </body>
 </html>
+
