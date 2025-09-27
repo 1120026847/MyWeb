@@ -41,7 +41,6 @@
         #toast { transition: transform 0.3s ease-in-out; }
         summary::-webkit-details-marker { display: none; }
         .editor-drag-over { border: 2px dashed #3b82f6 !important; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
-        
         #pdf-viewer-container { flex-grow: 1; overflow-y: auto; background-color: #f8f9fa; }
         #pdf-viewer { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
         #pdf-viewer canvas { max-width: 100%; height: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -174,7 +173,57 @@
             </main>
         </div>
         <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50" style="transform: translateX(150%);"></div>
+        
+        <div id="move-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3">
+              <h3 class="text-lg font-semibold">移动文章</h3>
+              <select id="move-folder-select" class="w-full px-3 py-2 border rounded"></select>
+              <div class="flex justify-end space-x-2">
+                <button id="cancel-move" class="px-3 py-1.5 rounded bg-slate-100">取消</button>
+                <button id="confirm-move" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button>
+              </div>
+            </div>
         </div>
+        <div id="creation-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3">
+              <h3 id="creation-modal-title" class="text-lg font-semibold"></h3>
+              <input id="creation-modal-input" class="w-full px-3 py-2 border rounded" placeholder="">
+              <div class="flex justify-end space-x-2">
+                <button id="cancel-creation" class="px-3 py-1.5 rounded bg-slate-100">取消</button>
+                <button id="confirm-creation" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button>
+              </div>
+            </div>
+        </div>
+        <div id="rename-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3">
+              <h3 id="rename-modal-title" class="text-lg font-semibold"></h3>
+              <input id="rename-modal-input" class="w-full px-3 py-2 border rounded">
+              <div class="flex justify-end space-x-2">
+                <button id="cancel-rename" class="px-3 py-1.5 rounded bg-slate-100">取消</button>
+                <button id="confirm-rename" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button>
+              </div>
+            </div>
+        </div>
+        <div id="confirm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div class="w-full max-w-md bg-white rounded-lg p-4 space-y-3">
+              <h3 id="confirm-modal-title" class="text-lg font-semibold"></h3>
+              <p id="confirm-modal-text" class="text-slate-600"></p>
+              <div class="flex justify-end space-x-2">
+                <button id="confirm-modal-cancel" class="px-3 py-1.5 rounded bg-slate-100">取消</button>
+                <button id="confirm-modal-ok" class="px-3 py-1.5 rounded bg-blue-500 text-white">确定</button>
+              </div>
+            </div>
+        </div>
+        <div id="folder-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border">
+            <a href="#" id="new-article-in-folder-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">在此新建文章</a>
+            <a href="#" id="rename-folder-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文件夹</a>
+            <a href="#" id="delete-folder-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文件夹</a>
+        </div>
+        <div id="article-context-menu" class="hidden absolute z-50 bg-white rounded-md shadow border">
+            <a href="#" id="rename-article-btn" class="block w-full text-left px-4 py-2 text-sm hover:bg-slate-100">重命名文章</a>
+            <a href="#" id="delete-article-btn" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-100">删除文章</a>
+        </div>
+    </div>
 
     <script type="module">
         const { jsPDF } = window.jspdf;
@@ -196,6 +245,8 @@
         let pdfDoc = null;
         let currentPage = 1;
         let dom = {};
+
+        const on = (el, type, handler) => el && el.addEventListener(type, handler);
 
         function showToast(message, type = 'success') { clearTimeout(toastTimeout); dom.toast.textContent = message; dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50 transition-transform transform-gpu ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`; requestAnimationFrame(() => { dom.toast.style.transform = 'translateX(0)'; }); toastTimeout = setTimeout(() => { dom.toast.style.transform = 'translateX(150%)'; }, 3000); }
         function formatDate(d) { if (!d) return '----/--/--'; const date = new Date(d); if (isNaN(date.getTime())) return '----/--/--'; return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
@@ -375,6 +426,30 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         }
+        
+        function showConfirmation({ title, text, okText = '确定', cancelText = '取消' }) {
+            if (!dom.confirmModal) return Promise.resolve(window.confirm(`${title}\n\n${text}`));
+            return new Promise(resolve => {
+                dom.confirmModalTitle.textContent = title; dom.confirmModalText.textContent = text; dom.confirmModalOk.textContent = okText; dom.confirmModalCancel.textContent = cancelText; dom.confirmModal.classList.remove('hidden');
+                const cleanup = () => { dom.confirmModal.classList.add('hidden'); dom.confirmModalOk.onclick = null; dom.confirmModalCancel.onclick = null; };
+                dom.confirmModalOk.onclick = () => { cleanup(); resolve(true); };
+                dom.confirmModalCancel.onclick = () => { cleanup(); resolve(false); };
+            });
+        }
+        function openRenameModal({ type, currentName }) {
+            if (!dom.renameModal) return Promise.resolve(window.prompt(type === 'folder' ? '重命名文件夹' : '重命名文章', currentName));
+            return new Promise(resolve => {
+                dom.renameModalTitle.textContent = type === 'folder' ? '重命名文件夹' : '重命名文章';
+                dom.renameModalInput.value = currentName;
+                dom.renameModal.classList.remove('hidden');
+                dom.renameModalInput.focus();
+                dom.renameModalInput.select();
+                const cleanupAndResolve = (value) => { dom.renameModal.classList.add('hidden'); dom.confirmRename.onclick = null; dom.cancelRename.onclick = null; dom.renameModalInput.onkeydown = null; resolve(value); };
+                dom.confirmRename.onclick = () => cleanupAndResolve(dom.renameModalInput.value);
+                dom.cancelRename.onclick = () => cleanupAndResolve(null);
+                dom.renameModalInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); dom.confirmRename.click(); } else if (e.key === 'Escape') { dom.cancelRename.click(); } };
+            });
+        }
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
         async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
         function saveDraftToLocalStorage() { if (!state.isEditing || !state.selectedArticleId) return; const draft = { content: quill.root.innerHTML, updatedAt: Date.now() }; localStorage.setItem(`diary-draft-${state.selectedArticleId}`, JSON.stringify(draft)); renderFileTree(); }
@@ -382,26 +457,26 @@
         function clearDraftFromLocalStorage(id) { localStorage.removeItem(`diary-draft-${id}`); }
         function handleExportAll() { const data = JSON.stringify({ folders: state.folders, articles: state.articles }); const blob = new Blob([data], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const date = new Date().toISOString().slice(0, 10); a.download = `diary-backup-${date}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast('备份已导出！'); }
         async function handleImportAll(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { try { const data = JSON.parse(event.target.result); if (!data.folders || !data.articles) throw new Error('无效的备份文件格式。'); if (await showConfirmation({ title: '导入备份', text: '警告：这将用导入的数据覆盖您云端的所有笔记和文件夹。此操作不可撤销。您确定要继续吗？', okText: '确认导入', cancelText: '取消' })) { showToast('正在清空云端数据...'); await supabase.from('articles').delete().eq('user_id', state.user.id); await supabase.from('folders').delete().eq('user_id', state.user.id); showToast('正在导入新数据...'); const folderUploads = data.folders.map(f => ({...f, user_id: state.user.id})); const articleUploads = data.articles.map(a => ({...a, user_id: state.user.id})); const { error: folderError } = await supabase.from('folders').insert(folderUploads); if(folderError) throw folderError; const { error: articleError } = await supabase.from('articles').insert(articleUploads); if(articleError) throw articleError; showToast('数据导入成功！'); await fetchData(); } } catch(error) { showToast(`导入失败: ${error.message}`, 'error'); } finally { dom.importFileInput.value = ''; } }; reader.readAsText(file); }
-        function showConfirmation({ title, text, okText, cancelText }) { return new Promise(resolve => { dom.confirmModalTitle.textContent = title; dom.confirmModalText.textContent = text; dom.confirmModalOk.textContent = okText; dom.confirmModalCancel.textContent = cancelText; dom.confirmModal.classList.remove('hidden'); const cleanup = () => { dom.confirmModal.classList.add('hidden'); dom.confirmModalOk.onclick = null; dom.confirmModalCancel.onclick = null; }; dom.confirmModalOk.onclick = () => { cleanup(); resolve(true); }; dom.confirmModalCancel.onclick = () => { cleanup(); resolve(false); }; }); }
-        function openRenameModal({ type, currentName }) { return new Promise(resolve => { dom.renameModalTitle.textContent = type === 'folder' ? '重命名文件夹' : '重命名文章'; dom.renameModalInput.value = currentName; dom.renameModal.classList.remove('hidden'); dom.renameModalInput.focus(); dom.renameModalInput.select(); const cleanupAndResolve = (value) => { dom.renameModal.classList.add('hidden'); dom.confirmRename.onclick = null; dom.cancelRename.onclick = null; dom.renameModalInput.onkeydown = null; resolve(value); }; dom.confirmRename.onclick = () => cleanupAndResolve(dom.renameModalInput.value); dom.cancelRename.onclick = () => cleanupAndResolve(null); dom.renameModalInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); dom.confirmRename.click(); } else if (e.key === 'Escape') { dom.cancelRename.click(); } }; }); }
         function toggleSidebar(forceState) { const isMobile = window.innerWidth < 768; if (isMobile) { const shouldShow = forceState ? forceState === 'show' : dom.sidebar.classList.contains('-translate-x-full'); dom.sidebar.classList.toggle('-translate-x-full', !shouldShow); dom.sidebarOverlay.classList.toggle('hidden', !shouldShow); return; } const shouldBeCollapsed = forceState ? forceState === 'hide' : !state.ui.isSidebarCollapsed; state.ui.isSidebarCollapsed = shouldBeCollapsed; dom.mainAppView.classList.toggle('sidebar-collapsed', shouldBeCollapsed); localStorage.setItem('sidebarCollapsed', shouldBeCollapsed ? 'true' : 'false'); }
         function handleForceReload() { if (!state.selectedArticleId) { showToast('请先选择一篇文章', 'error'); return; } selectArticle(state.selectedArticleId, false, true); showToast('已从云端强制加载内容', 'success'); }
         
         function initEventListeners() {
-            dom.loginForm.addEventListener('submit', handleLogin);
-            dom.registerForm.addEventListener('submit', handleRegister);
-            dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
-            dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
+            const on = (el, type, handler) => el && el.addEventListener(type, handler);
+
+            on(dom.loginForm, 'submit', handleLogin);
+            on(dom.registerForm, 'submit', handleRegister);
+            on(dom.showLoginTab, 'click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
+            on(dom.showRegisterTab, 'click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             const refreshAction = async () => {
                 showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData();
                 const selectedArticle = state.articles.find(a => a.id === prevId);
                 if (selectedArticle) { if (!isCurrentlyEditing && selectedArticle.type !== 'pdf') { quill.root.innerHTML = selectedArticle.content || ''; state.openedArticleTimestamp = selectedArticle.updated_at; } }
                 showToast('数据同步完成！');
             };
-            dom.logoutButton.addEventListener('click', handleLogout);
-            dom.newFolderButton.addEventListener('click', handleNewFolder);
-            dom.newArticleButton.addEventListener('click', handleNewArticle);
-            dom.fileTree.addEventListener('click', e => {
+            on(dom.logoutButton, 'click', handleLogout);
+            on(dom.newFolderButton, 'click', handleNewFolder);
+            on(dom.newArticleButton, 'click', handleNewArticle);
+            on(dom.fileTree, 'click', e => {
                 const articleItem = e.target.closest('.article-item'); const folderHeader = e.target.closest('.folder-header');
                 const folderMenuBtn = e.target.closest('.folder-menu-btn'); const articleMenuBtn = e.target.closest('.article-menu-btn');
                 if (folderMenuBtn) { e.stopPropagation(); state.ui.activeFolderMenuId = folderMenuBtn.dataset.id; const rect = folderMenuBtn.getBoundingClientRect(); dom.folderContextMenu.style.top = `${rect.bottom}px`; dom.folderContextMenu.style.left = `${rect.left}px`; dom.folderContextMenu.classList.remove('hidden'); } 
@@ -409,46 +484,57 @@
                 else if (articleItem) { selectArticle(articleItem.dataset.id); } 
                 else if (folderHeader) { handleToggleFolder(folderHeader.dataset.folderId); }
             });
-            dom.newArticleInFolderBtn.addEventListener('click', (e) => { e.preventDefault(); state.ui.creationFolderId = state.ui.activeFolderMenuId; openCreationModal('article'); dom.folderContextMenu.classList.add('hidden'); });
-            dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
-            dom.deleteFolderBtn.addEventListener('click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
-            dom.renameArticleBtn.addEventListener('click', () => { handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
-            dom.deleteArticleBtn.addEventListener('click', () => { handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
-            dom.cancelCreation.addEventListener('click', () => { dom.creationModal.classList.add('hidden'); state.ui.creationFolderId = null; }); dom.confirmCreation.addEventListener('click', handleConfirmCreation); dom.creationModalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
-            dom.refreshButton.addEventListener('click', refreshAction);
-            dom.exportAllButton.addEventListener('click', handleExportAll);
-            dom.importButton.addEventListener('click', () => dom.importFileInput.click());
-            dom.importFileInput.addEventListener('change', handleImportAll);
-            dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
-            dom.editButton.addEventListener('click', switchToEditMode);
-            dom.saveButton.addEventListener('click', handleSaveArticle);
-            dom.globalMoveButton.addEventListener('click', openMoveModal);
-            dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
-            dom.forceReloadButton.addEventListener('click', handleForceReload);
-            dom.mobileForceReloadButton.addEventListener('click', () => { handleForceReload(); dom.mobileActionsMenu.classList.add('hidden'); });
-            dom.mobileEditButton.addEventListener('click', switchToEditMode);
-            dom.mobileSaveButton.addEventListener('click', handleSaveArticle);
-            dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
-            dom.mobileExportButton.addEventListener('click', () => { dom.exportDropdownButton.click(); dom.mobileActionsMenu.classList.add('hidden'); }); 
-            dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden'));
-            dom.confirmMove.addEventListener('click', handleConfirmMove);
-            dom.toggleSidebarButton.addEventListener('click', () => toggleSidebar());
-            dom.hideSidebarButton.addEventListener('click', () => toggleSidebar('hide'));
-            dom.sidebarOverlay?.addEventListener('click', () => toggleSidebar('hide'));
-            dom.importPdfButton.addEventListener('click', () => dom.importPdfInput.click());
-            dom.importPdfInput.addEventListener('change', (e) => { handlePDFImport(e.target.files[0]); e.target.value = ''; });
-            dom.pdfPrevPage.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPDFPage(currentPage); } });
-            dom.pdfNextPage.addEventListener('click', () => { if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPDFPage(currentPage); } });
-            dom.exportDropdownButton.addEventListener('click', (e) => { e.stopPropagation(); dom.exportOptions.classList.toggle('hidden'); });
-            dom.exportTxtButton.addEventListener('click', (e) => { e.preventDefault(); handleExportArticle(); dom.exportOptions.classList.add('hidden'); });
-            dom.exportPdfButton.addEventListener('click', (e) => { e.preventDefault(); handleExportPDF(); dom.exportOptions.classList.add('hidden'); });
-            document.addEventListener('click', (e) => { 
-                if(!dom.mobileMoreButton.contains(e.target) && !dom.mobileActionsMenu.contains(e.target)) { dom.mobileActionsMenu.classList.add('hidden'); }
-                if(!e.target.closest('.folder-menu-btn')) { dom.folderContextMenu.classList.add('hidden'); }
-                if(!e.target.closest('.article-menu-btn')) { dom.articleContextMenu.classList.add('hidden'); }
-                if(!dom.exportDropdownButton.contains(e.target) && !dom.exportOptions.contains(e.target)) { dom.exportOptions.classList.add('hidden'); }
+
+            on(dom.newArticleInFolderBtn, 'click', (e) => { e.preventDefault(); state.ui.creationFolderId = state.ui.activeFolderMenuId; openCreationModal('article'); dom.folderContextMenu?.classList.add('hidden'); });
+            on(dom.renameFolderBtn, 'click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu?.classList.add('hidden'); });
+            on(dom.deleteFolderBtn, 'click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu?.classList.add('hidden'); });
+            on(dom.renameArticleBtn, 'click', () => { handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
+            on(dom.deleteArticleBtn, 'click', () => { handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu?.classList.add('hidden'); });
+            on(dom.cancelCreation, 'click', () => { dom.creationModal?.classList.add('hidden'); state.ui.creationFolderId = null; });
+            on(dom.confirmCreation, 'click', handleConfirmCreation);
+            on(dom.creationModalInput, 'keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
+
+            on(dom.refreshButton, 'click', refreshAction);
+            on(dom.exportAllButton, 'click', handleExportAll);
+            on(dom.importButton, 'click', () => dom.importFileInput.click());
+            on(dom.importFileInput, 'change', handleImportAll);
+            on(dom.mobileRefreshButton, 'click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
+            on(dom.editButton, 'click', switchToEditMode);
+            on(dom.saveButton, 'click', handleSaveArticle);
+            on(dom.globalMoveButton, 'click', openMoveModal);
+            on(dom.mobileMoveButton, 'click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
+            on(dom.forceReloadButton, 'click', handleForceReload);
+            on(dom.mobileForceReloadButton, 'click', () => { handleForceReload(); dom.mobileActionsMenu.classList.add('hidden'); });
+            on(dom.mobileEditButton, 'click', switchToEditMode);
+            on(dom.mobileSaveButton, 'click', handleSaveArticle);
+            on(dom.mobileMoreButton, 'click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
+            on(dom.mobileExportButton, 'click', () => { dom.exportDropdownButton.click(); dom.mobileActionsMenu.classList.add('hidden'); }); 
+            
+            on(dom.cancelMove, 'click', () => dom.moveModal?.classList.add('hidden'));
+            on(dom.confirmMove, 'click', handleConfirmMove);
+            on(dom.cancelRename, 'click', () => dom.renameModal?.classList.add('hidden'));
+            on(dom.confirmRename, 'click', () => dom.confirmRename.onclick()); // Will be set in openRenameModal
+            on(dom.confirmModalCancel, 'click', () => dom.confirmModalCancel.onclick()); // Will be set in showConfirmation
+            on(dom.confirmModalOk, 'click', () => dom.confirmModalOk.onclick()); // Will be set in showConfirmation
+
+            on(dom.toggleSidebarButton, 'click', () => toggleSidebar());
+            on(dom.hideSidebarButton, 'click', () => toggleSidebar('hide'));
+            on(dom.sidebarOverlay, 'click', () => toggleSidebar('hide'));
+            on(dom.importPdfButton, 'click', () => dom.importPdfInput.click());
+            on(dom.importPdfInput, 'change', (e) => { handlePDFImport(e.target.files[0]); e.target.value = ''; });
+            on(dom.pdfPrevPage, 'click', () => { if (currentPage > 1) { currentPage--; renderPDFPage(currentPage); } });
+            on(dom.pdfNextPage, 'click', () => { if (pdfDoc && currentPage < pdfDoc.numPages) { currentPage++; renderPDFPage(currentPage); } });
+            on(dom.exportDropdownButton, 'click', (e) => { e.stopPropagation(); dom.exportOptions.classList.toggle('hidden'); });
+            on(dom.exportTxtButton, 'click', (e) => { e.preventDefault(); handleExportArticle(); dom.exportOptions.classList.add('hidden'); });
+            on(dom.exportPdfButton, 'click', (e) => { e.preventDefault(); handleExportPDF(); dom.exportOptions.classList.add('hidden'); });
+            
+            on(document, 'click', (e) => { 
+                if(!dom.mobileMoreButton?.contains(e.target) && !dom.mobileActionsMenu?.contains(e.target)) { dom.mobileActionsMenu?.classList.add('hidden'); }
+                if(!e.target.closest('.folder-menu-btn')) { dom.folderContextMenu?.classList.add('hidden'); }
+                if(!e.target.closest('.article-menu-btn')) { dom.articleContextMenu?.classList.add('hidden'); }
+                if(!dom.exportDropdownButton?.contains(e.target) && !dom.exportOptions?.contains(e.target)) { dom.exportOptions?.classList.add('hidden'); }
             });
-            quill.root.addEventListener('drop', (e) => { e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over'); const files = e.dataTransfer.files; if (files && files.length > 0) { handleImageUpload(files[0]); } });
+            on(quill.root, 'drop', (e) => { e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over'); const files = e.dataTransfer.files; if (files && files.length > 0) { handleImageUpload(files[0]); } });
         }
         function initQuill() {
             if (quill) return;
@@ -484,7 +570,7 @@
                 },
                 theme: 'snow'
             });
-            quill.on('text-change', (delta, oldDelta, source) => { if (source === 'user' && state.isEditing && state.selectedArticleId) { saveDraftToLocalStorage(); } });
+            on(quill.root, 'text-change', (delta, oldDelta, source) => { if (source === 'user' && state.isEditing && state.selectedArticleId) { saveDraftToLocalStorage(); } });
             quill.enable(false);
         }
         async function initializeApp() {
