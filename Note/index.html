@@ -113,8 +113,8 @@
                 <header class="flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0">
                     <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
                     <div class="flex-1 min-w-0 mx-2 text-left"><h2 id="article-main-title" class="text-lg font-semibold truncate">笔记</h2></div>
-                    <div id="article-actions" class="hidden md:flex items-center space-x-2">
-                        <button id="global-move-button" class="flex items-center px-3 py-1.5 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4 mr-1.5"></i>移动</button>
+                    <div id="article-actions" class="hidden md:flex items-center space-x-2 mr-2">
+                        <button id="global-move-button" title="移动文章" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="move" class="w-4 h-4"></i></button>
                     </div>
                     <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
                         <div id="mobile-view-controls" class="hidden items-center space-x-1">
@@ -228,7 +228,6 @@
                 });
             });
         }
-
         function insertImageToEditor(url) { const range = quill.getSelection(true) || { index: quill.getLength() }; quill.insertEmbed(range.index, 'image', url); quill.setSelection(range.index + 1); }
         async function handleImageUpload(file) {
             if (!file || !file.type.startsWith('image/')) return;
@@ -308,6 +307,7 @@
         }
         async function renderPDFPage(pageNum) {
             if (!pdfDoc) return;
+            dom.pdfViewerContainer.scrollTop = 0;
             const page = await pdfDoc.getPage(pageNum);
             const viewport = page.getViewport({ scale: 1.5 });
             const pdfViewer = dom.pdfViewer; pdfViewer.innerHTML = '';
@@ -335,8 +335,9 @@
             const originalStyle = editorContent.style.cssText;
             try {
                 editorContent.style.height = `${editorContent.scrollHeight}px`;
-                editorContent.style.width = `${editorContent.scrollWidth}px`;
+                editorContent.style.maxHeight = 'none';
                 const canvas = await html2canvas(editorContent, { scale: 2, useCORS: true });
+                editorContent.style.cssText = originalStyle; // 尽快恢复样式
                 const imgData = canvas.toDataURL('image/jpeg', 0.9);
                 const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: [canvas.width, canvas.height] });
                 pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
@@ -345,7 +346,6 @@
             } catch(e) { showToast('PDF导出失败', 'error'); console.error(e); }
             finally { editorContent.style.cssText = originalStyle; }
         }
-
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
         function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.articleMainTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); dom.articleActions.classList.add('hidden'); renderFileTree(); }
@@ -393,7 +393,8 @@
         function handleForceReload() { if (!state.selectedArticleId) { showToast('请先选择一篇文章', 'error'); return; } selectArticle(state.selectedArticleId, false, true); showToast('已从云端强制加载内容', 'success'); }
         
         function initEventListeners() {
-            dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
+            dom.loginForm.addEventListener('submit', handleLogin);
+            dom.registerForm.addEventListener('submit', handleRegister);
             dom.showLoginTab.addEventListener('click', () => { dom.loginForm.classList.remove('hidden'); dom.registerForm.classList.add('hidden'); dom.showLoginTab.classList.add('bg-blue-500', 'text-white'); dom.showRegisterTab.classList.remove('bg-blue-500', 'text-white'); });
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             const refreshAction = async () => {
@@ -402,7 +403,9 @@
                 if (selectedArticle) { if (!isCurrentlyEditing && selectedArticle.type !== 'pdf') { quill.root.innerHTML = selectedArticle.content || ''; state.openedArticleTimestamp = selectedArticle.updated_at; } }
                 showToast('数据同步完成！');
             };
-            dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
+            dom.logoutButton.addEventListener('click', handleLogout);
+            dom.newFolderButton.addEventListener('click', handleNewFolder);
+            dom.newArticleButton.addEventListener('click', handleNewArticle);
             dom.fileTree.addEventListener('click', e => {
                 const articleItem = e.target.closest('.article-item'); const folderHeader = e.target.closest('.folder-header');
                 const folderMenuBtn = e.target.closest('.folder-menu-btn'); const articleMenuBtn = e.target.closest('.article-menu-btn');
@@ -417,17 +420,26 @@
             dom.renameArticleBtn.addEventListener('click', () => { handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
             dom.deleteArticleBtn.addEventListener('click', () => { handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
             dom.cancelCreation.addEventListener('click', () => { dom.creationModal.classList.add('hidden'); state.ui.creationFolderId = null; }); dom.confirmCreation.addEventListener('click', handleConfirmCreation); dom.creationModalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
-            dom.refreshButton.addEventListener('click', refreshAction); dom.exportAllButton.addEventListener('click', handleExportAll); dom.importButton.addEventListener('click', () => dom.importFileInput.click()); dom.importFileInput.addEventListener('change', handleImportAll);
+            dom.refreshButton.addEventListener('click', refreshAction);
+            dom.exportAllButton.addEventListener('click', handleExportAll);
+            dom.importButton.addEventListener('click', () => dom.importFileInput.click());
+            dom.importFileInput.addEventListener('change', handleImportAll);
             dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
-            dom.editButton.addEventListener('click', switchToEditMode); dom.saveButton.addEventListener('click', handleSaveArticle);
+            dom.editButton.addEventListener('click', switchToEditMode);
+            dom.saveButton.addEventListener('click', handleSaveArticle);
             dom.globalMoveButton.addEventListener('click', openMoveModal);
             dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.forceReloadButton.addEventListener('click', handleForceReload);
             dom.mobileForceReloadButton.addEventListener('click', () => { handleForceReload(); dom.mobileActionsMenu.classList.add('hidden'); });
-            dom.mobileEditButton.addEventListener('click', switchToEditMode); dom.mobileSaveButton.addEventListener('click', handleSaveArticle); dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
+            dom.mobileEditButton.addEventListener('click', switchToEditMode);
+            dom.mobileSaveButton.addEventListener('click', handleSaveArticle);
+            dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
             dom.mobileExportButton.addEventListener('click', () => { dom.exportDropdownButton.click(); dom.mobileActionsMenu.classList.add('hidden'); }); 
-            dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden')); dom.confirmMove.addEventListener('click', handleConfirmMove);
-            dom.toggleSidebarButton.addEventListener('click', () => toggleSidebar()); dom.hideSidebarButton.addEventListener('click', () => toggleSidebar('hide')); dom.sidebarOverlay?.addEventListener('click', () => toggleSidebar('hide'));
+            dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden'));
+            dom.confirmMove.addEventListener('click', handleConfirmMove);
+            dom.toggleSidebarButton.addEventListener('click', () => toggleSidebar());
+            dom.hideSidebarButton.addEventListener('click', () => toggleSidebar('hide'));
+            dom.sidebarOverlay?.addEventListener('click', () => toggleSidebar('hide'));
             dom.importPdfButton.addEventListener('click', () => dom.importPdfInput.click());
             dom.importPdfInput.addEventListener('change', (e) => { handlePDFImport(e.target.files[0]); e.target.value = ''; });
             dom.pdfPrevPage.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPDFPage(currentPage); } });
@@ -445,6 +457,7 @@
         }
         function initQuill() {
             if (quill) return;
+            const Delta = Quill.import('delta');
             const toolbarOptions = [ [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'], [{ 'list': 'ordered' }, { 'list': 'bullet' }], ['blockquote', 'code-block'], ['link', 'image'], ['clean'] ];
             quill = new Quill('#editor-container', {
                 modules: {
