@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日记本</title>
+    <title>笔记</title>
     <!-- 使用在中国访问更快的 CDN 加载 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Quill.js 编辑器 -->
@@ -53,7 +53,7 @@
         <div id="auth-view" class="flex items-center justify-center min-h-screen bg-brand-light">
             <div class="w-full max-w-sm p-8 space-y-6 bg-white rounded-lg shadow-lg">
                 <div class="text-center">
-                    <h1 class="text-3xl font-bold text-slate-900">日记本</h1>
+                    <h1 class="text-3xl font-bold text-slate-900">笔记</h1>
                     <p class="text-slate-500">记录你的想法，整理你的生活</p>
                 </div>
                 <div class="flex border border-gray-200 rounded-md p-1">
@@ -107,7 +107,7 @@
             <main id="main-content" class="flex-1 flex flex-col bg-white overflow-hidden">
                 <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0">
                     <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
-                    <div class="flex-1 min-w-0 mx-2 text-center"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2></div>
+                    <div class="flex-1 min-w-0 mx-2 text-center"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">笔记</h2></div>
                     <div id="mobile-controls" class="flex items-center flex-shrink-0">
                         <div id="mobile-view-controls" class="hidden items-center space-x-1">
                             <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
@@ -126,7 +126,7 @@
                 </header>
                 <div id="welcome-view" class="flex-1 flex flex-col items-center justify-center text-center p-8">
                      <i data-feather="book-open" class="w-16 h-16 text-slate-300 mb-4"></i>
-                     <h2 class="text-2xl font-semibold text-slate-800">欢迎使用日记本</h2>
+                     <h2 class="text-2xl font-semibold text-slate-800">欢迎使用笔记</h2>
                      <p class="text-slate-500 mt-2">从左侧选择一篇文章开始阅读，或新建一篇文章开始创作。</p>
                 </div>
                 <div id="article-view" class="hidden flex-1 flex flex-col overflow-hidden">
@@ -172,6 +172,16 @@
             <a href="#" id="rename-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
             <a href="#" id="delete-folder-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
         </div>
+        <div id="confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 id="confirm-modal-title" class="text-lg font-medium">请确认</h3>
+                <p id="confirm-modal-text" class="text-sm text-slate-500 mt-2">您确定要继续吗？</p>
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="confirm-modal-cancel" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
+                    <button id="confirm-modal-ok" class="px-4 py-2 bg-blue-500 text-white rounded-md">确定</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -212,6 +222,9 @@
             confirmCreation: document.getElementById('confirm-creation'),
             importButton: document.getElementById('import-button'), exportAllButton: document.getElementById('export-all-button'),
             importFileInput: document.getElementById('import-file-input'),
+            confirmModal: document.getElementById('confirm-modal'), confirmModalTitle: document.getElementById('confirm-modal-title'),
+            confirmModalText: document.getElementById('confirm-modal-text'), confirmModalCancel: document.getElementById('confirm-modal-cancel'),
+            confirmModalOk: document.getElementById('confirm-modal-ok'),
         };
 
         function showToast(message, type = 'success') { clearTimeout(toastTimeout); dom.toast.textContent = message; dom.toast.className = `fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50 transition-transform transform-gpu ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`; requestAnimationFrame(() => { dom.toast.style.transform = 'translateX(0)'; }); toastTimeout = setTimeout(() => { dom.toast.style.transform = 'translateX(150%)'; }, 3000); }
@@ -246,7 +259,6 @@
         function handleNewFolder() { openCreationModal('folder'); }
         function handleNewArticle() { openCreationModal('article'); }
         async function handleRenameFolder(id) { const f = state.folders.find(i => i.id === id); if (!f) return; const n = prompt('请输入新的文件夹名称:', f.name); if (n && n.trim() && n !== f.name) { const { error } = await supabase.from('folders').update({ name: n.trim() }).eq('id', id); if(error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文件夹已重命名'); fetchData(); } } }
-        async function handleDeleteFolder(id) { if(confirm('确定要删除这个文件夹吗？其内的所有文章也将被删除！')) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
@@ -290,7 +302,7 @@
 
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); dom.articleTitleInput.readOnly = false; dom.articleTitleInput.classList.add('bg-slate-100'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); dom.articleTitleInput.readOnly = true; dom.articleTitleInput.classList.remove('bg-slate-100'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
-        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '日记本'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
+        function switchToWelcomeView() { state.selectedArticleId = null; dom.articleView.classList.add('hidden'); dom.welcomeView.classList.remove('hidden'); dom.mobileArticleTitle.textContent = '笔记'; dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.add('hidden'); renderFileTree(); }
         
         async function handleSaveArticle() { 
             if (!state.selectedArticleId) return;
@@ -299,7 +311,14 @@
             if (fetchError) { showToast('检查文章状态失败', 'error'); return; }
 
             if (state.openedArticleTimestamp && new Date(serverArticle.updated_at) > new Date(state.openedArticleTimestamp)) {
-                if (confirm('此笔记已在别处更新。您的当前编辑内容将被复制到剪贴板，然后加载最新版本。')) {
+                const userChoice = await showConfirmation({
+                    title: '内容冲突',
+                    text: '此笔记已在别处更新。请选择如何处理您的当前修改。',
+                    okText: '复制并更新',
+                    cancelText: '继续编辑'
+                });
+
+                if (userChoice) { // User chose "复制并更新"
                     navigator.clipboard.writeText(quill.getText());
                     showToast('当前草稿已复制到剪贴板。');
                     await fetchData();
@@ -324,7 +343,9 @@
                 switchToViewMode(); 
             } 
         }
-        async function handleDeleteArticle() { if (!state.selectedArticleId || !confirm('确定要删除这篇文章吗？')) return; clearDraftFromLocalStorage(state.selectedArticleId); const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); } }
+
+        async function handleDeleteArticle() { if (!state.selectedArticleId) return; if(await showConfirmation({ title: '删除文章', text: '确定要删除这篇文章吗？此操作不可撤销。', okText: '删除', cancelText: '取消' })) { clearDraftFromLocalStorage(state.selectedArticleId); const { error } = await supabase.from('articles').delete().eq('id', state.selectedArticleId); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); switchToWelcomeView(); fetchData(); } } }
+        async function handleDeleteFolder(id) { if(await showConfirmation({ title: '删除文件夹', text: '确定要删除这个文件夹吗？其内的所有文章也将被删除！', okText: '删除', cancelText: '取消' })) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
         
         function handleExportArticle() { if (!state.selectedArticleId) return; const a = state.articles.find(i => i.id === state.selectedArticleId); if (!a) return; const t = quill.getText(); const b = new Blob([t], { type: 'text/plain;charset=utf-8' }); const u = URL.createObjectURL(b); const l = document.createElement('a'); l.href = u; l.download = `${a.title}.txt`; document.body.appendChild(l); l.click(); document.body.removeChild(l); URL.revokeObjectURL(u); }
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
@@ -335,7 +356,32 @@
         function clearDraftFromLocalStorage(id) { localStorage.removeItem(`diary-draft-${id}`); }
 
         function handleExportAll() { const data = JSON.stringify({ folders: state.folders, articles: state.articles }); const blob = new Blob([data], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const date = new Date().toISOString().slice(0, 10); a.download = `diary-backup-${date}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast('备份已导出！'); }
-        function handleImportAll(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { try { const data = JSON.parse(event.target.result); if (!data.folders || !data.articles) throw new Error('无效的备份文件格式。'); if (!confirm('警告：这将用导入的数据覆盖您云端的所有笔记和文件夹。此操作不可撤销。您确定要继续吗？')) return; showToast('正在清空云端数据...'); await supabase.from('articles').delete().eq('user_id', state.user.id); await supabase.from('folders').delete().eq('user_id', state.user.id); showToast('正在导入新数据...'); const folderUploads = data.folders.map(f => ({...f, user_id: state.user.id})); const articleUploads = data.articles.map(a => ({...a, user_id: state.user.id})); const { error: folderError } = await supabase.from('folders').insert(folderUploads); if(folderError) throw folderError; const { error: articleError } = await supabase.from('articles').insert(articleUploads); if(articleError) throw articleError; showToast('数据导入成功！'); await fetchData(); } catch(error) { showToast(`导入失败: ${error.message}`, 'error'); } finally { dom.importFileInput.value = ''; } }; reader.readAsText(file); }
+        async function handleImportAll(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { try { const data = JSON.parse(event.target.result); if (!data.folders || !data.articles) throw new Error('无效的备份文件格式。'); if (await showConfirmation({ title: '导入备份', text: '警告：这将用导入的数据覆盖您云端的所有笔记和文件夹。此操作不可撤销。您确定要继续吗？', okText: '确认导入', cancelText: '取消' })) { showToast('正在清空云端数据...'); await supabase.from('articles').delete().eq('user_id', state.user.id); await supabase.from('folders').delete().eq('user_id', state.user.id); showToast('正在导入新数据...'); const folderUploads = data.folders.map(f => ({...f, user_id: state.user.id})); const articleUploads = data.articles.map(a => ({...a, user_id: state.user.id})); const { error: folderError } = await supabase.from('folders').insert(folderUploads); if(folderError) throw folderError; const { error: articleError } = await supabase.from('articles').insert(articleUploads); if(articleError) throw articleError; showToast('数据导入成功！'); await fetchData(); } } catch(error) { showToast(`导入失败: ${error.message}`, 'error'); } finally { dom.importFileInput.value = ''; } }; reader.readAsText(file); }
+        
+        function showConfirmation({ title, text, okText, cancelText }) {
+            return new Promise(resolve => {
+                dom.confirmModalTitle.textContent = title;
+                dom.confirmModalText.textContent = text;
+                dom.confirmModalOk.textContent = okText;
+                dom.confirmModalCancel.textContent = cancelText;
+                dom.confirmModal.classList.remove('hidden');
+
+                const cleanup = () => {
+                    dom.confirmModal.classList.add('hidden');
+                    dom.confirmModalOk.onclick = null;
+                    dom.confirmModalCancel.onclick = null;
+                };
+
+                dom.confirmModalOk.onclick = () => {
+                    cleanup();
+                    resolve(true);
+                };
+                dom.confirmModalCancel.onclick = () => {
+                    cleanup();
+                    resolve(false);
+                };
+            });
+        }
 
         function openSidebar() { dom.sidebar.classList.remove('-translate-x-full'); dom.sidebar.classList.add('translate-x-0'); dom.sidebarOverlay.classList.remove('hidden'); }
         function closeSidebar() { dom.sidebar.classList.remove('-translate-x-0'); dom.sidebar.classList.add('-translate-x-full'); dom.sidebarOverlay.classList.add('hidden'); }
@@ -397,3 +443,4 @@
     </script>
 </body>
 </html>
+
