@@ -191,6 +191,7 @@
         </div>
 
         <div id="folder-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
+            <a href="#" id="new-article-in-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="file-plus" class="w-4 h-4 mr-2"></i>新建文章</a>
             <a href="#" id="rename-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
             <a href="#" id="delete-folder-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
         </div>
@@ -205,7 +206,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null } };
+        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
         let quill;
         let toastTimeout;
 
@@ -232,7 +233,7 @@
             moveModal: document.getElementById('move-modal'), moveFolderSelect: document.getElementById('move-folder-select'),
             cancelMove: document.getElementById('cancel-move'), confirmMove: document.getElementById('confirm-move'),
             folderContextMenu: document.getElementById('folder-context-menu'), renameFolderBtn: document.getElementById('rename-folder-btn'),
-            deleteFolderBtn: document.getElementById('delete-folder-btn'),
+            deleteFolderBtn: document.getElementById('delete-folder-btn'), newArticleInFolderBtn: document.getElementById('new-article-in-folder-btn'),
             articleContextMenu: document.getElementById('article-context-menu'), renameArticleBtn: document.getElementById('rename-article-btn'),
             deleteArticleBtn: document.getElementById('delete-article-btn'),
             creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'),
@@ -269,17 +270,26 @@
         
         function renderFileTree() {
             dom.fileTree.innerHTML = ''; const fm = new Map(); state.folders.forEach(f => fm.set(f.id, { ...f, articles: [] }));
+            const draftArticleIds = new Set();
+            state.articles.forEach(a => { if (loadDraftFromLocalStorage(a.id)) { draftArticleIds.add(a.id); } });
             const ua = []; state.articles.forEach(a => { if (a.folder_id && fm.has(a.folder_id)) fm.get(a.folder_id).articles.push(a); else ua.push(a); });
-            const articleToHTML = a => `<li class="article-item group flex items-center justify-between text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${a.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${a.id}"><div class="flex-1 min-w-0 pr-2"><div class="truncate">${a.title}</div><div class="text-xs text-slate-400 mt-0.5">${formatDate(a.updated_at)}</div></div><button class="article-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100 shrink-0" data-id="${a.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></li>`;
-            fm.forEach((f) => { const exp = state.ui.expandedFolders.has(f.id); const el = document.createElement('div'); el.innerHTML = `<div class="folder-header flex items-center justify-between p-2 rounded-md group hover:bg-slate-200 cursor-pointer" data-folder-id="${f.id}"><div class="flex items-center flex-1 min-w-0"><i data-feather="chevron-down" class="folder-toggle-icon w-4 h-4 mr-1 text-slate-500 shrink-0 ${!exp ? 'collapsed' : ''}"></i><i data-feather="folder" class="w-4 h-4 mr-2 text-brand shrink-0"></i><span class="font-semibold text-sm truncate">${f.name}</span></div><button class="folder-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100" data-id="${f.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div><ul class="article-list pl-4 mt-1 space-y-1 ${!exp ? 'hidden' : ''}">${f.articles.map(articleToHTML).join('')}</ul>`; dom.fileTree.appendChild(el); });
+            const articleToHTML = a => {
+                const hasDraft = draftArticleIds.has(a.id);
+                return `<li class="article-item group flex items-center justify-between text-sm text-slate-600 p-2 rounded-md cursor-pointer hover:bg-slate-200 ${a.id === state.selectedArticleId ? 'bg-blue-100' : ''}" data-id="${a.id}"><div class="flex-1 min-w-0 pr-2 flex items-center"><div class="truncate">${a.title}</div>${hasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="有未保存的草稿"></i>' : ''}</div><div class="flex items-center"><div class="text-xs text-slate-400 mt-0.5 mr-2">${formatDate(a.updated_at)}</div><button class="article-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100 shrink-0" data-id="${a.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div></li>`;
+            };
+            fm.forEach((f) => {
+                const exp = state.ui.expandedFolders.has(f.id);
+                const el = document.createElement('div');
+                const folderHasDraft = f.articles.some(a => draftArticleIds.has(a.id));
+                el.innerHTML = `<div class="folder-header flex items-center justify-between p-2 rounded-md group hover:bg-slate-200 cursor-pointer" data-folder-id="${f.id}"><div class="flex items-center flex-1 min-w-0"><i data-feather="chevron-down" class="folder-toggle-icon w-4 h-4 mr-1 text-slate-500 shrink-0 ${!exp ? 'collapsed' : ''}"></i><i data-feather="folder" class="w-4 h-4 mr-2 text-brand shrink-0"></i><span class="font-semibold text-sm truncate">${f.name}</span>${folderHasDraft ? '<i data-feather="alert-circle" class="w-4 h-4 text-orange-500 ml-2 shrink-0" title="此文件夹中有未保存的草稿"></i>' : ''}</div><button class="folder-menu-btn p-1 hover:bg-slate-300 rounded opacity-0 group-hover:opacity-100" data-id="${f.id}"><i data-feather="more-vertical" class="w-4 h-4"></i></button></div><ul class="article-list pl-4 mt-1 space-y-1 ${!exp ? 'hidden' : ''}">${f.articles.map(articleToHTML).join('')}</ul>`; dom.fileTree.appendChild(el); });
             if (ua.length > 0) { const el = document.createElement('div'); el.innerHTML = `<div class="mt-4"><h4 class="text-sm font-semibold text-slate-500 p-2">未分类</h4><ul class="mt-1 space-y-1">${ua.map(articleToHTML).join('')}</ul></div>`; dom.fileTree.appendChild(el); }
             feather.replace();
         }
 
         function openCreationModal(type) { state.ui.creationType = type; dom.creationModalTitle.textContent = type === 'folder' ? '创建新文件夹' : '创建新文章'; dom.creationModalInput.value = ''; dom.creationModalInput.placeholder = type === 'folder' ? '请输入文件夹名称...' : '请输入文章标题...'; dom.creationModal.classList.remove('hidden'); dom.creationModalInput.focus(); }
-        async function handleConfirmCreation() { const type = state.ui.creationType; const name = dom.creationModalInput.value.trim(); if (!name) { showToast('名称不能为空', 'error'); return; } dom.creationModal.classList.add('hidden'); if (type === 'folder') { const { error } = await supabase.from('folders').insert({ name: name, user_id: state.user.id }); if (error) { showToast(`创建文件夹失败: ${error.message}`, 'error'); } else { showToast('文件夹创建成功！'); fetchData(); } } else if (type === 'article') { const { data, error } = await supabase.from('articles').insert({ title: name, content: '', user_id: state.user.id }).select(); if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id, true); } } }
+        async function handleConfirmCreation() { const type = state.ui.creationType; const name = dom.creationModalInput.value.trim(); if (!name) { showToast('名称不能为空', 'error'); return; } dom.creationModal.classList.add('hidden'); if (type === 'folder') { const { error } = await supabase.from('folders').insert({ name: name, user_id: state.user.id }); if (error) { showToast(`创建文件夹失败: ${error.message}`, 'error'); } else { showToast('文件夹创建成功！'); fetchData(); } } else if (type === 'article') { const articleData = { title: name, content: '', user_id: state.user.id }; if (state.ui.creationFolderId) { articleData.folder_id = state.ui.creationFolderId; state.ui.creationFolderId = null; } const { data, error } = await supabase.from('articles').insert(articleData).select(); if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id, true); } } }
         function handleNewFolder() { openCreationModal('folder'); }
-        function handleNewArticle() { openCreationModal('article'); }
+        function handleNewArticle() { state.ui.creationFolderId = null; openCreationModal('article'); }
         
         async function handleRenameFolder(id) {
             const folder = state.folders.find(i => i.id === id); if (!folder) return;
@@ -307,15 +317,15 @@
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
         function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
-            if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) { saveDraftToLocalStorage(); }
+            if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) { saveDraftToLocalStorage(); renderFileTree(); }
             state.selectedArticleId = id; const article = state.articles.find(a => a.id === id); if (!article) { switchToWelcomeView(); return; }
             state.openedArticleTimestamp = article.updated_at;
             dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex');
             dom.articleMainTitle.textContent = article.title;
             const draft = loadDraftFromLocalStorage(id);
-            if (ignoreDraft) { clearDraftFromLocalStorage(id); quill.root.innerHTML = article.content || ''; switchToViewMode(); } 
-            else if (draft) { quill.root.innerHTML = draft.content; switchToEditMode(); } 
-            else { quill.root.innerHTML = article.content || ''; if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
+            if (ignoreDraft) { clearDraftFromLocalStorage(id); quill.setContents(quill.clipboard.convert(article.content || '')); switchToViewMode(); } 
+            else if (draft) { quill.setContents(quill.clipboard.convert(draft.content)); switchToEditMode(); } 
+            else { quill.setContents(quill.clipboard.convert(article.content || '')); if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
             renderFileTree(); if (window.innerWidth < 768) { toggleSidebar('hide'); }
         }
 
@@ -397,7 +407,7 @@
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             const refreshAction = async () => {
                 showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData();
-                if (prevId && state.articles.some(a => a.id === prevId)) { if (!isCurrentlyEditing) { const newArticleData = state.articles.find(a => a.id === prevId); if (newArticleData) { quill.root.innerHTML = newArticleData.content || ''; state.openedArticleTimestamp = newArticleData.updated_at; } } }
+                if (prevId && state.articles.some(a => a.id === prevId)) { if (!isCurrentlyEditing) { const newArticleData = state.articles.find(a => a.id === prevId); if (newArticleData) { quill.setContents(quill.clipboard.convert(newArticleData.content || '')); state.openedArticleTimestamp = newArticleData.updated_at; } } }
                 showToast('数据同步完成！');
             };
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
@@ -409,11 +419,12 @@
                 else if (articleItem) { selectArticle(articleItem.dataset.id); } 
                 else if (folderHeader) { handleToggleFolder(folderHeader.dataset.folderId); }
             });
+            dom.newArticleInFolderBtn.addEventListener('click', (e) => { e.preventDefault(); state.ui.creationFolderId = state.ui.activeFolderMenuId; openCreationModal('article'); dom.folderContextMenu.classList.add('hidden'); });
             dom.renameFolderBtn.addEventListener('click', () => { handleRenameFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
             dom.deleteFolderBtn.addEventListener('click', () => { handleDeleteFolder(state.ui.activeFolderMenuId); dom.folderContextMenu.classList.add('hidden'); });
             dom.renameArticleBtn.addEventListener('click', () => { handleRenameArticle(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
             dom.deleteArticleBtn.addEventListener('click', () => { handleDeleteArticle(state.ui.activeArticleMenuId); dom.articleContextMenu.classList.add('hidden'); });
-            dom.cancelCreation.addEventListener('click', () => dom.creationModal.classList.add('hidden')); dom.confirmCreation.addEventListener('click', handleConfirmCreation); dom.creationModalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
+            dom.cancelCreation.addEventListener('click', () => { dom.creationModal.classList.add('hidden'); state.ui.creationFolderId = null; }); dom.confirmCreation.addEventListener('click', handleConfirmCreation); dom.creationModalInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleConfirmCreation(); });
             dom.refreshButton.addEventListener('click', refreshAction); dom.exportAllButton.addEventListener('click', handleExportAll); dom.importButton.addEventListener('click', () => dom.importFileInput.click()); dom.importFileInput.addEventListener('change', handleImportAll);
             dom.mobileRefreshButton.addEventListener('click', () => { refreshAction(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.editButton.addEventListener('click', switchToEditMode); dom.saveButton.addEventListener('click', handleSaveArticle); dom.exportButton.addEventListener('click', handleExportArticle); dom.moveButton.addEventListener('click', openMoveModal);
@@ -432,7 +443,7 @@
             feather.replace(); initEventListeners();
             const toolbarOptions = [ [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['blockquote', 'code-block'], ['clean'] ];
             quill = new Quill('#editor-container', { modules: { toolbar: toolbarOptions }, theme: 'snow' });
-            quill.on('text-change', () => saveDraftToLocalStorage());
+            quill.on('text-change', () => { if (state.isEditing && state.selectedArticleId) { saveDraftToLocalStorage(); renderFileTree(); } });
             if (localStorage.getItem('sidebarCollapsed') === 'true' && window.innerWidth >= 768) { toggleSidebar('hide'); }
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
