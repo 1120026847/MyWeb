@@ -39,7 +39,6 @@
         .folder-toggle-icon.collapsed { transform: rotate(-90deg); }
         .folder-toggle-icon { transition: transform 0.2s ease-in-out; }
         
-        /* --- BUG FIX: 增强编辑器高度稳定性 --- */
         #editor-container { height: 100%; min-height: 60vh; }
         .ql-editor { font-size: 16px; line-height: 1.6; }
         .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; }
@@ -326,7 +325,7 @@
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
-        // --- BUG FIX: 核心改动，实现智能草稿加载 ---
+        // --- FINAL BUG FIX: Reverting to a more robust content setting method ---
         function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
             if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) { saveDraftToLocalStorage(); }
             state.selectedArticleId = id; const article = state.articles.find(a => a.id === id); if (!article) { switchToWelcomeView(); return; }
@@ -339,10 +338,10 @@
 
             if (!ignoreDraft && useDraft) {
                 showToast('已加载较新的本地草稿', 'success');
-                quill.setContents(quill.clipboard.convert(draft.content || ''));
+                quill.root.innerHTML = draft.content || ''; // USE innerHTML
                 switchToEditMode();
             } else {
-                quill.setContents(quill.clipboard.convert(article.content || ''));
+                quill.root.innerHTML = article.content || ''; // USE innerHTML
                 if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); }
             }
             renderFileTree(); if (window.innerWidth < 768) { toggleSidebar('hide'); }
@@ -374,7 +373,6 @@
         function openMoveModal() { if(!state.selectedArticleId) return; dom.moveFolderSelect.innerHTML = '<option value="">未分类</option>'; state.folders.forEach(f => { const o = document.createElement('option'); o.value = f.id; o.textContent = f.name; dom.moveFolderSelect.appendChild(o); }); const a = state.articles.find(i => i.id === state.selectedArticleId); dom.moveFolderSelect.value = a.folder_id || ""; dom.moveModal.classList.remove('hidden'); }
         async function handleConfirmMove() { const id = dom.moveFolderSelect.value || null; const { error } = await supabase.from('articles').update({ folder_id: id }).eq('id', state.selectedArticleId); if(error) showToast(`移动失败: ${error.message}`, 'error'); else { showToast('文章已移动'); fetchData(); } dom.moveModal.classList.add('hidden'); }
         
-        // --- BUG FIX: 保存草稿时加入时间戳 ---
         function saveDraftToLocalStorage() {
             if (!state.isEditing || !state.selectedArticleId) return;
             const draft = { content: quill.root.innerHTML, updatedAt: Date.now() };
@@ -382,7 +380,6 @@
             renderFileTree();
         }
         
-        // --- BUG FIX: 读取草稿时更安全 ---
         function loadDraftFromLocalStorage(id) {
             try {
                 const data = localStorage.getItem(`diary-draft-${id}`);
@@ -424,7 +421,6 @@
             const shouldBeCollapsed = forceState ? forceState === 'hide' : !state.ui.isSidebarCollapsed; state.ui.isSidebarCollapsed = shouldBeCollapsed; dom.mainAppView.classList.toggle('sidebar-collapsed', shouldBeCollapsed); localStorage.setItem('sidebarCollapsed', shouldBeCollapsed ? 'true' : 'false');
         }
 
-        // --- BUG FIX: 新增一个“强制重载”的安全操作 ---
         function handleForceReload() {
             if (!state.selectedArticleId) { showToast('请先选择一篇文章', 'error'); return; }
             selectArticle(state.selectedArticleId, false, true);
@@ -437,7 +433,7 @@
             dom.showRegisterTab.addEventListener('click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             const refreshAction = async () => {
                 showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData();
-                if (prevId && state.articles.some(a => a.id === prevId)) { if (!isCurrentlyEditing) { const newArticleData = state.articles.find(a => a.id === prevId); if (newArticleData) { quill.setContents(quill.clipboard.convert(newArticleData.content || '')); state.openedArticleTimestamp = newArticleData.updated_at; } } }
+                if (prevId && state.articles.some(a => a.id === prevId)) { if (!isCurrentlyEditing) { const newArticleData = state.articles.find(a => a.id === prevId); if (newArticleData) { quill.root.innerHTML = newArticleData.content || ''; state.openedArticleTimestamp = newArticleData.updated_at; } } }
                 showToast('数据同步完成！');
             };
             dom.logoutButton.addEventListener('click', handleLogout); dom.newFolderButton.addEventListener('click', handleNewFolder); dom.newArticleButton.addEventListener('click', handleNewArticle);
@@ -471,7 +467,6 @@
             });
         }
         
-        // --- BUG FIX: 新增 Quill 初始化函数 ---
         function initQuill() {
             if (quill) return;
             const toolbarOptions = [ [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['blockquote', 'code-block'], ['clean'] ];
@@ -480,7 +475,6 @@
             quill.enable(false);
         }
 
-        // --- BUG FIX: 重构 App 初始化流程 ---
         async function initializeApp() {
             feather.replace(); 
             initEventListeners();
@@ -491,7 +485,7 @@
                 dom.authView.classList.add('hidden'); 
                 dom.mainAppView.classList.remove('hidden'); 
                 
-                initQuill(); // 在主视图可见后再初始化 Quill
+                initQuill();
 
                 dom.userEmail.textContent = state.user.email; 
                 dom.userAvatar.textContent = state.user.email[0].toUpperCase();
@@ -502,7 +496,7 @@
                     switchToWelcomeView();
                 }
             } else {
-                initQuill(); // 即使未登录也初始化，以防万一
+                initQuill();
                 switchToWelcomeView();
                 dom.authView.classList.remove('hidden'); 
                 dom.mainAppView.classList.add('hidden');
