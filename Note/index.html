@@ -148,6 +148,7 @@
             </main>
         </div>
         <div id="toast" class="fixed top-5 right-5 px-4 py-2 rounded-md text-white shadow-lg z-50" style="transform: translateX(150%);"></div>
+        
         <div id="move-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                 <h3 class="text-lg font-medium">移动文章到...</h3>
@@ -168,13 +169,15 @@
                 </div>
             </div>
         </div>
-        <div id="folder-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
-            <a href="#" id="rename-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
-            <a href="#" id="delete-folder-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
-        </div>
-        <div id="article-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
-            <a href="#" id="rename-article-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
-            <a href="#" id="delete-article-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
+        <div id="rename-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 id="rename-modal-title" class="text-lg font-medium">重命名</h3>
+                <input id="rename-modal-input" type="text" class="w-full mt-4 p-2 border rounded-md" placeholder="请输入新名称...">
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button id="cancel-rename" class="px-4 py-2 bg-gray-200 rounded-md">取消</button>
+                    <button id="confirm-rename" class="px-4 py-2 bg-blue-500 text-white rounded-md">确认</button>
+                </div>
+            </div>
         </div>
         <div id="confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
@@ -185,6 +188,15 @@
                     <button id="confirm-modal-ok" class="px-4 py-2 bg-blue-500 text-white rounded-md">确定</button>
                 </div>
             </div>
+        </div>
+
+        <div id="folder-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
+            <a href="#" id="rename-folder-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
+            <a href="#" id="delete-folder-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
+        </div>
+        <div id="article-context-menu" class="hidden absolute w-40 bg-white rounded-md shadow-lg border z-40">
+            <a href="#" id="rename-article-btn" class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"><i data-feather="edit-2" class="w-4 h-4 mr-2"></i>重命名</a>
+            <a href="#" id="delete-article-btn" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-100"><i data-feather="trash-2" class="w-4 h-4 mr-2"></i>删除</a>
         </div>
     </div>
 
@@ -226,6 +238,9 @@
             creationModal: document.getElementById('creation-modal'), creationModalTitle: document.getElementById('creation-modal-title'),
             creationModalInput: document.getElementById('creation-modal-input'), cancelCreation: document.getElementById('cancel-creation'),
             confirmCreation: document.getElementById('confirm-creation'),
+            renameModal: document.getElementById('rename-modal'), renameModalTitle: document.getElementById('rename-modal-title'),
+            renameModalInput: document.getElementById('rename-modal-input'), cancelRename: document.getElementById('cancel-rename'),
+            confirmRename: document.getElementById('confirm-rename'),
             importButton: document.getElementById('import-button'), exportAllButton: document.getElementById('export-all-button'),
             importFileInput: document.getElementById('import-file-input'),
             confirmModal: document.getElementById('confirm-modal'), confirmModalTitle: document.getElementById('confirm-modal-title'),
@@ -265,8 +280,29 @@
         async function handleConfirmCreation() { const type = state.ui.creationType; const name = dom.creationModalInput.value.trim(); if (!name) { showToast('名称不能为空', 'error'); return; } dom.creationModal.classList.add('hidden'); if (type === 'folder') { const { error } = await supabase.from('folders').insert({ name: name, user_id: state.user.id }); if (error) { showToast(`创建文件夹失败: ${error.message}`, 'error'); } else { showToast('文件夹创建成功！'); fetchData(); } } else if (type === 'article') { const { data, error } = await supabase.from('articles').insert({ title: name, content: '', user_id: state.user.id }).select(); if (error) { showToast(`创建文章失败: ${error.message}`, 'error'); } else { showToast('文章创建成功！'); await fetchData(); selectArticle(data[0].id, true); } } }
         function handleNewFolder() { openCreationModal('folder'); }
         function handleNewArticle() { openCreationModal('article'); }
-        async function handleRenameFolder(id) { const f = state.folders.find(i => i.id === id); if (!f) return; const n = prompt('请输入新的文件夹名称:', f.name); if (n && n.trim() && n !== f.name) { const { error } = await supabase.from('folders').update({ name: n.trim() }).eq('id', id); if(error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文件夹已重命名'); fetchData(); } } }
-        async function handleRenameArticle(id) { const a = state.articles.find(i => i.id === id); if (!a) return; const n = prompt('请输入新的文章标题:', a.title); if (n && n.trim() && n !== a.title) { const { error } = await supabase.from('articles').update({ title: n.trim() }).eq('id', id); if(error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文章已重命名'); if (id === state.selectedArticleId) { dom.articleMainTitle.textContent = n.trim(); } fetchData(); } } }
+        
+        async function handleRenameFolder(id) {
+            const folder = state.folders.find(i => i.id === id); if (!folder) return;
+            const newName = await openRenameModal({ type: 'folder', currentName: folder.name });
+            if (newName && newName.trim() && newName.trim() !== folder.name) {
+                const { error } = await supabase.from('folders').update({ name: newName.trim() }).eq('id', id);
+                if (error) showToast(`重命名失败: ${error.message}`, 'error');
+                else { showToast('文件夹已重命名'); fetchData(); }
+            }
+        }
+        async function handleRenameArticle(id) {
+            const article = state.articles.find(i => i.id === id); if (!article) return;
+            const newName = await openRenameModal({ type: 'article', currentName: article.title });
+            if (newName && newName.trim() && newName.trim() !== article.title) {
+                const { error } = await supabase.from('articles').update({ title: newName.trim() }).eq('id', id);
+                if (error) showToast(`重命名失败: ${error.message}`, 'error');
+                else {
+                    showToast('文章已重命名');
+                    if (id === state.selectedArticleId) { dom.articleMainTitle.textContent = newName.trim(); }
+                    fetchData();
+                }
+            }
+        }
         
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
         
@@ -321,6 +357,31 @@
                 dom.confirmModalTitle.textContent = title; dom.confirmModalText.textContent = text; dom.confirmModalOk.textContent = okText; dom.confirmModalCancel.textContent = cancelText; dom.confirmModal.classList.remove('hidden');
                 const cleanup = () => { dom.confirmModal.classList.add('hidden'); dom.confirmModalOk.onclick = null; dom.confirmModalCancel.onclick = null; };
                 dom.confirmModalOk.onclick = () => { cleanup(); resolve(true); }; dom.confirmModalCancel.onclick = () => { cleanup(); resolve(false); };
+            });
+        }
+        
+        function openRenameModal({ type, currentName }) {
+            return new Promise(resolve => {
+                dom.renameModalTitle.textContent = type === 'folder' ? '重命名文件夹' : '重命名文章';
+                dom.renameModalInput.value = currentName;
+                dom.renameModal.classList.remove('hidden');
+                dom.renameModalInput.focus();
+                dom.renameModalInput.select();
+
+                const cleanupAndResolve = (value) => {
+                    dom.renameModal.classList.add('hidden');
+                    dom.confirmRename.onclick = null;
+                    dom.cancelRename.onclick = null;
+                    dom.renameModalInput.onkeydown = null;
+                    resolve(value);
+                };
+
+                dom.confirmRename.onclick = () => cleanupAndResolve(dom.renameModalInput.value);
+                dom.cancelRename.onclick = () => cleanupAndResolve(null);
+                dom.renameModalInput.onkeydown = (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); dom.confirmRename.click(); }
+                    else if (e.key === 'Escape') { dom.cancelRename.click(); }
+                };
             });
         }
 
