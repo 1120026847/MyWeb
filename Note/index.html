@@ -33,17 +33,26 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-        #sidebar { transition: transform 0.3s ease-in-out; }
+        
+        #sidebar { transition: margin 0.3s ease-in-out; }
+        .sidebar-collapsed #sidebar {
+            margin-left: -100%;
+        }
+        @media (min-width: 768px) {
+            .sidebar-collapsed #sidebar {
+                margin-left: -18rem; /* w-72 */
+            }
+        }
+
         .folder-toggle-icon.collapsed { transform: rotate(-90deg); }
         .folder-toggle-icon { transition: transform 0.2s ease-in-out; }
-        /* Quill 编辑器样式覆盖 */
+        
         #editor-container { height: 100%; }
         .ql-editor { font-size: 16px; line-height: 1.6; }
         .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; }
         .ql-container.ql-snow { border-radius: 0 0 8px 8px; height: calc(100% - 42px); }
-        /* Toast 提示动画 */
+        
         #toast { transition: transform 0.3s ease-in-out; }
-        /* 隐藏 details 默认箭头 */
         summary::-webkit-details-marker { display: none; }
     </style>
 </head>
@@ -74,11 +83,13 @@
         </div>
 
         <!-- 主应用界面 -->
-        <div id="main-app-view" class="hidden h-screen w-full md:flex">
-            <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden hidden"></div>
-            <aside id="sidebar" class="absolute z-30 md:relative w-72 md:w-80 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0 md:translate-x-0 -translate-x-full">
+        <div id="main-app-view" class="hidden h-screen w-full md:flex overflow-x-hidden">
+            <aside id="sidebar" class="w-72 md:w-72 h-full bg-brand-light border-r border-slate-200 flex flex-col flex-shrink-0">
                 <div class="p-4 border-b border-slate-200">
-                    <div id="user-info" class="flex items-center space-x-2"><span class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm" id="user-avatar"></span><span class="text-sm font-medium truncate" id="user-email"></span></div>
+                    <div class="flex items-center justify-between">
+                        <div id="user-info" class="flex items-center space-x-2 min-w-0"><span class="w-8 h-8 rounded-full bg-brand flex items-center justify-center text-white font-bold text-sm" id="user-avatar"></span><span class="text-sm font-medium truncate" id="user-email"></span></div>
+                        <button id="hide-sidebar-button" class="p-2 rounded-md hover:bg-slate-200"><i data-feather="chevrons-left"></i></button>
+                    </div>
                     <button id="logout-button" class="w-full mt-3 px-3 py-1.5 text-xs text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300">退出登录</button>
                 </div>
                 <div class="p-4 flex space-x-2">
@@ -105,10 +116,10 @@
             </aside>
 
             <main id="main-content" class="flex-1 flex flex-col bg-white overflow-hidden">
-                <header class="md:hidden flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0">
+                <header class="flex items-center justify-between p-2 border-b border-slate-200 bg-white relative flex-shrink-0">
                     <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
-                    <div class="flex-1 min-w-0 mx-2 text-center"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2></div>
-                    <div id="mobile-controls" class="flex items-center flex-shrink-0">
+                    <div class="flex-1 min-w-0 mx-2 text-center md:text-left"><h2 id="mobile-article-title" class="text-lg font-semibold truncate">日记本</h2></div>
+                    <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
                         <div id="mobile-view-controls" class="hidden items-center space-x-1">
                             <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
                             <button id="mobile-more-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="more-vertical" class="w-5 h-5"></i></button>
@@ -189,7 +200,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { expandedFolders: new Set(), activeFolderMenuId: null, creationType: null } };
+        let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, creationType: null } };
         let quill;
         let toastTimeout;
 
@@ -197,7 +208,7 @@
             authView: document.getElementById('auth-view'), mainAppView: document.getElementById('main-app-view'),
             loginForm: document.getElementById('login-form'), registerForm: document.getElementById('register-form'),
             showLoginTab: document.getElementById('show-login-tab'), showRegisterTab: document.getElementById('show-register-tab'),
-            sidebar: document.getElementById('sidebar'), sidebarOverlay: document.getElementById('sidebar-overlay'),
+            sidebar: document.getElementById('sidebar'), hideSidebarButton: document.getElementById('hide-sidebar-button'),
             toggleSidebarButton: document.getElementById('toggle-sidebar-button'), userAvatar: document.getElementById('user-avatar'),
             userEmail: document.getElementById('user-email'), logoutButton: document.getElementById('logout-button'),
             newFolderButton: document.getElementById('new-folder-button'), newArticleButton: document.getElementById('new-article-button'),
@@ -297,7 +308,9 @@
             }
             
             renderFileTree();
-            if (window.innerWidth < 768) closeSidebar();
+            if (window.innerWidth < 768 && !dom.sidebar.classList.contains('-translate-x-full')) {
+                toggleSidebar('hide');
+            }
         }
 
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); dom.articleTitleInput.readOnly = false; dom.articleTitleInput.classList.add('bg-slate-100'); quill.focus(); }
@@ -383,8 +396,17 @@
             });
         }
 
-        function openSidebar() { dom.sidebar.classList.remove('-translate-x-full'); dom.sidebar.classList.add('translate-x-0'); dom.sidebarOverlay.classList.remove('hidden'); }
-        function closeSidebar() { dom.sidebar.classList.remove('-translate-x-0'); dom.sidebar.classList.add('-translate-x-full'); dom.sidebarOverlay.classList.add('hidden'); }
+        function toggleSidebar(forceState) {
+            const shouldBeCollapsed = forceState ? forceState === 'hide' : !state.ui.isSidebarCollapsed;
+            state.ui.isSidebarCollapsed = shouldBeCollapsed;
+            if (shouldBeCollapsed) {
+                dom.mainAppView.classList.add('sidebar-collapsed');
+                localStorage.setItem('sidebarCollapsed', 'true');
+            } else {
+                dom.mainAppView.classList.remove('sidebar-collapsed');
+                localStorage.setItem('sidebarCollapsed', 'false');
+            }
+        }
 
         function initEventListeners() {
             dom.loginForm.addEventListener('submit', handleLogin); dom.registerForm.addEventListener('submit', handleRegister);
@@ -418,8 +440,9 @@
             dom.mobileEditButton.addEventListener('click', switchToEditMode); dom.mobileSaveButton.addEventListener('click', handleSaveArticle); dom.mobileMoreButton.addEventListener('click', (e) => { e.stopPropagation(); dom.mobileActionsMenu.classList.toggle('hidden'); });
             dom.mobileMoveButton.addEventListener('click', () => { openMoveModal(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileExportButton.addEventListener('click', () => { handleExportArticle(); dom.mobileActionsMenu.classList.add('hidden'); }); dom.mobileDeleteButton.addEventListener('click', () => { handleDeleteArticle(); dom.mobileActionsMenu.classList.add('hidden'); });
             dom.cancelMove.addEventListener('click', () => dom.moveModal.classList.add('hidden')); dom.confirmMove.addEventListener('click', handleConfirmMove);
-            dom.toggleSidebarButton.addEventListener('click', (e) => { e.stopPropagation(); if (dom.sidebar.classList.contains('-translate-x-full')) openSidebar(); else closeSidebar(); });
-            dom.sidebarOverlay.addEventListener('click', closeSidebar); document.addEventListener('click', () => { dom.mobileActionsMenu.classList.add('hidden'); dom.folderContextMenu.classList.add('hidden'); });
+            dom.toggleSidebarButton.addEventListener('click', () => toggleSidebar()); 
+            dom.hideSidebarButton.addEventListener('click', () => toggleSidebar('hide'));
+            document.addEventListener('click', () => { dom.mobileActionsMenu.classList.add('hidden'); dom.folderContextMenu.classList.add('hidden'); });
         }
         
         async function initializeApp() {
@@ -434,6 +457,10 @@
             quill = new Quill('#editor-container', { modules: { toolbar: toolbarOptions }, theme: 'snow' });
             quill.on('text-change', () => saveDraftToLocalStorage());
             dom.articleTitleInput.addEventListener('input', () => saveDraftToLocalStorage());
+            
+            if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                toggleSidebar('hide');
+            }
 
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -459,4 +486,3 @@
     </script>
 </body>
 </html>
-
