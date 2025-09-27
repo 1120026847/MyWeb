@@ -10,6 +10,7 @@
     <script src="https://cdn.bootcdn.net/ajax/libs/quill/2.0.0-rc.2/quill.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/feather-icons/4.29.1/feather.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -46,6 +47,11 @@
         
         #toast { transition: transform 0.3s ease-in-out; }
         summary::-webkit-details-marker { display: none; }
+
+        .editor-drag-over {
+            border: 2px dashed #3b82f6 !important;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
     </style>
 </head>
 <body class="bg-white antialiased text-slate-800">
@@ -208,6 +214,14 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2a3F6a2lwZ210enFwcnFhZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MDMzMDIsImV4cCI6MjA3MzQ3OTMwMn0.I2DygNtjxa324smxKfIBHCOtFmrGQF4kRRkwPv-7VOY';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
+        // --- 请务必修改为您自己的配置 ---
+        const cosConfig = {
+            stsUrl: 'https://1317231591-40i7fuhoph.ap-guangzhou.tencentscf.com', 
+            bucket: 'notes-1317231591', 
+            region: 'ap-guangzhou', 
+        };
+        // --- 配置结束 ---
+
         let state = { user: null, folders: [], articles: [], selectedArticleId: null, openedArticleTimestamp: null, isEditing: false, ui: { isSidebarCollapsed: false, expandedFolders: new Set(), activeFolderMenuId: null, activeArticleMenuId: null, creationType: null, creationFolderId: null } };
         let quill;
         let toastTimeout;
@@ -263,6 +277,72 @@
         async function handleLogin(e) { e.preventDefault(); const d = { email: dom.loginForm.querySelector('#login-email').value, password: dom.loginForm.querySelector('#login-password').value }; const { error } = await supabase.auth.signInWithPassword(d); if (error) showToast(`登录失败: ${error.message}`, 'error'); else showToast('登录成功！'); }
         async function handleRegister(e) { e.preventDefault(); const d = { email: dom.registerForm.querySelector('#register-email').value, password: dom.registerForm.querySelector('#register-password').value }; if (d.password.length < 6) { showToast('密码长度至少为6位', 'error'); return; } const { error } = await supabase.auth.signUp(d); if (error) showToast(`注册失败: ${error.message}`, 'error'); else showToast('注册成功！请检查您的邮箱进行验证。'); }
         async function handleLogout() { const { error } = await supabase.auth.signOut(); if (error) showToast(`退出失败: ${error.message}`, 'error'); else window.location.reload(); }
+
+        async function uploadFileToCOS(file) {
+            return new Promise((resolve, reject) => {
+                const cos = new COS({
+                    getAuthorization: async (options, callback) => {
+                        try {
+                            const response = await fetch(cosConfig.stsUrl);
+                            if (!response.ok) throw new Error('获取STS凭证失败');
+                            const data = await response.json();
+                            const credentials = data.Credentials;
+                            callback({
+                                TmpSecretId: credentials.TmpSecretId,
+                                TmpSecretKey: credentials.TmpSecretKey,
+                                SecurityToken: credentials.SecurityToken,
+                                StartTime: data.StartTime,
+                                ExpiredTime: data.ExpiredTime,
+                            });
+                        } catch (err) {
+                            showToast('获取上传许可失败', 'error');
+                            reject(err);
+                        }
+                    }
+                });
+                const key = `images/${state.user.id}/${Date.now()}-${file.name}`;
+                cos.putObject({
+                    Bucket: cosConfig.bucket,
+                    Region: cosConfig.region,
+                    Key: key,
+                    Body: file,
+                    onProgress: (progressData) => { console.log('Uploading:', JSON.stringify(progressData)); }
+                }, (err, data) => {
+                    if (err) {
+                        showToast('图片上传失败', 'error');
+                        reject(err);
+                    } else {
+                        const imageUrl = `https://${data.Location}`;
+                        resolve(imageUrl);
+                    }
+                });
+            });
+        }
+
+        function insertImageToEditor(url) {
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', url);
+            quill.setSelection(range.index + 1);
+        }
+
+        async function handleImageUpload(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            if (!state.user) { showToast('请先登录再上传图片', 'error'); return; }
+            switchToEditMode();
+            showToast('图片上传中...');
+            try {
+                const imageUrl = await uploadFileToCOS(file);
+                insertImageToEditor(imageUrl);
+                showToast('图片上传成功！');
+            } catch (error) { console.error('Upload failed:', error); }
+        }
+        
+        function dataURLtoFile(dataurl, filename) {
+            let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while (n--) { u8arr[n] = bstr.charCodeAt(n); }
+            return new File([u8arr], filename, {type: mime});
+        }
 
         async function fetchData() {
             if (!state.user) return;
@@ -368,27 +448,20 @@
         async function handleDeleteArticle(id) { if(await showConfirmation({ title: '删除文章', text: '确定要删除这篇文章吗？此操作不可撤销。', okText: '删除', cancelText: '取消' })) { clearDraftFromLocalStorage(id); const { error } = await supabase.from('articles').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文章已删除'); if (id === state.selectedArticleId) { switchToWelcomeView(); } fetchData(); } } }
         async function handleDeleteFolder(id) { if(await showConfirmation({ title: '删除文件夹', text: '确定要删除这个文件夹吗？其内的所有文章也将被删除！', okText: '删除', cancelText: '取消' })) { const { error } = await supabase.from('folders').delete().eq('id', id); if (error) showToast(`删除失败: ${error.message}`, 'error'); else { showToast('文件夹已删除'); if(state.selectedArticleId && state.articles.find(a => a.id === state.selectedArticleId)?.folder_id === id) switchToWelcomeView(); fetchData(); } } }
         
-        // --- FINAL BUG FIX for EXPORT ---
         function handleExportArticle() {
             if (!state.selectedArticleId) return;
             const article = state.articles.find(i => i.id === state.selectedArticleId);
             if (!article) return;
-
             let contentToExport = '';
-
-            // If we are in editing mode, the most up-to-date content is in the editor.
             if (state.isEditing) {
-                // Create a temporary div to convert HTML to plain text
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = quill.root.innerHTML;
                 contentToExport = tempDiv.innerText;
             } else {
-                // If in view mode, the definitive content is in our state object.
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = article.content || '';
                 contentToExport = tempDiv.innerText;
             }
-
             const blob = new Blob([contentToExport], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -495,19 +568,75 @@
                 if(!e.target.closest('.folder-menu-btn')) { dom.folderContextMenu.classList.add('hidden'); }
                 if(!e.target.closest('.article-menu-btn')) { dom.articleContextMenu.classList.add('hidden'); }
             });
+
+            quill.root.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; quill.root.classList.add('editor-drag-over'); });
+            quill.root.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over'); });
+            quill.root.addEventListener('drop', (e) => {
+                e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over');
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) { handleImageUpload(files[0]); }
+            });
+            quill.root.addEventListener('paste', (e) => {
+                const items = (e.clipboardData || window.clipboardData).items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const file = items[i].getAsFile();
+                        handleImageUpload(file);
+                        return;
+                    }
+                }
+                const clipboardHtml = e.clipboardData.getData('text/html');
+                const imgRex = /<img src="(data:image\/.+?)"/;
+                const match = clipboardHtml.match(imgRex);
+                if (match && match[1]) {
+                    e.preventDefault();
+                    const file = dataURLtoFile(match[1], `pasted-image-${Date.now()}.png`);
+                    handleImageUpload(file);
+                }
+            });
         }
         
         function initQuill() {
             if (quill) return;
-            const toolbarOptions = [ [{ 'header': [1, 2, false] }], ['bold', 'italic', 'underline'], [{ 'list': 'ordered'}, { 'list': 'bullet' }], ['blockquote', 'code-block'], ['clean'] ];
-            quill = new Quill('#editor-container', { modules: { toolbar: toolbarOptions }, theme: 'snow' });
-            quill.on('text-change', () => { if (state.isEditing && state.selectedArticleId) { saveDraftToLocalStorage(); } });
+            const toolbarOptions = [
+                [{ 'header': [1, 2, false] }],
+                ['bold', 'italic', 'underline'],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                ['blockquote', 'code-block'],
+                ['link', 'image'],
+                ['clean']
+            ];
+            quill = new Quill('#editor-container', {
+                modules: {
+                    toolbar: {
+                        container: toolbarOptions,
+                        handlers: {
+                            'image': () => {
+                                const input = document.createElement('input');
+                                input.setAttribute('type', 'file');
+                                input.setAttribute('accept', 'image/*');
+                                input.click();
+                                input.onchange = () => {
+                                    const file = input.files[0];
+                                    if (file) { handleImageUpload(file); }
+                                };
+                            }
+                        }
+                    }
+                },
+                theme: 'snow'
+            });
+            quill.on('text-change', (delta, oldDelta, source) => {
+                if (source === 'user' && state.isEditing && state.selectedArticleId) {
+                    saveDraftToLocalStorage();
+                }
+            });
             quill.enable(false);
         }
 
         async function initializeApp() {
             feather.replace(); 
-            initEventListeners();
             
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -516,6 +645,7 @@
                 dom.mainAppView.classList.remove('hidden'); 
                 
                 initQuill();
+                initEventListeners();
 
                 dom.userEmail.textContent = state.user.email; 
                 dom.userAvatar.textContent = state.user.email[0].toUpperCase();
@@ -527,6 +657,7 @@
                 }
             } else {
                 initQuill();
+                initEventListeners();
                 switchToWelcomeView();
                 dom.authView.classList.remove('hidden'); 
                 dom.mainAppView.classList.add('hidden');
