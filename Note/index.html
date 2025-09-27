@@ -265,25 +265,24 @@
             dom.articleTitleInput.value = article.title;
             dom.mobileArticleTitle.textContent = article.title;
             
-            let recoveredDraft = false;
             const draft = loadDraftFromLocalStorage(id);
-            if (draft) {
+            if (draft && !startInEditMode) { // Only check for drafts if not creating a new article
                 if (confirm('发现未保存的草稿，是否恢复？')) {
                     dom.articleTitleInput.value = draft.title;
                     quill.root.innerHTML = draft.content;
-                    recoveredDraft = true;
+                    switchToEditMode();
                 } else {
                     clearDraftFromLocalStorage(id);
                     quill.root.innerHTML = article.content || '';
+                    switchToViewMode();
                 }
             } else {
                 quill.root.innerHTML = article.content || '';
-            }
-            
-            if (startInEditMode || recoveredDraft) {
-                switchToEditMode();
-            } else {
-                switchToViewMode();
+                if (startInEditMode) {
+                    switchToEditMode();
+                } else {
+                    switchToViewMode();
+                }
             }
             
             renderFileTree();
@@ -300,10 +299,10 @@
             const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
             if (fetchError) { showToast('检查文章状态失败', 'error'); return; }
 
-            if (new Date(serverArticle.updated_at) > new Date(state.openedArticleTimestamp)) {
-                if (confirm('此笔记已在别处更新。若要保存，您的更改将覆盖新版本。\n\n点击“确定”以复制您的当前草稿并查看最新版本，或点击“取消”继续编辑。')) {
+            if (state.openedArticleTimestamp && new Date(serverArticle.updated_at) > new Date(state.openedArticleTimestamp)) {
+                if (confirm('此笔记已在别处更新。您的当前编辑内容将被复制到剪贴板，然后加载最新版本。')) {
                     navigator.clipboard.writeText(quill.getText());
-                    showToast('草稿已复制到剪贴板。');
+                    showToast('当前草稿已复制到剪贴板。');
                     await fetchData();
                     selectArticle(state.selectedArticleId);
                 }
