@@ -230,6 +230,8 @@
         let pdfDoc = null;
         let currentPage = 1;
         let dom = {};
+        let _lastSig = '';
+        let _lastAt = 0;
 
         const on = (el, type, handler) => el && el.addEventListener(type, handler);
         
@@ -261,6 +263,14 @@
         function insertImageToEditor(url) { const range = quill.getSelection(true) || { index: quill.getLength() }; quill.insertEmbed(range.index, 'image', url); quill.setSelection(range.index + 1); }
         async function handleImageUpload(file) {
             if (!file || !file.type.startsWith('image/')) return;
+
+            const sig = `${file.size}-${file.lastModified}`;
+            const now = Date.now();
+            if (sig === _lastSig && now - _lastAt < 1500) {
+                return;
+            }
+            _lastSig = sig; _lastAt = now;
+
             if (!state.user) { showToast('请先登录再上传图片', 'error'); return; }
             switchToEditMode(); showToast('图片上传中...');
             try {
@@ -635,56 +645,52 @@
                 theme: 'snow'
             });
 
-            // --- [MODIFICATION START] New, more robust paste handler ---
-            on(quill.root, 'paste', async (e) => {
-                const dt = e.clipboardData;
-                if (!dt) return;
+            // --- [MODIFICATION START] New paste interceptor logic ---
+            function addImagePasteInterceptor() {
+                const handler = async (e) => {
+                    const dt = e.clipboardData;
+                    if (!dt) return;
 
-                // 1. Check for files directly
-                const files = Array.from(dt.files || []).filter(f => f.type.startsWith('image/'));
-                if (files.length > 0) {
-                    e.preventDefault();
-                    await handleImageUpload(files[0]);
-                    return;
-                }
+                    const files = Array.from(dt.files || []).filter(f => f.type.startsWith('image/'));
+                    const imgItem = Array.from(dt.items || []).find(it => it.kind === 'file' && it.type.startsWith('image/'));
+                    const html = dt.getData('text/html');
+                    const hasHtmlImg = html && /<img[^>]+src=/.test(html);
 
-                // 2. Check for items
-                const imgItem = Array.from(dt.items || []).find(it => it.kind === 'file' && it.type.startsWith('image/'));
-                if (imgItem) {
-                    e.preventDefault();
-                    const file = imgItem.getAsFile();
-                    if (file) await handleImageUpload(file);
-                    return;
-                }
+                    if (files.length || imgItem || hasHtmlImg) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                    } else {
+                        return;
+                    }
 
-                // 3. Check for HTML content, which might contain ANY kind of image URL
-                const html = dt.getData('text/html');
-                if (html && html.includes('<img')) {
-                    const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-                    const src = match ? match[1] : null;
-
-                    if (src) {
-                        e.preventDefault(); // Prevent default paste of the HTML
-                        try {
-                            let file;
-                            if (src.startsWith('data:image/')) {
-                                // Handle data URI
-                                file = dataURLtoFile(src, `pasted-image-${Date.now()}.png`);
-                            } else if (src.startsWith('blob:') || src.startsWith('http')) {
-                                // Handle blob or http(s) URL
-                                file = await fileFromImgSrc(src, `pasted-image-${Date.now()}.png`);
+                    if (files.length) {
+                        await handleImageUpload(files[0]);
+                        return;
+                    }
+                    if (imgItem) {
+                        const f = imgItem.getAsFile();
+                        if (f) await handleImageUpload(f);
+                        return;
+                    }
+                    if (hasHtmlImg) {
+                        const src = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+                        if (src) {
+                            try {
+                                const file = src.startsWith('data:image/')
+                                ? dataURLtoFile(src, `pasted-image-${Date.now()}.png`)
+                                : await fileFromImgSrc(src, `pasted-image-${Date.now()}.png`);
+                                if (file) await handleImageUpload(file);
+                            } catch (err) {
+                                console.error('Failed to handle pasted image from HTML:', err);
+                                showToast('处理粘贴的图片失败', 'error');
                             }
-                            
-                            if (file) {
-                                await handleImageUpload(file);
-                            }
-                        } catch (err) {
-                            console.error('Failed to handle pasted image from HTML:', err);
-                            showToast('处理粘贴的图片失败', 'error');
                         }
                     }
-                }
-            });
+                };
+                quill.root.addEventListener('paste', handler, { capture: true });
+            }
+            addImagePasteInterceptor();
             // --- [MODIFICATION END] ---
             
             quill.on('text-change', (delta, oldDelta, source) => { 
