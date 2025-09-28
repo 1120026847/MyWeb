@@ -104,7 +104,7 @@
         // TCB 初始化
         // =================================================================
         const app = cloudbase.init({
-            env: 'molijun-0gtahyghc6271173' // ！！！请务必替换成您自己的云开发环境ID
+            env: '您的-新-环境-id' // ！！！请务必替换成您自己的云开发环境ID
         });
         const auth = app.auth();
         const db = app.database();
@@ -215,7 +215,7 @@
         // 认证相关函数
         // =================================================================
         async function handleAuthSubmit(e) {
-            e.preventDefault();
+            e.preventDefault(); // 阻止表单默认提交行为
             const email = dom.authForm.email.value;
             const password = dom.authForm.password.value;
             dom.authSubmitBtn.disabled = true;
@@ -243,7 +243,8 @@
             window.location.reload();
         }
         
-        function toggleAuthView() {
+        function toggleAuthView(e) {
+            if(e) e.preventDefault();
             state.isLoginView = !state.isLoginView;
             if (state.isLoginView) {
                 dom.authTitle.textContent = '登录您的账户';
@@ -341,10 +342,9 @@
                 
                 const contentSnippet = document.createElement('p');
                 contentSnippet.className = 'text-sm text-gray-600 truncate';
-                // 创建一个临时div来从html内容中提取纯文本
                 const tempDiv = document.createElement("div");
                 tempDiv.innerHTML = article.content;
-                contentSnippet.textContent = tempDiv.textContent || tempDiv.innerText || "";
+                contentSnippet.textContent = (tempDiv.textContent || tempDiv.innerText || "").substring(0, 100);
                 articleEl.appendChild(contentSnippet);
                 
                 dom.articleList.appendChild(articleEl);
@@ -353,18 +353,14 @@
 
         function renderArticleDetail(article) {
             dom.articleTitleInput.value = article.title;
-            // quill.setContents([]);
+            quill.setText(''); // Clear editor before setting content
             if (article.content) {
                 try {
-                    // 检查内容是否为JSON格式的Delta
                     const delta = JSON.parse(article.content);
                     quill.setContents(delta);
                 } catch (e) {
-                    // 如果不是，则作为HTML处理
                     quill.clipboard.dangerouslyPasteHTML(article.content);
                 }
-            } else {
-                quill.setText('');
             }
             dom.saveStatus.textContent = '已保存';
         }
@@ -386,7 +382,7 @@
             const article = state.articles.find(a => a._id === articleId);
             if (article) {
                 renderArticleDetail(article);
-                renderArticles(state.currentFolderId); // 重新渲染列表以高亮
+                renderArticles(state.currentFolderId);
                 switchToEditorView();
             }
         }
@@ -410,7 +406,6 @@
                     const res = await app.callFunction({ name: 'deleteFolder', data: { id: folderId }});
                     if (!res.result.success) throw new Error(res.result.error);
                     
-                    // 如果删除的是当前选中的文件夹，则返回“所有笔记”
                     if (state.currentFolderId === folderId) {
                         state.currentFolderId = null;
                     }
@@ -447,7 +442,7 @@
             dom.saveStatus.textContent = '正在保存...';
             try {
                 const title = dom.articleTitleInput.value;
-                const content = JSON.stringify(quill.getContents()); // 保存为Delta格式
+                const content = JSON.stringify(quill.getContents());
                 
                 const res = await app.callFunction({
                     name: 'updateArticle',
@@ -459,7 +454,6 @@
                 });
                 if (!res.result.success) throw new Error(res.result.error);
                 
-                // 更新本地状态以避免重新获取数据
                 const articleIndex = state.articles.findIndex(a => a._id === state.currentArticleId);
                 if (articleIndex > -1) {
                     state.articles[articleIndex].title = title;
@@ -537,11 +531,11 @@
 
         function uploadImage(file) {
             const cosInstance = getCosInstance();
-            const key = `${state.user.uid}/${Date.now()}-${file.name}`; // 使用用户ID作为文件夹，防止文件名冲突
+            const key = `${state.user.uid}/${Date.now()}-${file.name}`;
 
             cosInstance.putObject({
-                Bucket: 'notes-1317231591', // ！！！请替换
-                Region: 'ap-guangzhou', // ！！！请替换
+                Bucket: '您的-COS-存储桶名称', // ！！！请替换
+                Region: '您的-COS-存储桶地域', // ！！！请替换
                 Key: key,
                 Body: file,
                 onProgress: function(progressData) {
@@ -553,7 +547,6 @@
                     alert('图片上传失败!');
                 } else {
                     console.log('上传成功', data);
-                    // 腾讯云COS返回的地址需要拼接
                     const imageUrl = `https://${data.Location}`;
                     const range = quill.getSelection(true);
                     quill.insertEmbed(range.index, 'image', imageUrl);
@@ -593,17 +586,22 @@
         }
 
         // =================================================================
-        // 事件监听
+        // 事件监听 (代码已修复)
         // =================================================================
-        window.addEventListener('load', initializeApp);
-        dom.authForm.addEventListener('submit', handleAuthSubmit);
-        dom.authToggleLink.addEventListener('click', toggleAuthView);
-        dom.logoutBtn.addEventListener('click', handleLogout);
-        dom.newFolderBtn.addEventListener('click', handleNewFolder);
-        dom.newArticleBtn.addEventListener('click', handleNewArticle);
-        dom.saveArticleBtn.addEventListener('click', handleSaveArticle);
-        dom.deleteArticleBtn.addEventListener('click', handleDeleteArticle);
-        dom.sidebarToggleBtn.addEventListener('click', () => toggleSidebar());
+        window.addEventListener('load', () => {
+            // 页面完全加载后，再绑定所有事件监听
+            dom.authForm.addEventListener('submit', handleAuthSubmit);
+            dom.authToggleLink.addEventListener('click', toggleAuthView);
+            dom.logoutBtn.addEventListener('click', handleLogout);
+            dom.newFolderBtn.addEventListener('click', handleNewFolder);
+            dom.newArticleBtn.addEventListener('click', handleNewArticle);
+            dom.saveArticleBtn.addEventListener('click', handleSaveArticle);
+            dom.deleteArticleBtn.addEventListener('click', handleDeleteArticle);
+            dom.sidebarToggleBtn.addEventListener('click', () => toggleSidebar());
+            
+            // 最后初始化应用
+            initializeApp();
+        });
 
     </script>
 </body>
