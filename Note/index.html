@@ -307,42 +307,82 @@
         async function handleRenameFolder(id) { const folder = state.folders.find(i => i.id === id); if (!folder) return; const newName = await openRenameModal({ type: 'folder', currentName: folder.name }); if (newName && newName.trim() && newName.trim() !== folder.name) { const { error } = await supabase.from('folders').update({ name: newName.trim() }).eq('id', id); if (error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文件夹已重命名'); fetchData(); } } }
         async function handleRenameArticle(id) { const article = state.articles.find(i => i.id === id); if (!article) return; const newName = await openRenameModal({ type: 'article', currentName: article.title }); if (newName && newName.trim() && newName.trim() !== article.title) { const { error } = await supabase.from('articles').update({ title: newName.trim() }).eq('id', id); if (error) showToast(`重命名失败: ${error.message}`, 'error'); else { showToast('文章已重命名'); if (id === state.selectedArticleId) { dom.articleMainTitle.textContent = newName.trim(); } fetchData(); } } }
         function handleToggleFolder(id) { if (state.ui.expandedFolders.has(id)) state.ui.expandedFolders.delete(id); else state.ui.expandedFolders.add(id); renderFileTree(); }
-        function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
-            if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) { saveDraftToLocalStorage(); }
-            state.selectedArticleId = id; const article = state.articles.find(a => a.id === id); if (!article) { switchToWelcomeView(); return; }
-            state.openedArticleTimestamp = article.updated_at;
-            dom.welcomeView.classList.add('hidden'); dom.articleView.classList.remove('hidden'); dom.articleView.classList.add('flex');
-            dom.articleActions.classList.remove('hidden');
-            if (article.type === 'pdf') {
-                dom.richtextEditorView.classList.add('hidden');
-                dom.pdfReaderView.classList.remove('hidden');
-                dom.pdfReaderView.classList.add('flex');
-                dom.headerPdfControls.classList.remove('hidden');
-                dom.headerPdfControls.classList.add('flex');
-                dom.toggleSidebarButton.classList.add('hidden');
-                dom.pdfHeaderActions.classList.remove('hidden');
-                dom.pdfHeaderActions.classList.add('flex');
-                dom.articleMainTitle.classList.add('hidden');
-                dom.mobileViewControls.classList.remove('hidden');
-                dom.mobileViewControls.classList.add('flex');
-                dom.mobileEditButton.classList.add('hidden');
-                dom.mobileEditControls.classList.add('hidden');
-                loadAndRenderPDF(article.content);
-            } else {
-                dom.pdfReaderView.classList.add('hidden');
-                dom.richtextEditorView.classList.remove('hidden');
-                dom.richtextEditorView.classList.add('flex');
-                dom.headerPdfControls.classList.add('hidden');
-                dom.toggleSidebarButton.classList.remove('hidden');
-                dom.pdfHeaderActions.classList.add('hidden');
-                dom.articleMainTitle.classList.remove('hidden');
-                dom.articleMainTitle.textContent = article.title;
-                dom.mobileEditButton.classList.remove('hidden');
-                const draft = loadDraftFromLocalStorage(id); const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
-                if (!ignoreDraft && useDraft) { showToast('已加载较新的本地草稿', 'success'); quill.root.innerHTML = draft.content || ''; switchToEditMode(); } 
-                else { quill.root.innerHTML = article.content || ''; if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
+        async function selectArticle(id, startInEditMode = false, ignoreDraft = false) {
+            if (state.isEditing && state.selectedArticleId && state.selectedArticleId !== id) {
+                saveDraftToLocalStorage();
             }
-            renderFileTree(); if (window.innerWidth < 768) { toggleSidebar('hide'); }
+            showToast('正在加载文章...');
+            try {
+                const { data: latestArticle, error } = await supabase.from('articles').select('*, folders(*)').eq('id', id).single();
+                if (error || !latestArticle) {
+                    throw new Error(error?.message || '文章未找到或已被删除。');
+                }
+                const articleIndex = state.articles.findIndex(a => a.id === id);
+                if (articleIndex !== -1) {
+                    state.articles[articleIndex] = latestArticle;
+                } else {
+                    state.articles.push(latestArticle);
+                }
+                
+                state.selectedArticleId = id;
+                const article = latestArticle;
+                state.openedArticleTimestamp = article.updated_at;
+
+                dom.welcomeView.classList.add('hidden');
+                dom.articleView.classList.remove('hidden');
+                dom.articleView.classList.add('flex');
+                dom.articleActions.classList.remove('hidden');
+                
+                if (article.type === 'pdf') {
+                    dom.richtextEditorView.classList.add('hidden');
+                    dom.pdfReaderView.classList.remove('hidden');
+                    dom.pdfReaderView.classList.add('flex');
+                    dom.headerPdfControls.classList.remove('hidden');
+                    dom.headerPdfControls.classList.add('flex');
+                    dom.toggleSidebarButton.classList.add('hidden');
+                    dom.pdfHeaderActions.classList.remove('hidden');
+                    dom.pdfHeaderActions.classList.add('flex');
+                    dom.articleMainTitle.classList.add('hidden');
+                    dom.mobileViewControls.classList.remove('hidden');
+                    dom.mobileViewControls.classList.add('flex');
+                    dom.mobileEditButton.classList.add('hidden');
+                    dom.mobileEditControls.classList.add('hidden');
+                    loadAndRenderPDF(article.content);
+                } else {
+                    dom.pdfReaderView.classList.add('hidden');
+                    dom.richtextEditorView.classList.remove('hidden');
+                    dom.richtextEditorView.classList.add('flex');
+                    dom.headerPdfControls.classList.add('hidden');
+                    dom.toggleSidebarButton.classList.remove('hidden');
+                    dom.pdfHeaderActions.classList.add('hidden');
+                    dom.articleMainTitle.classList.remove('hidden');
+                    dom.articleMainTitle.textContent = article.title;
+                    dom.mobileEditButton.classList.remove('hidden');
+                    const draft = loadDraftFromLocalStorage(id);
+                    const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
+                    if (!ignoreDraft && useDraft) {
+                        showToast('已加载较新的本地草稿', 'success');
+                        quill.root.innerHTML = draft.content || '';
+                        switchToEditMode();
+                    } else {
+                        quill.root.innerHTML = article.content || '';
+                        if (startInEditMode) {
+                            switchToEditMode();
+                        } else {
+                            switchToViewMode();
+                        }
+                    }
+                }
+                renderFileTree();
+                if (window.innerWidth < 768) {
+                    toggleSidebar('hide');
+                }
+                showToast('加载完成！');
+            } catch (error) {
+                showToast(`加载文章失败: ${error.message}`, 'error');
+                switchToWelcomeView();
+                fetchData();
+            }
         }
         async function loadAndRenderPDF(url) {
             const pdfViewer = dom.pdfViewer; pdfViewer.innerHTML = '<div class="text-slate-500">正在加载PDF...</div>';
@@ -573,8 +613,13 @@
             on(dom.showRegisterTab, 'click', () => { dom.registerForm.classList.remove('hidden'); dom.loginForm.classList.add('hidden'); dom.showRegisterTab.classList.add('bg-blue-500', 'text-white'); dom.showLoginTab.classList.remove('bg-blue-500', 'text-white'); });
             const refreshAction = async () => {
                 showToast('正在同步数据...'); const prevId = state.selectedArticleId; const isCurrentlyEditing = state.isEditing; await fetchData();
-                const selectedArticle = state.articles.find(a => a.id === prevId);
-                if (selectedArticle) { if (!isCurrentlyEditing && selectedArticle.type !== 'pdf') { quill.root.innerHTML = selectedArticle.content || ''; state.openedArticleTimestamp = selectedArticle.updated_at; } }
+                if (prevId) {
+                    const selectedArticle = state.articles.find(a => a.id === prevId);
+                    if (selectedArticle && !isCurrentlyEditing && selectedArticle.type !== 'pdf') {
+                        quill.root.innerHTML = selectedArticle.content || ''; 
+                        state.openedArticleTimestamp = selectedArticle.updated_at;
+                    }
+                }
                 showToast('数据同步完成！');
             };
             on(dom.logoutButton, 'click', handleLogout);
@@ -669,8 +714,12 @@
                 dom.userEmail.textContent = state.user.email; 
                 dom.userAvatar.textContent = state.user.email[0].toUpperCase();
                 await fetchData();
-                if (state.articles.length > 0) { selectArticle(state.articles[0].id); } 
-                else { switchToWelcomeView(); }
+                if (state.articles.length > 0) {
+                     // Don't automatically select the first article on initial load to prevent unnecessary fetches. Let the user choose.
+                     switchToWelcomeView();
+                } else {
+                    switchToWelcomeView();
+                }
             } else {
                 switchToWelcomeView();
                 dom.authView.classList.remove('hidden'); 
