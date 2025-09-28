@@ -534,8 +534,8 @@
             const key = `${state.user.uid}/${Date.now()}-${file.name}`;
 
             cosInstance.putObject({
-                Bucket: '您的-COS-存储桶名称', // ！！！请替换
-                Region: '您的-COS-存储桶地域', // ！！！请替换
+                Bucket: 'notes-1317231591', // ！！！请替换
+                Region: 'ap-guangzhou', // ！！！请替换
                 Key: key,
                 Body: file,
                 onProgress: function(progressData) {
