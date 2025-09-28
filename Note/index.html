@@ -121,7 +121,7 @@
                     <div class="flex items-center flex-1 min-w-0">
                         <button id="toggle-sidebar-button" class="p-2 rounded-md hover:bg-slate-100 flex-shrink-0"><i data-feather="menu" class="w-6 h-6"></i></button>
                         <div id="pdf-header-actions" class="hidden items-center space-x-2">
-                            <button id="pdf-close-button" title="展开侧边栏" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="x"></i></button>
+                            <button id="pdf-close-button" title="切换侧边栏" class="flex items-center p-2 text-sm bg-slate-100 rounded-md hover:bg-slate-200"><i data-feather="menu"></i></button>
                         </div>
                         <h2 id="article-main-title" class="text-lg font-semibold truncate ml-2">笔记</h2>
                     </div>
@@ -138,8 +138,12 @@
                         <div id="mobile-controls" class="flex items-center flex-shrink-0 md:hidden">
                             <div id="mobile-view-controls" class="hidden items-center space-x-1">
                                 <button id="mobile-edit-button" class="p-2 rounded-md hover:bg-slate-100"><i data-feather="edit-2" class="w-5 h-5"></i></button>
+                                <button id="mobile-export-button" class="p-2 rounded-md hover:bg-slate-100" title="导出"><i data-feather="download" class="w-5 h-5"></i></button>
+                                <button id="mobile-sync-button" class="p-2 rounded-md hover:bg-slate-100" title="同步"><i data-feather="refresh-cw" class="w-5 h-5"></i></button>
                             </div>
                             <div id="mobile-edit-controls" class="hidden items-center">
+                                <button id="mobile-export-button-edit" class="p-2 rounded-md hover:bg-slate-100" title="导出"><i data-feather="download" class="w-5 h-5"></i></button>
+                                <button id="mobile-sync-button-edit" class="p-2 rounded-md hover:bg-slate-100" title="同步"><i data-feather="refresh-cw" class="w-5 h-5"></i></button>
                                 <button id="mobile-save-button" class="p-2 rounded-md bg-blue-500 text-white hover:bg-blue-600"><i data-feather="save" class="w-5 h-5"></i></button>
                             </div>
                         </div>
@@ -319,6 +323,10 @@
                 dom.pdfHeaderActions.classList.remove('hidden');
                 dom.pdfHeaderActions.classList.add('flex');
                 dom.articleMainTitle.classList.add('hidden');
+                dom.mobileViewControls.classList.remove('hidden');
+                dom.mobileViewControls.classList.add('flex');
+                dom.mobileEditButton.classList.add('hidden');
+                dom.mobileEditControls.classList.add('hidden');
                 loadAndRenderPDF(article.content);
             } else {
                 dom.pdfReaderView.classList.add('hidden');
@@ -329,6 +337,7 @@
                 dom.pdfHeaderActions.classList.add('hidden');
                 dom.articleMainTitle.classList.remove('hidden');
                 dom.articleMainTitle.textContent = article.title;
+                dom.mobileEditButton.classList.remove('hidden');
                 const draft = loadDraftFromLocalStorage(id); const useDraft = draft && new Date(draft.updatedAt) > new Date(article.updated_at);
                 if (!ignoreDraft && useDraft) { showToast('已加载较新的本地草稿', 'success'); quill.root.innerHTML = draft.content || ''; switchToEditMode(); } 
                 else { quill.root.innerHTML = article.content || ''; if (startInEditMode) { switchToEditMode(); } else { switchToViewMode(); } }
@@ -563,6 +572,10 @@
             on(dom.forceReloadButton, 'click', handleForceReload);
             on(dom.mobileEditButton, 'click', switchToEditMode);
             on(dom.mobileSaveButton, 'click', handleSaveArticle);
+            on(dom.mobileSyncButton, 'click', refreshAction);
+            on(dom.mobileExportButton, 'click', handleExportPDF);
+            on(dom.mobileSyncButtonEdit, 'click', refreshAction);
+            on(dom.mobileExportButtonEdit, 'click', handleExportPDF);
             
             on(dom.cancelMove, 'click', () => dom.moveModal?.classList.add('hidden'));
             on(dom.confirmMove, 'click', handleConfirmMove);
@@ -591,7 +604,7 @@
 
             on(dom.toggleHeaderButton, 'click', () => toggleHeader());
             on(dom.showHeaderButton, 'click', () => toggleHeader());
-            on(dom.pdfCloseButton, 'click', () => toggleSidebar('show'));
+            on(dom.pdfCloseButton, 'click', () => toggleSidebar());
         }
         
         async function initializeApp() {
@@ -605,6 +618,7 @@
                 importPdfButton: document.getElementById('import-pdf-button'), importPdfInput: document.getElementById('import-pdf-input'), 
                 exportDropdownButton: document.getElementById('export-dropdown-button'), exportOptions: document.getElementById('export-options'), exportTxtButton: document.getElementById('export-txt-button'), exportPdfButton: document.getElementById('export-pdf-button'),
                 toggleHeaderButton: document.getElementById('toggle-header-button'), showHeaderButton: document.getElementById('show-header-button'),
+                mobileExportButton: document.getElementById('mobile-export-button'), mobileSyncButton: document.getElementById('mobile-sync-button'), mobileExportButtonEdit: document.getElementById('mobile-export-button-edit'), mobileSyncButtonEdit: document.getElementById('mobile-sync-button-edit'),
             };
 
             feather.replace();
