@@ -377,22 +377,58 @@
         }
         async function handleExportPDF() {
             const article = state.articles.find(a => a.id === state.selectedArticleId);
-            if (!article) return; showToast('正在生成PDF...');
-            if (article.type === 'pdf') { window.open(article.content, '_blank'); showToast('正在打开原始PDF文件...'); return; }
-            const editorContent = document.querySelector('#editor-container .ql-editor');
-            const originalStyle = editorContent.style.cssText;
+            if (!article) return; 
+            showToast('正在生成PDF...');
+            if (article.type === 'pdf') {
+                window.open(article.content, '_blank');
+                showToast('正在打开原始PDF文件...');
+                return;
+            }
+
+            const isViewMode = !state.isEditing;
+            const editorContentEl = dom.editorContainer.querySelector('.ql-editor');
+            let originalContent = null;
+
+            if (isViewMode) {
+                originalContent = editorContentEl.innerHTML;
+                editorContentEl.innerHTML = article.content || '';
+            }
+
+            const originalStyle = editorContentEl.style.cssText;
+            const styleTag = document.createElement('style');
+            styleTag.innerHTML = `
+                .ql-editor p, .ql-editor h1, .ql-editor h2, .ql-editor h3, .ql-editor ul, .ql-editor ol, .ql-editor pre, .ql-editor blockquote {
+                    margin-top: 0.75rem !important;
+                    margin-bottom: 0.75rem !important;
+                }
+                .ql-editor img {
+                    margin-top: 0.75rem !important;
+                    margin-bottom: 0.75rem !important;
+                }
+            `;
+            document.head.appendChild(styleTag);
+            
             try {
-                editorContent.style.height = `${editorContent.scrollHeight}px`;
-                editorContent.style.maxHeight = 'none';
-                const canvas = await html2canvas(editorContent, { scale: 2, useCORS: true });
-                editorContent.style.cssText = originalStyle;
+                editorContentEl.style.height = `${editorContentEl.scrollHeight}px`;
+                editorContentEl.style.maxHeight = 'none';
+                
+                const canvas = await html2canvas(editorContentEl, { scale: 2, useCORS: true });
+                
                 const imgData = canvas.toDataURL('image/jpeg', 0.9);
                 const pdf = new jsPDF({ orientation: 'p', unit: 'px', format: [canvas.width, canvas.height] });
                 pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
                 pdf.save(`${article.title}.pdf`);
                 showToast('PDF导出成功！');
-            } catch(e) { showToast('PDF导出失败', 'error'); console.error(e); }
-            finally { editorContent.style.cssText = originalStyle; }
+            } catch(e) { 
+                showToast('PDF导出失败', 'error'); 
+                console.error(e); 
+            } finally {
+                document.head.removeChild(styleTag);
+                editorContentEl.style.cssText = originalStyle;
+                if (isViewMode && originalContent !== null) {
+                    editorContentEl.innerHTML = originalContent;
+                }
+            }
         }
         function switchToEditMode() { state.isEditing = true; quill.enable(true); dom.editButton.classList.add('hidden'); dom.saveButton.classList.remove('hidden'); dom.mobileViewControls.classList.add('hidden'); dom.mobileEditControls.classList.remove('hidden'); dom.mobileEditControls.classList.add('flex'); quill.focus(); }
         function switchToViewMode() { state.isEditing = false; quill.enable(false); dom.editButton.classList.remove('hidden'); dom.saveButton.classList.add('hidden'); dom.mobileViewControls.classList.remove('hidden'); dom.mobileViewControls.classList.add('flex'); dom.mobileEditControls.classList.add('hidden'); if (!state.selectedArticleId) dom.mobileViewControls.classList.add('hidden'); }
