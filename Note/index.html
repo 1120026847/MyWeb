@@ -270,6 +270,14 @@
             } catch (error) { console.error('Upload failed:', error); }
         }
         function dataURLtoFile(dataurl, filename) { let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n); while (n--) { u8arr[n] = bstr.charCodeAt(n); } return new File([u8arr], filename, {type: mime});}
+        // --- [MODIFICATION START] New utility function ---
+        async function fileFromImgSrc(src, filename) {
+          const res = await fetch(src, { mode: 'cors' });
+          const blob = await res.blob();
+          const type = blob.type || 'image/png';
+          return new File([blob], filename, { type });
+        }
+        // --- [MODIFICATION END] ---
         async function fetchData() {
             if (!state.user) return;
             try {
@@ -602,23 +610,105 @@
                             }
                         }
                     },
-                     clipboard: {
+                    // --- [MODIFICATION START] Updated clipboard matchers ---
+                    clipboard: {
                         matchers: [
                             ['img', (node, delta) => {
-                                const src = node.getAttribute('src');
-                                if (src && src.startsWith('data:image/')) {
+                                const src = node.getAttribute('src') || '';
+                                const Delta = Quill.import('delta');
+
+                                // 3.1 directly handle data: URL (original logic)
+                                if (src.startsWith('data:image/')) {
                                     const file = dataURLtoFile(src, `pasted-image-${Date.now()}.png`);
                                     handleImageUpload(file);
-                                    return new Delta(); 
+                                    return new Delta(); // Prevent pasting the original <img> tag
                                 }
+
+                                // 3.2 Add fallback for blob: / http(s)
+                                if (src.startsWith('blob:') || src.startsWith('http')) {
+                                    fileFromImgSrc(src, `pasted-image-${Date.now()}.png`)
+                                      .then(file => handleImageUpload(file))
+                                      .catch(err => console.error('img fetch failed', err));
+                                    return new Delta();
+                                }
+
                                 return delta;
                             }]
                         ]
                     }
+                    // --- [MODIFICATION END] ---
                 },
                 theme: 'snow'
             });
-            on(quill.root, 'text-change', (delta, oldDelta, source) => { if (source === 'user' && state.isEditing && state.selectedArticleId) { saveDraftToLocalStorage(); } });
+
+            // --- [MODIFICATION START] Enhanced paste and clipboard handling ---
+            // A. Directly intercept paste event: prioritize getting binary image files from the clipboard
+            on(quill.root, 'paste', async (e) => {
+              const dt = e.clipboardData;
+              if (!dt) return;
+
+              // 1) Standard: Direct file in clipboard (supported by Android Gboard, some other input methods)
+              const files = Array.from(dt.files || []).filter(f => f.type.startsWith('image/'));
+              if (files.length) {
+                e.preventDefault();
+                await handleImageUpload(files[0]);
+                return;
+              }
+
+              // 2) Fallback: Items in clipboard (older implementation)
+              const imgItem = Array.from(dt.items || []).find(it => it.kind === 'file' && it.type.startsWith('image/'));
+              if (imgItem) {
+                e.preventDefault();
+                const file = imgItem.getAsFile();
+                if (file) await handleImageUpload(file);
+                return;
+              }
+              
+              // 3) Final fallback: Might be pasting <img src="blob:..."> or http(s)
+              const html = dt.getData('text/html');
+              if (html && html.includes('<img')) {
+                const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+                if (m && m[1]) {
+                  e.preventDefault();
+                  try {
+                    const file = await fileFromImgSrc(m[1], `pasted-image-${Date.now()}.png`);
+                    await handleImageUpload(file);
+                  } catch (err) {
+                    console.error('fetch pasted img failed', err);
+                  }
+                }
+              }
+            });
+
+            // B. Optional: Provide a "paste image" button, calling the async clipboard (supported by new Chrome/some Android versions)
+            async function tryReadClipboardImage() {
+              if (!navigator.clipboard || !navigator.clipboard.read) return false;
+              try {
+                const items = await navigator.clipboard.read(); // Requires HTTPS + user gesture
+                for (const it of items) {
+                  for (const t of it.types) {
+                    if (t.startsWith('image/')) {
+                      const blob = await it.getType(t);
+                      const file = new File([blob], `clipboard-${Date.now()}.png`, { type: t });
+                      await handleImageUpload(file);
+                      return true;
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn('clipboard.read() not available', e);
+              }
+              return false;
+            }
+            // --- [MODIFICATION END] ---
+            
+            // --- [MODIFICATION START] Bug fix for text-change event ---
+            quill.on('text-change', (delta, oldDelta, source) => { 
+                if (source === 'user' && state.isEditing && state.selectedArticleId) { 
+                    saveDraftToLocalStorage(); 
+                } 
+            });
+            // --- [MODIFICATION END] ---
             quill.enable(false);
         }
         function initEventListeners() {
@@ -696,26 +786,20 @@
                 if(!e.target.closest('.article-menu-btn')) { dom.articleContextMenu?.classList.add('hidden'); }
                 if(!dom.exportDropdownButton?.contains(e.target) && !dom.exportOptions?.contains(e.target)) { dom.exportOptions?.classList.add('hidden'); }
             });
-            on(quill.root, 'drop', (e) => { e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over'); const files = e.dataTransfer.files; if (files && files.length > 0) { handleImageUpload(files[0]); } });
-
-            // --- 新增代码：开始 ---
-            // 增强的粘贴处理，专门用于捕获移动设备上的图片粘贴
-            on(quill.root, 'paste', (e) => {
-                const items = (e.clipboardData || window.clipboardData).items;
-                if (!items) return;
-
-                for (const item of items) {
-                    if (item.kind === 'file' && item.type.startsWith('image/')) {
-                        e.preventDefault(); // 阻止默认的粘贴行为
-                        const file = item.getAsFile();
-                        if (file) {
-                            handleImageUpload(file);
-                        }
-                        return; // 只处理找到的第一个图片文件
-                    }
-                }
+            // --- [MODIFICATION START] Add drag-and-drop event listeners ---
+            on(quill.root, 'dragenter', (e) => {
+              e.preventDefault(); e.stopPropagation();
+              quill.root.classList.add('editor-drag-over');
             });
-            // --- 新增代码：结束 ---
+            on(quill.root, 'dragover', (e) => {
+              e.preventDefault(); e.stopPropagation();
+            });
+            on(quill.root, 'dragleave', (e) => {
+              e.preventDefault(); e.stopPropagation();
+              quill.root.classList.remove('editor-drag-over');
+            });
+            on(quill.root, 'drop', (e) => { e.preventDefault(); e.stopPropagation(); quill.root.classList.remove('editor-drag-over'); const files = e.dataTransfer.files; if (files && files.length > 0) { handleImageUpload(files[0]); } });
+            // --- [MODIFICATION END] ---
 
             on(dom.toggleHeaderButton, 'click', () => toggleHeader());
             on(dom.showHeaderButton, 'click', () => toggleHeader());
