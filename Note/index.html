@@ -478,7 +478,22 @@
             const { data: serverArticle, error: fetchError } = await supabase.from('articles').select('updated_at').eq('id', state.selectedArticleId).single();
             if (fetchError) { showToast('检查文章状态失败', 'error'); return; }
             if (state.openedArticleTimestamp && new Date(serverArticle.updated_at) > new Date(state.openedArticleTimestamp)) {
-                if (await showConfirmation({ title: '内容冲突', text: '此笔记已在别处更新。您的当前修改将被复制到剪贴板，然后加载最新版本。', okText: '好的', cancelText: '取消' })) { navigator.clipboard.writeText(quill.getText()); showToast('当前草稿已复制到剪贴板。'); await fetchData(); selectArticle(state.selectedArticleId, false, true); } return;
+                if (await showConfirmation({ title: '内容冲突', text: '此笔记已在别处更新。您的当前修改将被复制到剪贴板，然后加载最新版本。', okText: '好的', cancelText: '取消' })) {
+                    try {
+                        const htmlContent = quill.root.innerHTML;
+                        const blob = new Blob([htmlContent], { type: 'text/html' });
+                        const clipboardItem = new ClipboardItem({ 'text/html': blob });
+                        await navigator.clipboard.write([clipboardItem]);
+                        showToast('当前草稿 (含格式) 已复制到剪贴板。');
+                    } catch (err) {
+                        console.error('复制富文本失败，回退到纯文本:', err);
+                        await navigator.clipboard.writeText(quill.getText());
+                        showToast('当前草稿 (纯文本) 已复制到剪贴板。');
+                    }
+                    await fetchData();
+                    selectArticle(state.selectedArticleId, false, true);
+                }
+                return;
             }
             const c = quill.root.innerHTML; 
             const { data: updatedArticle, error } = await supabase.from('articles').update({ content: c, updated_at: new Date().toISOString() }).eq('id', state.selectedArticleId).select().single();
@@ -715,7 +730,6 @@
                 dom.userAvatar.textContent = state.user.email[0].toUpperCase();
                 await fetchData();
                 if (state.articles.length > 0) {
-                     // Don't automatically select the first article on initial load to prevent unnecessary fetches. Let the user choose.
                      switchToWelcomeView();
                 } else {
                     switchToWelcomeView();
